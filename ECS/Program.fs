@@ -83,7 +83,6 @@ type PhysicsSystem () =
                     | Created (entityId, physicsPolygon) ->
                         let data = 
                             physicsPolygon.Data
-                            //|> Array.map (fun x -> FarseerPhysics.ConvertUnits.ToSimUnits(x))
 
                         physicsPolygon.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
                         physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
@@ -96,9 +95,8 @@ type PhysicsSystem () =
             )
 
         member __.Update world =
-            physicsWorld.Gravity |> printfn "%A"
             world.Query.ForEachActiveEntityComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                physicsPolygon.Body.Position <- !position.Value//FarseerPhysics.ConvertUnits.ToSimUnits(!position.Value)
+                physicsPolygon.Body.Position <- !position.Value
                 physicsPolygon.Body.Rotation <- !rotation.Value
                 physicsPolygon.Body.Awake <- true
             )
@@ -107,7 +105,7 @@ type PhysicsSystem () =
 
             world.Query.ForEachActiveEntityComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
                 position.PreviousValue := !position.Value
-                position.Value := physicsPolygon.Body.Position//FarseerPhysics.ConvertUnits.ToDisplayUnits(physicsPolygon.Body.Position)
+                position.Value := physicsPolygon.Body.Position
 
                 rotation.PreviousValue := !rotation.Value
                 rotation.Value := physicsPolygon.Body.Rotation
@@ -188,7 +186,7 @@ type MovementSystem () =
                     | JoystickButtonPressed 10 -> true
                     | _ -> false) with
                 | Some _ ->
-                    physicsPolygon.Body.ApplyForce (Vector2.UnitY * 10.0f)
+                    physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
                 | _ -> ()
             )
 
@@ -218,10 +216,10 @@ let main argv =
 
         let data =
             [|
-                Vector2 (0.0127f, 0.0127f)
-                Vector2 (0.f, 0.0127f)
+                Vector2 (0.127f, 1.77f)
+                Vector2 (0.f, 1.77f)
                 Vector2 (0.f, 0.f)
-                Vector2 (0.0127f, 0.f)
+                Vector2 (0.127f, 0.f)
             |]
 
         let position = { Position.Value = ref <| Vector2.Zero; PreviousValue = ref <| Vector2.Zero }
@@ -237,7 +235,7 @@ let main argv =
         let physicsPolygon =
             {
                 Data = data
-                Density = 1000.f
+                Density = 1.f
                 IsStatic = false
                 Body = null
                 PolygonShape = null
@@ -334,7 +332,7 @@ let main argv =
         let physicsPolygon =
             {
                 Data = data
-                Density = 10.f
+                Density = 1.f
                 IsStatic = false
                 Body = null
                 PolygonShape = null
