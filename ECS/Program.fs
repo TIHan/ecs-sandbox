@@ -12,11 +12,17 @@ open ECS
 
 open System.Numerics
 
+type Centroid =
+    {
+        PreviousValue: Vector2 ref
+        Value: Vector2 ref
+    }
 
 type Position =
     {
         PreviousValue: Vector2 ref
         Value: Vector2 ref
+        Centroid: Centroid
     }
 
 type Rotation =
@@ -40,11 +46,7 @@ type Weapon =
         Damage: int
     }
 
-type Friend = Friend of unit
-
-type Enemy = Enemy of unit
-
-type LocalHost = LocalHost of unit
+type Player = Player of unit
 
 type Render =
     {
@@ -63,6 +65,9 @@ type PhysicsPolygon =
         Data: Vector2 []
         IsStatic: bool
         Density: float32
+        Restitution: float32
+        Friction: float32
+        Mass: float32
         mutable Body: FarseerPhysics.Dynamics.Body
         mutable PolygonShape: FarseerPhysics.Collision.Shapes.PolygonShape
         mutable Fixture: FarseerPhysics.Dynamics.Fixture
@@ -70,7 +75,7 @@ type PhysicsPolygon =
 
 
 type PhysicsEvent =
-    | Created of int * PhysicsPolygon
+    | Created of Entity * PhysicsPolygon
 
 type PhysicsSystem () =
     let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
@@ -80,17 +85,26 @@ type PhysicsSystem () =
             world.HandleEvent<PhysicsEvent> (fun observable ->
                 observable
                 |> Observable.add (function
-                    | Created (entityId, physicsPolygon) ->
+                    | Created (entity, physicsPolygon) ->
                         let data = 
                             physicsPolygon.Data
 
                         physicsPolygon.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
                         physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
-                        physicsPolygon.Body.Restitution <- 0.f
-                        physicsPolygon.Body.Friction <- 1.f
-                        physicsPolygon.Body.Mass <- 1.f
+                        physicsPolygon.Body.Restitution <- physicsPolygon.Restitution
+                        physicsPolygon.Body.Friction <- physicsPolygon.Friction
                         physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density)
                         physicsPolygon.Fixture <- physicsPolygon.Body.CreateFixture (physicsPolygon.PolygonShape)
+                        physicsPolygon.Fixture.UserData <- entity.Id
+                        physicsPolygon.Body.Mass <- physicsPolygon.Mass
+
+                        physicsPolygon.Fixture.OnCollision <-
+                            new FarseerPhysics.Dynamics.OnCollisionEventHandler (
+                                fun fixture1 fixture2 _ -> 
+                                    printfn "%A" fixture1.UserData
+                                    printfn "%A" fixture2.UserData
+                                    true
+                            )
                 )
             )
 
@@ -106,6 +120,9 @@ type PhysicsSystem () =
             world.Query.ForEachActiveEntityComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
                 position.PreviousValue := !position.Value
                 position.Value := physicsPolygon.Body.Position
+
+                position.Centroid.PreviousValue := !position.Centroid.Value
+                position.Centroid.Value := physicsPolygon.Body.WorldCenter
 
                 rotation.PreviousValue := !rotation.Value
                 rotation.Value := physicsPolygon.Body.Rotation
@@ -133,31 +150,28 @@ type RendererSystem () =
             let projection = Matrix4x4.CreateOrthographic (1280.f / 128.f, 720.f / 128.f, 0.1f, Single.MaxValue)
             let view = ref Matrix4x4.Identity
 
-            world.Query.ForEachActiveEntityComponent<LocalHost, PhysicsPolygon, Position> (fun (entity, _, physicsPolygon, position) ->
-                let value = Vector3 (physicsPolygon.Body.WorldCenter, 0.f)
-                view := Matrix4x4.CreateTranslation (value * -1.f)
+            world.Query.ForEachActiveEntityComponent<Player, Position> (fun (entity, _, position) ->
+                let centroid = position.Centroid
+                let value = Vector2.Lerp (!centroid.PreviousValue, !centroid.Value, world.Delta)
+                view := Matrix4x4.CreateTranslation (Vector3 (value, 0.f) * -1.f)
             )
 
             Renderer.R.UseProgram defaultShader
             Renderer.R.SetProjection defaultShader projection
             Renderer.R.SetView defaultShader !view
 
-            world.Query.ForEachActiveEntityComponent<Render> (fun (entity, render) ->
-                if render.PositionRef.IsNull
-                then ()
-                else
-                    let position = render.PositionRef.Value
-                    let rotation = render.RotationRef.Value
+            world.Query.ForEachActiveEntityComponent<Render, Position> (fun (entity, render, position) ->
+                let position = render.PositionRef.Value
+                let rotation = render.RotationRef.Value
 
-                    let positionValue = Vector3.Lerp (Vector3 (!position.PreviousValue, 0.f), Vector3 (!position.Value, 0.f), world.Delta)
-                    let rotationValue = Vector2.Lerp(Vector2 (!rotation.PreviousValue, 0.f), Vector2 (!rotation.Value, 0.f), world.Delta).X
+                let positionValue = Vector2.Lerp (!position.PreviousValue, !position.Value, world.Delta)
+                let rotationValue = Vector2.Lerp(Vector2 (!rotation.PreviousValue, 0.f), Vector2 (!rotation.Value, 0.f), world.Delta).X
 
-                    let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
-                    let model = rotationMatrix * Matrix4x4.CreateTranslation (positionValue)
+                let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
+                let model = rotationMatrix * Matrix4x4.CreateTranslation (Vector3 (positionValue, 0.f))
 
-                    Renderer.R.SetModel defaultShader model
-                    Renderer.R.DrawLineLoop defaultShader render.VBO
-
+                Renderer.R.SetModel defaultShader model
+                Renderer.R.DrawLineLoop defaultShader render.VBO
             )
 
             Renderer.R.Draw (context)
@@ -173,14 +187,14 @@ type MovementSystem () =
             ()
 
         member __.Update world =
-            world.Query.ForEachActiveEntityComponent<LocalHost, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
+            world.Query.ForEachActiveEntityComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
                 let events = Input.getEvents ()
 
                 if Input.isJoystickButtonPressed 2 then
-                    physicsPolygon.Body.ApplyForce (Vector2.UnitX * -2.2f)
+                    physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
 
                 if Input.isJoystickButtonPressed 3 then
-                    physicsPolygon.Body.ApplyForce (Vector2.UnitX * 2.2f)
+                    physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
 
                 match events |> List.tryFind (function
                     | JoystickButtonPressed 10 -> true
@@ -216,13 +230,22 @@ let main argv =
 
         let data =
             [|
-                Vector2 (0.127f, 1.77f)
+                Vector2 (1.127f, 1.77f)
                 Vector2 (0.f, 1.77f)
                 Vector2 (0.f, 0.f)
-                Vector2 (0.127f, 0.f)
+                Vector2 (1.127f, 0.f)
             |]
 
-        let position = { Position.Value = ref <| Vector2.Zero; PreviousValue = ref <| Vector2.Zero }
+        let position = 
+            { 
+                Position.Value = ref Vector2.Zero
+                PreviousValue = ref Vector2.Zero
+                Centroid = 
+                    {
+                        Value = ref Vector2.Zero
+                        PreviousValue = ref Vector2.Zero
+                    }
+            }
 
         world.SetEntityComponent position entity
 
@@ -230,12 +253,15 @@ let main argv =
 
         world.SetEntityComponent rotation entity
 
-        world.SetEntityComponent (LocalHost ()) entity
+        world.SetEntityComponent (Player ()) entity
 
         let physicsPolygon =
             {
                 Data = data
                 Density = 1.f
+                Restitution = 0.f
+                Friction = 1.f
+                Mass = 1.f
                 IsStatic = false
                 Body = null
                 PolygonShape = null
@@ -244,7 +270,7 @@ let main argv =
 
         world.SetEntityComponent physicsPolygon entity
 
-        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity.Id, physicsPolygon))
+        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
 
         let render =
             {
@@ -272,7 +298,16 @@ let main argv =
 
         let positionValue = Vector2 (0.f, -10.f)
 
-        let position = { Position.Value = ref positionValue; PreviousValue = ref positionValue }
+        let position = 
+            { 
+                Position.Value = ref positionValue
+                PreviousValue = ref positionValue
+                Centroid = 
+                    {
+                        Value = ref Vector2.Zero
+                        PreviousValue = ref Vector2.Zero
+                    }
+            }
 
         world.SetEntityComponent position entity
 
@@ -283,7 +318,10 @@ let main argv =
         let physicsPolygon =
             {
                 Data = data
-                Density = 0.f
+                Density = 1.f
+                Restitution = 0.f
+                Friction = 1.f
+                Mass = 1.f
                 IsStatic = true
                 Body = null
                 PolygonShape = null
@@ -292,7 +330,7 @@ let main argv =
 
         world.SetEntityComponent physicsPolygon entity
 
-        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity.Id, physicsPolygon))
+        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
 
         let render =
             {
@@ -313,15 +351,24 @@ let main argv =
 
         let data =
             [|
-                Vector2 (1.f, 0.6858f)
+                Vector2 (-50.f, 0.6858f)
                 Vector2 (0.f, 0.6858f)
                 Vector2 (0.f, 0.f)
-                Vector2 (1.f, 0.f)
+                Vector2 (-50.f, 0.f)
             |]
 
-        let position = Vector2 (-5.f, 0.f)
+        let positionValue = Vector2 (-5.f, 0.f)
 
-        let position = { Position.Value = ref position; PreviousValue = ref position }
+        let position = 
+            { 
+                Position.Value = ref positionValue
+                PreviousValue = ref positionValue
+                Centroid = 
+                    {
+                        Value = ref Vector2.Zero
+                        PreviousValue = ref Vector2.Zero
+                    }
+            }
 
         world.SetEntityComponent position entity
 
@@ -333,6 +380,9 @@ let main argv =
             {
                 Data = data
                 Density = 1.f
+                Restitution = 0.f
+                Friction = 1.f
+                Mass = 1.f
                 IsStatic = false
                 Body = null
                 PolygonShape = null
@@ -341,7 +391,7 @@ let main argv =
 
         world.SetEntityComponent physicsPolygon entity
 
-        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity.Id, physicsPolygon))
+        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
 
         let render =
             {
