@@ -67,6 +67,7 @@
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
+    <None Include="recordings.bin" />
     <None Include="SimpleFragmentShader.fragmentshader">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -85,6 +86,10 @@
     </Reference>
     <Reference Include="Ferop">
       <HintPath>..\packages\Ferop.1.0.0-beta7\lib\net45\Ferop.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="FsPickler">
+      <HintPath>..\packages\FsPickler.1.2.9\lib\net45\FsPickler.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="gdk-sharp">
@@ -118,6 +123,8 @@
       <HintPath>..\packages\System.Numerics.Vectors.4.0.0\lib\portable-net45+win8+wpa81\System.Numerics.Vectors.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Farseer Physics Engine 3.5 SIMD\Farseer Physics.csproj">

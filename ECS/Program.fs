@@ -147,7 +147,7 @@ type RendererSystem () =
         member __.Update world =
             Renderer.R.Clear ()
 
-            let projection = Matrix4x4.CreateOrthographic (1280.f / 128.f, 720.f / 128.f, 0.1f, Single.MaxValue)
+            let projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, Single.MaxValue)
             let view = ref Matrix4x4.Identity
 
             world.Query.ForEachActiveEntityComponent<Player, Position> (fun (entity, _, position) ->
@@ -179,30 +179,86 @@ type RendererSystem () =
 
 
 open Input
+open Nessos.FsPickler
+
+type InputSystem () =
+    let binary = FsPickler.CreateBinary()
+    let recordings = Dictionary<TimeSpan, InputEvent list> ()
+
+    interface ISystem with
+
+        member __.Init world =
+            ()
+
+        member __.Update world =
+
+            match world.Time.Seconds > 5 with
+            | true ->
+                use fileStream = File.Open ("recordings.bin", FileMode.OpenOrCreate)
+
+                binary.Serialize (fileStream, recordings)
+                fileStream.Close ()
+                fileStream.Dispose ()
+
+                let fileStream = File.Open ("recordings.bin", FileMode.Open)
+                let dict : (Dictionary<TimeSpan, InputEvent list>) = binary.Deserialize (fileStream)
+
+                match dict.TryGetValue world.Time with
+                | true, events -> world.RaiseEvent<InputEvent list> (events)
+                | _ -> ()  
+
+            | _ -> ()
+
+            let events = Input.getEvents ()
+
+            world.RaiseEvent<InputEvent list> (events)
+
+            recordings.Add (world.Time, events)
+
+type PlaybackSystem () =
+    let fileStream = File.Open ("recordings.bin", FileMode.Open)
+    let binary = FsPickler.CreateBinary()
+    let dict : (Dictionary<TimeSpan, InputEvent list>) = binary.Deserialize<Dictionary<TimeSpan, InputEvent list>> (fileStream)
+
+    interface ISystem with
+
+        member __.Init world =
+            ()
+
+        member __.Update world =
+            match dict.TryGetValue (world.Time - TimeSpan.FromTicks(world.Interval.Ticks * 273L)) with
+            | true, events -> world.RaiseEvent<InputEvent list> (events)
+            | _ -> ()  
 
 type MovementSystem () =
     interface ISystem with
         
         member __.Init world =
-            ()
+            world.HandleEvent<InputEvent list> (fun observable ->
+                observable
+                |> Observable.add (fun events ->
+
+                    world.Query.ForEachActiveEntityComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
+
+                        events
+                        |> List.iter (function
+                            | JoystickButtonPressed 2 -> 
+                                physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
+                            | JoystickButtonPressed 3 -> 
+                                physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
+                            | JoystickButtonPressed 10 -> 
+                                physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
+                            | _ -> ()
+                        )
+                    )
+
+
+
+                )
+            )
 
         member __.Update world =
-            world.Query.ForEachActiveEntityComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
-                let events = Input.getEvents ()
-
-                if Input.isJoystickButtonPressed 2 then
-                    physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
-
-                if Input.isJoystickButtonPressed 3 then
-                    physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
-
-                match events |> List.tryFind (function
-                    | JoystickButtonPressed 10 -> true
-                    | _ -> false) with
-                | Some _ ->
-                    physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
-                | _ -> ()
-            )
+            ()
 
 ///////////////////////////////////////////////////////////////////
 
@@ -215,11 +271,15 @@ let benchmark f =
 [<EntryPoint>]
 let main argv = 
 
+    //let inputSystem = InputSystem ()
+    let playbackSystem = PlaybackSystem ()
     let movementSystem = MovementSystem ()
     let physicsSystem = PhysicsSystem ()
 
     let world = World (20480)
 
+    //world.AddSystem inputSystem
+    world.AddSystem playbackSystem
     world.AddSystem movementSystem
     world.AddSystem physicsSystem
 
