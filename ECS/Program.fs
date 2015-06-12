@@ -48,6 +48,15 @@ type Weapon =
 
 type Player = Player of unit
 
+type Camera =
+    {
+        mutable Projection: Matrix4x4
+        mutable View: Matrix4x4
+        mutable ViewportPosition: Vector2
+        mutable ViewportDimensions: Vector2
+        mutable ViewportDepth: Vector2
+    }
+
 type Render =
     {
         R: byte
@@ -101,8 +110,6 @@ type PhysicsSystem () =
                         physicsPolygon.Fixture.OnCollision <-
                             new FarseerPhysics.Dynamics.OnCollisionEventHandler (
                                 fun fixture1 fixture2 _ -> 
-                                    printfn "%A" fixture1.UserData
-                                    printfn "%A" fixture2.UserData
                                     true
                             )
                 )
@@ -130,6 +137,14 @@ type PhysicsSystem () =
 
 ///////////////////////////////////////////////////////////////////
 
+let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
+    let _,m = Matrix4x4.Invert (model * view * projection)
+    let x = (((source.X - viewportPosition.X) / (viewportDimensions.X)) * 2.f) - 1.f
+    let y = -((((source.Y - viewportPosition.Y) / (viewportDimensions.Y)) * 2.f) - 1.f)
+    let z = (source.Z - viewportDepth.X) / (viewportDepth.Y - viewportDepth.X)
+    let mutable v = Vector3.Transform(Vector3 (x, y, z), m)
+    v
+
 type RendererSystem () =
     let mutable context = Renderer.RendererContext ()
     let mutable vao = Renderer.VAO (0)
@@ -147,14 +162,23 @@ type RendererSystem () =
         member __.Update world =
             Renderer.R.Clear ()
 
-            let projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, Single.MaxValue)
-            let view = ref Matrix4x4.Identity
+            let cameras = world.Query.GetEntityComponents<Camera> ()
 
-            world.Query.ForEachActiveEntityComponent<Player, Position> (fun (entity, _, position) ->
+            match cameras with
+            | [||] -> ()
+            | _ ->
+            
+            let (_,camera) = cameras.[0]
+            let projection = camera.Projection
+            let view = ref camera.View
+
+            world.Query.ForEachActiveEntityComponent<Player, Position> (fun (_, _, position) ->
                 let centroid = position.Centroid
                 let value = Vector2.Lerp (!centroid.PreviousValue, !centroid.Value, world.Delta)
                 view := Matrix4x4.CreateTranslation (Vector3 (value, 0.f) * -1.f)
             )
+
+            camera.View <- !view
 
             Renderer.R.UseProgram defaultShader
             Renderer.R.SetProjection defaultShader projection
@@ -231,6 +255,8 @@ type PlaybackSystem () =
             | _ -> ()  
 
 type MovementSystem () =
+    let count = ref 10
+
     interface ISystem with
         
         member __.Init world =
@@ -248,6 +274,81 @@ type MovementSystem () =
                                 physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
                             | JoystickButtonPressed 10 -> 
                                 physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
+                            | MouseButtonPressed MouseButtonType.Left ->
+
+                                let cameras = world.Query.GetEntityComponents<Camera> ()
+
+                                match cameras with
+                                | [||] -> ()
+                                | _ ->
+            
+                                let (_,camera) = cameras.[0]
+
+                                let mouse = Input.Input.getMousePosition()
+                                let mouseV = Vector3 (single mouse.X, single mouse.Y, 0.f)
+
+                                let v = unProject (mouseV, Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
+                                let v = Vector2 (v.X, v.Y)
+
+                                let n = !count
+                                count := n + 1
+
+                                world.CreateActiveEntity n (fun entity ->
+
+                                    let data =
+                                        [|
+                                            Vector2 (1.127f, 1.77f)
+                                            Vector2 (0.f, 1.77f)
+                                            Vector2 (0.f, 0.f)
+                                            Vector2 (1.127f, 0.f)
+                                        |]
+
+                                    let position = 
+                                        { 
+                                            Position.Value = ref v
+                                            PreviousValue = ref v
+                                            Centroid = 
+                                                {
+                                                    Value = ref Vector2.Zero
+                                                    PreviousValue = ref Vector2.Zero
+                                                }
+                                        }
+
+                                    world.SetEntityComponent position entity
+
+                                    let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
+
+                                    world.SetEntityComponent rotation entity
+
+                                    let physicsPolygon =
+                                        {
+                                            Data = data
+                                            Density = 1.f
+                                            Restitution = 0.f
+                                            Friction = 1.f
+                                            Mass = 1.f
+                                            IsStatic = false
+                                            Body = null
+                                            PolygonShape = null
+                                            Fixture = null
+                                        }
+
+                                    world.SetEntityComponent physicsPolygon entity
+
+                                    world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
+
+                                    let render =
+                                        {
+                                            R = 0uy
+                                            G = 0uy
+                                            B = 0uy
+                                            VBO = Renderer.R.CreateVBO(data)
+                                            PositionRef = world.Query.GetComponentRef<Position> entity
+                                            RotationRef = world.Query.GetComponentRef<Rotation> entity
+                                        }
+
+                                    world.SetEntityComponent render entity
+                                )                              
                             | _ -> ()
                         )
                     )
@@ -271,15 +372,15 @@ let benchmark f =
 [<EntryPoint>]
 let main argv = 
 
-    //let inputSystem = InputSystem ()
-    let playbackSystem = PlaybackSystem ()
+    let inputSystem = InputSystem ()
+    //let playbackSystem = PlaybackSystem ()
     let movementSystem = MovementSystem ()
     let physicsSystem = PhysicsSystem ()
 
     let world = World (20480)
 
-    //world.AddSystem inputSystem
-    world.AddSystem playbackSystem
+    world.AddSystem inputSystem
+    //world.AddSystem playbackSystem
     world.AddSystem movementSystem
     world.AddSystem physicsSystem
 
@@ -466,6 +567,18 @@ let main argv =
         world.SetEntityComponent render entity
     )
 
+    world.CreateActiveEntity 3 (fun entity ->
+        let camera =
+            {
+                Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, Single.MaxValue)
+                View = Matrix4x4.Identity
+                ViewportPosition = Vector2(0.f, 0.f)
+                ViewportDimensions = Vector2(1280.f, 720.f)
+                ViewportDepth = Vector2(0.1f, Single.MaxValue)
+            }
+
+        world.SetEntityComponent camera entity
+    )
 
     GameLoop.start
         world
