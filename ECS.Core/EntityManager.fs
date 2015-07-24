@@ -122,6 +122,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             data.entitySet.Remove entity |> ignore
             data.entities.Remove entity |> ignore
             if entity.Id >= 0 && entity.Id < data.components.Length then
+                data.components.[entity.Id].Dispose ()
                 data.components.[entity.Id] <- Unchecked.defaultof<IComponent>
         )
 
