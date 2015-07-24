@@ -61,9 +61,6 @@
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
     <Compile Include="Renderer.fs" />
-    <Compile Include="ECS.fsi" />
-    <Compile Include="ECS.fs" />
-    <Compile Include="GameLoop.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
@@ -88,6 +85,14 @@
       <HintPath>..\packages\Ferop.1.0.0-beta7\lib\net45\Ferop.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Control.Reactive">
+      <HintPath>..\packages\FSharp.Control.Reactive.3.2.0\lib\net40\FSharp.Control.Reactive.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="FSharp.Core">
+      <HintPath>..\packages\FSharp.Core.3.1.2\lib\net40\FSharp.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="FsPickler">
       <HintPath>..\packages\FsPickler.1.2.9\lib\net45\FsPickler.dll</HintPath>
       <Private>True</Private>
@@ -109,9 +114,6 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <Private>True</Private>
-    </Reference>
     <Reference Include="pango-sharp">
       <HintPath>..\packages\GtkSharp.3.1.2\lib\net45\pango-sharp.dll</HintPath>
       <Private>True</Private>
@@ -123,10 +125,27 @@
       <HintPath>..\packages\System.Numerics.Vectors.4.0.0\lib\portable-net45+win8+wpa81\System.Numerics.Vectors.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Reactive.Core">
+      <HintPath>..\packages\Rx-Core.2.2.5\lib\net45\System.Reactive.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Reactive.Interfaces">
+      <HintPath>..\packages\Rx-Interfaces.2.2.5\lib\net45\System.Reactive.Interfaces.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Reactive.Linq">
+      <HintPath>..\packages\Rx-Linq.2.2.5\lib\net45\System.Reactive.Linq.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ECS.Core\ECS.Core.fsproj">
+      <Name>ECS.Core</Name>
+      <Project>{a9d90eb8-a3f2-4d4f-a159-df4a54311785}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Farseer Physics Engine 3.5 SIMD\Farseer Physics.csproj">
       <Name>Farseer Physics</Name>
       <Project>{a4610e4c-dd34-428b-babb-779ca0b5993a}</Project>

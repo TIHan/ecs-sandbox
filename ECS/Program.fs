@@ -4,8 +4,11 @@ open System.Diagnostics
 open System.Collections.Generic
 open System.Runtime.InteropServices
 open Microsoft.FSharp.NativeInterop
+open FSharp.Control.Reactive
+open System.Reactive.Subjects
+open System.Reactive.Linq
 
-open ECS
+open ECS.Core
 
 #nowarn "9"
 #nowarn "51"
@@ -18,6 +21,12 @@ type Centroid =
         Value: Vector2 ref
     }
 
+    interface IComponent
+
+    interface IDisposable with
+
+        member __.Dispose () = ()
+
 type Position =
     {
         PreviousValue: Vector2 ref
@@ -25,11 +34,23 @@ type Position =
         Centroid: Centroid
     }
 
+    interface IComponent
+
+    interface IDisposable with
+
+        member __.Dispose () = ()
+
 type Rotation =
     {
         PreviousValue: single ref
         Value: single ref
     }
+
+    interface IComponent
+
+    interface IDisposable with
+
+        member __.Dispose () = ()
 
 type Health =
     {
@@ -46,7 +67,13 @@ type Weapon =
         Damage: int
     }
 
-type Player = Player of unit
+type Player = Player of unit with
+
+    interface IComponent
+
+    interface IDisposable with
+
+        member __.Dispose () = ()
 
 type Camera =
     {
@@ -57,15 +84,27 @@ type Camera =
         mutable ViewportDepth: Vector2
     }
 
+    interface IComponent
+
+    interface IDisposable with
+
+        member __.Dispose () = ()
+
 type Render =
     {
         R: byte
         G: byte
         B: byte
         VBO: Renderer.VBO
-        PositionRef: ComponentRef<Position>
-        RotationRef: ComponentRef<Rotation>
+        Position: Position option
+        Rotation: Rotation option
     }
+
+    interface IComponent
+
+    interface IDisposable with
+
+        member __.Dispose () = ()
 
 ///////////////////////////////////////////////////////////////////
 
@@ -82,41 +121,44 @@ type PhysicsPolygon =
         mutable Fixture: FarseerPhysics.Dynamics.Fixture
     }
 
+    interface IComponent
 
-type PhysicsEvent =
-    | Created of Entity * PhysicsPolygon
+    interface IDisposable with
+
+        member __.Dispose () = ()
 
 type PhysicsSystem () =
     let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
     interface ISystem with
         
         member __.Init world =
-            world.HandleEvent<PhysicsEvent> (fun observable ->
-                observable
-                |> Observable.add (function
-                    | Created (entity, physicsPolygon) ->
-                        let data = 
-                            physicsPolygon.Data
+            world.EventAggregator.GetEvent<EntityEvent> ()
+            |> Observable.add (function
+                | ComponentAdded (entity, typ, comp) when typ = typeof<PhysicsPolygon> ->
+                    let physicsPolygon = comp :?> PhysicsPolygon
 
-                        physicsPolygon.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
-                        physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
-                        physicsPolygon.Body.Restitution <- physicsPolygon.Restitution
-                        physicsPolygon.Body.Friction <- physicsPolygon.Friction
-                        physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density)
-                        physicsPolygon.Fixture <- physicsPolygon.Body.CreateFixture (physicsPolygon.PolygonShape)
-                        physicsPolygon.Fixture.UserData <- entity.Id
-                        physicsPolygon.Body.Mass <- physicsPolygon.Mass
+                    let data = 
+                        physicsPolygon.Data
 
-                        physicsPolygon.Fixture.OnCollision <-
-                            new FarseerPhysics.Dynamics.OnCollisionEventHandler (
-                                fun fixture1 fixture2 _ -> 
-                                    true
-                            )
-                )
+                    physicsPolygon.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
+                    physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
+                    physicsPolygon.Body.Restitution <- physicsPolygon.Restitution
+                    physicsPolygon.Body.Friction <- physicsPolygon.Friction
+                    physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density)
+                    physicsPolygon.Fixture <- physicsPolygon.Body.CreateFixture (physicsPolygon.PolygonShape)
+                    physicsPolygon.Fixture.UserData <- entity.Id
+                    physicsPolygon.Body.Mass <- physicsPolygon.Mass
+
+                    physicsPolygon.Fixture.OnCollision <-
+                        new FarseerPhysics.Dynamics.OnCollisionEventHandler (
+                            fun fixture1 fixture2 _ -> 
+                                true
+                        )
+                | _ -> ()
             )
 
         member __.Update world =
-            world.Query.ForEachActiveEntityComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
+            world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
                 physicsPolygon.Body.Position <- !position.Value
                 physicsPolygon.Body.Rotation <- !rotation.Value
                 physicsPolygon.Body.Awake <- true
@@ -124,8 +166,8 @@ type PhysicsSystem () =
 
             physicsWorld.Step (single world.Interval.TotalSeconds)
 
-            world.Query.ForEachActiveEntityComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                position.PreviousValue := !position.Value
+            world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
+                position.PreviousValue := position.Value.Value
                 position.Value := physicsPolygon.Body.Position
 
                 position.Centroid.PreviousValue := !position.Centroid.Value
@@ -162,7 +204,7 @@ type RendererSystem () =
         member __.Update world =
             Renderer.R.Clear ()
 
-            let cameras = world.Query.GetEntityComponents<Camera> ()
+            let cameras = world.EntityQuery.GetComponents<Camera> ()
 
             match cameras with
             | [||] -> ()
@@ -172,7 +214,7 @@ type RendererSystem () =
             let projection = camera.Projection
             let view = ref camera.View
 
-            world.Query.ForEachActiveEntityComponent<Player, Position> (fun (_, _, position) ->
+            world.EntityQuery.ForEachActiveComponent<Player, Position> (fun (_, _, position) ->
                 let centroid = position.Centroid
                 let value = Vector2.Lerp (!centroid.PreviousValue, !centroid.Value, world.Delta)
                 view := Matrix4x4.CreateTranslation (Vector3 (value, 0.f) * -1.f)
@@ -184,11 +226,11 @@ type RendererSystem () =
             Renderer.R.SetProjection defaultShader projection
             Renderer.R.SetView defaultShader !view
 
-            world.Query.ForEachActiveEntityComponent<Render, Position> (fun (entity, render, position) ->
-                let position = render.PositionRef.Value
-                let rotation = render.RotationRef.Value
+            world.EntityQuery.ForEachActiveComponent<Render, Position> (fun (entity, render, position) ->
+                let position = render.Position.Value
+                let rotation = render.Rotation.Value
 
-                let positionValue = Vector2.Lerp (!position.PreviousValue, !position.Value, world.Delta)
+                let positionValue = Vector2.Lerp (!position.PreviousValue, position.Value.Value, world.Delta)
                 let rotationValue = Vector2.Lerp(Vector2 (!rotation.PreviousValue, 0.f), Vector2 (!rotation.Value, 0.f), world.Delta).X
 
                 let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
@@ -228,14 +270,14 @@ type InputSystem () =
                 let dict : (Dictionary<TimeSpan, InputEvent list>) = binary.Deserialize (fileStream)
 
                 match dict.TryGetValue world.Time with
-                | true, events -> world.RaiseEvent<InputEvent list> (events)
+                | true, events -> world.EventAggregator.Publish<InputEvent list> (events)
                 | _ -> ()  
 
             | _ -> ()
 
             let events = Input.getEvents ()
 
-            world.RaiseEvent<InputEvent list> (events)
+            world.EventAggregator.Publish<InputEvent list> (events)
 
             recordings.Add (world.Time, events)
 
@@ -251,7 +293,7 @@ type PlaybackSystem () =
 
         member __.Update world =
             match dict.TryGetValue (world.Time - TimeSpan.FromTicks(world.Interval.Ticks * 273L)) with
-            | true, events -> world.RaiseEvent<InputEvent list> (events)
+            | true, events -> world.EventAggregator.Publish<InputEvent list> (events)
             | _ -> ()  
 
 type MovementSystem () =
@@ -260,102 +302,106 @@ type MovementSystem () =
     interface ISystem with
         
         member __.Init world =
-            world.HandleEvent<InputEvent list> (fun observable ->
-                observable
-                |> Observable.add (fun events ->
+            world.EventAggregator.GetEvent<InputEvent list> ()
+            |> Observable.add (fun events ->
 
-                    world.Query.ForEachActiveEntityComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
+                world.EntityQuery.ForEachActiveComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
 
-                        events
-                        |> List.iter (function
-                            | JoystickButtonPressed 2 -> 
-                                physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
-                            | JoystickButtonPressed 3 -> 
-                                physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
-                            | JoystickButtonPressed 10 -> 
-                                physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
-                            | MouseButtonPressed MouseButtonType.Left ->
+                    if Input.isKeyPressed 'a' then
+                        physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
 
-                                let cameras = world.Query.GetEntityComponents<Camera> ()
+                    if Input.isKeyPressed 'd' then
+                        physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
 
-                                match cameras with
-                                | [||] -> ()
-                                | _ ->
+                    events
+                    |> List.iter (function
+//                        | JoystickButtonPressed 2 -> 
+//                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
+//                        | JoystickButtonPressed 3 -> 
+//                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
+//                        | JoystickButtonPressed 10 -> 
+//                            physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
+                        | KeyPressed 'w' -> 
+                            physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
+                        | MouseButtonPressed MouseButtonType.Left ->
+
+                            let cameras = world.EntityQuery.GetComponents<Camera> ()
+
+                            match cameras with
+                            | [||] -> ()
+                            | _ ->
             
-                                let (_,camera) = cameras.[0]
+                            let (_,camera) = cameras.[0]
 
-                                let mouse = Input.Input.getMousePosition()
-                                let mouseV = Vector3 (single mouse.X, single mouse.Y, 0.f)
+                            let mouse = Input.Input.getMousePosition()
+                            let mouseV = Vector3 (single mouse.X, single mouse.Y, 0.f)
 
-                                let v = unProject (mouseV, Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
-                                let v = Vector2 (v.X, v.Y)
+                            let v = unProject (mouseV, Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
+                            let v = Vector2 (v.X, v.Y)
 
-                                let n = !count
-                                count := n + 1
+                            let n = !count
+                            count := n + 1
 
-                                world.CreateActiveEntity n (fun entity ->
+                            world.EntityFactory.CreateActive n (fun entity ->
 
-                                    let data =
-                                        [|
-                                            Vector2 (1.127f, 1.77f)
-                                            Vector2 (0.f, 1.77f)
-                                            Vector2 (0.f, 0.f)
-                                            Vector2 (1.127f, 0.f)
-                                        |]
+                                let data =
+                                    [|
+                                        Vector2 (1.127f, 1.77f)
+                                        Vector2 (0.f, 1.77f)
+                                        Vector2 (0.f, 0.f)
+                                        Vector2 (1.127f, 0.f)
+                                    |]
 
-                                    let position = 
-                                        { 
-                                            Position.Value = ref v
-                                            PreviousValue = ref v
-                                            Centroid = 
-                                                {
-                                                    Value = ref Vector2.Zero
-                                                    PreviousValue = ref Vector2.Zero
-                                                }
-                                        }
+                                let position = 
+                                    { 
+                                        Position.Value = ref (v)
+                                        PreviousValue = ref v
+                                        Centroid = 
+                                            {
+                                                Value = ref Vector2.Zero
+                                                PreviousValue = ref Vector2.Zero
+                                            }
+                                    }
 
-                                    world.SetEntityComponent position entity
+                                world.EntityFactory.AddComponent entity position
 
-                                    let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
+                                let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
 
-                                    world.SetEntityComponent rotation entity
+                                world.EntityFactory.AddComponent entity rotation
 
-                                    let physicsPolygon =
-                                        {
-                                            Data = data
-                                            Density = 1.f
-                                            Restitution = 0.f
-                                            Friction = 1.f
-                                            Mass = 1.f
-                                            IsStatic = false
-                                            Body = null
-                                            PolygonShape = null
-                                            Fixture = null
-                                        }
+                                let physicsPolygon =
+                                    {
+                                        Data = data
+                                        Density = 1.f
+                                        Restitution = 0.f
+                                        Friction = 1.f
+                                        Mass = 1.f
+                                        IsStatic = false
+                                        Body = null
+                                        PolygonShape = null
+                                        Fixture = null
+                                    }
 
-                                    world.SetEntityComponent physicsPolygon entity
+                                world.EntityFactory.AddComponent entity physicsPolygon
 
-                                    world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
+                                let render =
+                                    {
+                                        R = 0uy
+                                        G = 0uy
+                                        B = 0uy
+                                        VBO = Renderer.R.CreateVBO(data)
+                                        Position = Some position
+                                        Rotation = Some rotation
+                                    }
 
-                                    let render =
-                                        {
-                                            R = 0uy
-                                            G = 0uy
-                                            B = 0uy
-                                            VBO = Renderer.R.CreateVBO(data)
-                                            PositionRef = world.Query.GetComponentRef<Position> entity
-                                            RotationRef = world.Query.GetComponentRef<Rotation> entity
-                                        }
-
-                                    world.SetEntityComponent render entity
-                                )                              
-                            | _ -> ()
-                        )
+                                world.EntityFactory.AddComponent entity render
+                            )                              
+                        | _ -> ()
                     )
-
-
-
                 )
+
+
+
             )
 
         member __.Update world =
@@ -387,7 +433,7 @@ let main argv =
     let rendererSystem : ISystem = RendererSystem () :> ISystem
     rendererSystem.Init world
 
-    world.CreateActiveEntity 0 (fun entity ->
+    world.EntityFactory.CreateActive 0 (fun entity ->
 
         let data =
             [|
@@ -399,7 +445,7 @@ let main argv =
 
         let position = 
             { 
-                Position.Value = ref Vector2.Zero
+                Position.Value = ref (Vector2.Zero)
                 PreviousValue = ref Vector2.Zero
                 Centroid = 
                     {
@@ -408,13 +454,13 @@ let main argv =
                     }
             }
 
-        world.SetEntityComponent position entity
+        world.EntityFactory.AddComponent entity position
 
         let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
 
-        world.SetEntityComponent rotation entity
+        world.EntityFactory.AddComponent entity rotation
 
-        world.SetEntityComponent (Player ()) entity
+        world.EntityFactory.AddComponent entity (Player ())
 
         let physicsPolygon =
             {
@@ -429,9 +475,7 @@ let main argv =
                 Fixture = null
             }
 
-        world.SetEntityComponent physicsPolygon entity
-
-        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
+        world.EntityFactory.AddComponent entity physicsPolygon
 
         let render =
             {
@@ -439,15 +483,15 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                PositionRef = world.Query.GetComponentRef<Position> entity
-                RotationRef = world.Query.GetComponentRef<Rotation> entity
+                Position = Some position
+                Rotation = Some rotation
             }
 
-        world.SetEntityComponent render entity
+        world.EntityFactory.AddComponent entity render
     )
 
 
-    world.CreateActiveEntity 1 (fun entity ->
+    world.EntityFactory.CreateActive 1 (fun entity ->
 
         let data =
             [|
@@ -461,7 +505,7 @@ let main argv =
 
         let position = 
             { 
-                Position.Value = ref positionValue
+                Position.Value = ref (positionValue)
                 PreviousValue = ref positionValue
                 Centroid = 
                     {
@@ -470,11 +514,11 @@ let main argv =
                     }
             }
 
-        world.SetEntityComponent position entity
+        world.EntityFactory.AddComponent entity position
 
         let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
 
-        world.SetEntityComponent rotation entity
+        world.EntityFactory.AddComponent entity rotation
 
         let physicsPolygon =
             {
@@ -489,9 +533,7 @@ let main argv =
                 Fixture = null
             }
 
-        world.SetEntityComponent physicsPolygon entity
-
-        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
+        world.EntityFactory.AddComponent entity physicsPolygon
 
         let render =
             {
@@ -499,16 +541,16 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                PositionRef = world.Query.GetComponentRef<Position> entity
-                RotationRef = world.Query.GetComponentRef<Rotation> entity
+                Position = Some position
+                Rotation = Some rotation
             }
 
-        world.SetEntityComponent render entity
+        world.EntityFactory.AddComponent entity render
     )
 
 
 
-    world.CreateActiveEntity 2 (fun entity ->
+    world.EntityFactory.CreateActive 2 (fun entity ->
 
         let data =
             [|
@@ -522,7 +564,7 @@ let main argv =
 
         let position = 
             { 
-                Position.Value = ref positionValue
+                Position.Value = ref (positionValue)
                 PreviousValue = ref positionValue
                 Centroid = 
                     {
@@ -531,11 +573,11 @@ let main argv =
                     }
             }
 
-        world.SetEntityComponent position entity
+        world.EntityFactory.AddComponent entity position
 
         let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
 
-        world.SetEntityComponent rotation entity
+        world.EntityFactory.AddComponent entity rotation
 
         let physicsPolygon =
             {
@@ -550,9 +592,7 @@ let main argv =
                 Fixture = null
             }
 
-        world.SetEntityComponent physicsPolygon entity
-
-        world.RaiseEvent<PhysicsEvent> (PhysicsEvent.Created (entity, physicsPolygon))
+        world.EntityFactory.AddComponent entity physicsPolygon
 
         let render =
             {
@@ -560,24 +600,24 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                PositionRef = world.Query.GetComponentRef<Position> entity
-                RotationRef = world.Query.GetComponentRef<Rotation> entity
+                Position = Some position
+                Rotation = Some rotation
             }
 
-        world.SetEntityComponent render entity
+        world.EntityFactory.AddComponent entity render
     )
 
-    world.CreateActiveEntity 3 (fun entity ->
+    world.EntityFactory.CreateActive 3 (fun entity ->
         let camera =
             {
-                Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, Single.MaxValue)
+                Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
                 View = Matrix4x4.Identity
                 ViewportPosition = Vector2(0.f, 0.f)
                 ViewportDimensions = Vector2(1280.f, 720.f)
-                ViewportDepth = Vector2(0.1f, Single.MaxValue)
+                ViewportDepth = Vector2(0.1f, 1.f)
             }
 
-        world.SetEntityComponent camera entity
+        world.EntityFactory.AddComponent entity camera
     )
 
     GameLoop.start

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ECS", "ECS\ECS.fsproj", "{CE1E38B4-DC57-4DB7-A78E-257FF0176C66}"
 EndProject
@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{8F06AE
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Farseer Physics", "Farseer Physics Engine 3.5 SIMD\Farseer Physics.csproj", "{A4610E4C-DD34-428B-BABB-779CA0B5993A}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ECS.Core", "ECS.Core\ECS.Core.fsproj", "{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -28,6 +30,10 @@ Global
 		{A4610E4C-DD34-428B-BABB-779CA0B5993A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4610E4C-DD34-428B-BABB-779CA0B5993A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4610E4C-DD34-428B-BABB-779CA0B5993A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
