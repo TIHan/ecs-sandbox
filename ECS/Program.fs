@@ -4,7 +4,6 @@ open System.Diagnostics
 open System.Collections.Generic
 open System.Runtime.InteropServices
 open Microsoft.FSharp.NativeInterop
-open FSharp.Control.Reactive
 open System.Reactive.Subjects
 open System.Reactive.Linq
 
@@ -245,11 +244,8 @@ type RendererSystem () =
 
 
 open Input
-open Nessos.FsPickler
 
 type InputSystem () =
-    let binary = FsPickler.CreateBinary()
-    let recordings = Dictionary<TimeSpan, InputEvent list> ()
 
     interface ISystem with
 
@@ -257,44 +253,7 @@ type InputSystem () =
             ()
 
         member __.Update world =
-
-            match world.Time.Seconds > 5 with
-            | true ->
-                use fileStream = File.Open ("recordings.bin", FileMode.OpenOrCreate)
-
-                binary.Serialize (fileStream, recordings)
-                fileStream.Close ()
-                fileStream.Dispose ()
-
-                let fileStream = File.Open ("recordings.bin", FileMode.Open)
-                let dict : (Dictionary<TimeSpan, InputEvent list>) = binary.Deserialize (fileStream)
-
-                match dict.TryGetValue world.Time with
-                | true, events -> world.EventAggregator.Publish<InputEvent list> (events)
-                | _ -> ()  
-
-            | _ -> ()
-
-            let events = Input.getEvents ()
-
-            world.EventAggregator.Publish<InputEvent list> (events)
-
-            recordings.Add (world.Time, events)
-
-type PlaybackSystem () =
-    let fileStream = File.Open ("recordings.bin", FileMode.Open)
-    let binary = FsPickler.CreateBinary()
-    let dict : (Dictionary<TimeSpan, InputEvent list>) = binary.Deserialize<Dictionary<TimeSpan, InputEvent list>> (fileStream)
-
-    interface ISystem with
-
-        member __.Init world =
-            ()
-
-        member __.Update world =
-            match dict.TryGetValue (world.Time - TimeSpan.FromTicks(world.Interval.Ticks * 273L)) with
-            | true, events -> world.EventAggregator.Publish<InputEvent list> (events)
-            | _ -> ()  
+            world.EventAggregator.Publish<InputEvent list> (Input.getEvents ())
 
 type MovementSystem () =
     let count = ref 10
@@ -313,6 +272,9 @@ type MovementSystem () =
                     if Input.isKeyPressed 'd' then
                         physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
 
+                    if Input.isKeyPressed 'w' then
+                        physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
+
                     events
                     |> List.iter (function
 //                        | JoystickButtonPressed 2 -> 
@@ -321,8 +283,6 @@ type MovementSystem () =
 //                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
 //                        | JoystickButtonPressed 10 -> 
 //                            physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
-                        | KeyPressed 'w' -> 
-                            physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
                         | MouseButtonPressed MouseButtonType.Left ->
 
                             let cameras = world.EntityQuery.GetComponents<Camera> ()
@@ -419,14 +379,12 @@ let benchmark f =
 let main argv = 
 
     let inputSystem = InputSystem ()
-    //let playbackSystem = PlaybackSystem ()
     let movementSystem = MovementSystem ()
     let physicsSystem = PhysicsSystem ()
 
     let world = World (20480)
 
     world.AddSystem inputSystem
-    //world.AddSystem playbackSystem
     world.AddSystem movementSystem
     world.AddSystem physicsSystem
 

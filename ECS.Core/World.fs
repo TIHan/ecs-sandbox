@@ -8,8 +8,10 @@ open System.Threading.Tasks
 
 [<Sealed>]
 type World (entityAmount) =
-    let eventAggregator : IEventAggregator = EventAggregator () :> IEventAggregator
+    let eventAggregator = EventAggregator () :> IEventAggregator
     let entityManager = EntityManager (eventAggregator, entityAmount)
+    let entityFactory = entityManager :> IEntityFactory
+    let entityQuery = entityManager :> IEntityQuery
     let systems = ResizeArray ()
     let deferQueue = MessageQueue<unit -> unit> ()
 
@@ -24,15 +26,15 @@ type World (entityAmount) =
 
     member this.Run () =
         deferQueue.Process (fun f -> f ())
-        (entityManager :> IEntityFactory).Process ()
 
-        systems.ForEach (fun (sys: ISystem) ->
+        systems |> Seq.iter (fun (sys: ISystem) ->
             sys.Update this
+            entityFactory.Process ()
         )
 
-    member this.EntityQuery = entityManager :> IEntityQuery
+    member this.EntityQuery = entityQuery
 
-    member this.EntityFactory = entityManager :> IEntityFactory
+    member this.EntityFactory = entityFactory
 
     member this.EventAggregator = eventAggregator
 
