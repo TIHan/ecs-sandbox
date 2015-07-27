@@ -8,8 +8,8 @@ type EntityEvent =
     | Activated of Entity
     | Deactivated of Entity
     | Destroyed of Entity
-    | ComponentAdded of Entity * Type * IComponent
-    | ComponentRemoved of Entity * Type
+    | ComponentAdded of Entity * Type * obj
+    | ComponentRemoved of Entity * Type * obj
 
 type IEntityQuery =
 
@@ -70,9 +70,9 @@ type IEntityQuery =
 
 type IEntityFactory =
 
-    abstract CreateInactive : id: int -> (Entity -> unit) -> unit
+    abstract CreateInactive : id: int -> IComponent list -> unit
 
-    abstract CreateActive : id: int -> (Entity -> unit) -> unit
+    abstract CreateActive : id: int -> IComponent list -> unit
 
     abstract Activate : Entity -> unit
 

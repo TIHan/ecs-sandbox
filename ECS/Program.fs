@@ -302,8 +302,7 @@ type MovementSystem () =
                             let n = !count
                             count := n + 1
 
-                            world.EntityFactory.CreateActive n (fun entity ->
-
+                            let comps : IComponent list =
                                 let data =
                                     [|
                                         Vector2 (1.127f, 1.77f)
@@ -323,11 +322,7 @@ type MovementSystem () =
                                             }
                                     }
 
-                                world.EntityFactory.AddComponent entity position
-
                                 let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
-
-                                world.EntityFactory.AddComponent entity rotation
 
                                 let physicsPolygon =
                                     {
@@ -342,8 +337,6 @@ type MovementSystem () =
                                         Fixture = null
                                     }
 
-                                world.EntityFactory.AddComponent entity physicsPolygon
-
                                 let render =
                                     {
                                         R = 0uy
@@ -354,8 +347,10 @@ type MovementSystem () =
                                         Rotation = Some rotation
                                     }
 
-                                world.EntityFactory.AddComponent entity render
-                            )                              
+                                [position;rotation;physicsPolygon;render]
+
+                            world.EntityFactory.CreateActive n comps     
+                                                   
                         | _ -> ()
                     )
                 )
@@ -391,8 +386,7 @@ let main argv =
     let rendererSystem : ISystem = RendererSystem () :> ISystem
     rendererSystem.Init world
 
-    world.EntityFactory.CreateActive 0 (fun entity ->
-
+    let comps : IComponent list =
         let data =
             [|
                 Vector2 (1.127f, 1.77f)
@@ -412,13 +406,7 @@ let main argv =
                     }
             }
 
-        world.EntityFactory.AddComponent entity position
-
         let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
-
-        world.EntityFactory.AddComponent entity rotation
-
-        world.EntityFactory.AddComponent entity (Player ())
 
         let physicsPolygon =
             {
@@ -433,8 +421,6 @@ let main argv =
                 Fixture = null
             }
 
-        world.EntityFactory.AddComponent entity physicsPolygon
-
         let render =
             {
                 R = 0uy
@@ -444,13 +430,13 @@ let main argv =
                 Position = Some position
                 Rotation = Some rotation
             }
+        
+        [position;rotation;Player();physicsPolygon;render]
 
-        world.EntityFactory.AddComponent entity render
-    )
+    world.EntityFactory.CreateActive 0 comps
 
 
-    world.EntityFactory.CreateActive 1 (fun entity ->
-
+    let comps : IComponent list =
         let data =
             [|
                 Vector2 (-1000.f, -1.f)
@@ -472,11 +458,7 @@ let main argv =
                     }
             }
 
-        world.EntityFactory.AddComponent entity position
-
         let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
-
-        world.EntityFactory.AddComponent entity rotation
 
         let physicsPolygon =
             {
@@ -491,8 +473,6 @@ let main argv =
                 Fixture = null
             }
 
-        world.EntityFactory.AddComponent entity physicsPolygon
-
         let render =
             {
                 R = 0uy
@@ -503,13 +483,12 @@ let main argv =
                 Rotation = Some rotation
             }
 
-        world.EntityFactory.AddComponent entity render
-    )
+        [position;rotation;physicsPolygon;render]
+
+    world.EntityFactory.CreateActive 1 comps
 
 
-
-    world.EntityFactory.CreateActive 2 (fun entity ->
-
+    let comps : IComponent list =
         let data =
             [|
                 Vector2 (-50.f, 0.6858f)
@@ -531,11 +510,7 @@ let main argv =
                     }
             }
 
-        world.EntityFactory.AddComponent entity position
-
         let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
-
-        world.EntityFactory.AddComponent entity rotation
 
         let physicsPolygon =
             {
@@ -550,8 +525,6 @@ let main argv =
                 Fixture = null
             }
 
-        world.EntityFactory.AddComponent entity physicsPolygon
-
         let render =
             {
                 R = 0uy
@@ -562,10 +535,12 @@ let main argv =
                 Rotation = Some rotation
             }
 
-        world.EntityFactory.AddComponent entity render
-    )
+        [position;rotation;physicsPolygon;render]
 
-    world.EntityFactory.CreateActive 3 (fun entity ->
+    world.EntityFactory.CreateActive 2 comps
+
+
+    let comps : IComponent list =
         let camera =
             {
                 Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
@@ -574,9 +549,11 @@ let main argv =
                 ViewportDimensions = Vector2(1280.f, 720.f)
                 ViewportDepth = Vector2(0.1f, 1.f)
             }
+        [camera]
 
-        world.EntityFactory.AddComponent entity camera
-    )
+    world.EntityFactory.CreateActive 3 comps
+
+    let stopwatch = Stopwatch ()
 
     GameLoop.start
         world
@@ -587,17 +564,23 @@ let main argv =
         )
         (
             fun time interval world ->
+                stopwatch.Restart ()
+
                 Input.clearEvents ()
                 Input.pollEvents ()
 
                 world.Time <- TimeSpan.FromTicks time
                 world.Interval <- TimeSpan.FromTicks interval
                 world.Run ()
+
+                stopwatch.Stop ()
         )
         (
             fun delta world ->
                 world.Delta <- delta
                 rendererSystem.Update world
+                Console.Clear ()
+                printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
         )
 
     0

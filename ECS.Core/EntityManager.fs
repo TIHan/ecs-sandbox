@@ -10,8 +10,8 @@ type EntityEvent =
     | Activated of Entity
     | Deactivated of Entity
     | Destroyed of Entity
-    | ComponentAdded of Entity * Type * IComponent
-    | ComponentRemoved of Entity * Type
+    | ComponentAdded of Entity * Type * obj
+    | ComponentRemoved of Entity * Type * obj
 
 type IEntityQuery =
 
@@ -72,9 +72,9 @@ type IEntityQuery =
 
 type IEntityFactory =
 
-    abstract CreateInactive : id: int -> (Entity -> unit) -> unit
+    abstract CreateInactive : id: int -> IComponent list -> unit
 
-    abstract CreateActive : id: int -> (Entity -> unit) -> unit
+    abstract CreateActive : id: int -> IComponent list -> unit
 
     abstract Activate : Entity -> unit
 
@@ -98,9 +98,19 @@ type EntityLookupData =
 [<Sealed>]
 type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let activeEntities = Array.init entityAmount (fun _ -> false)
-    let lookup = Dictionary ()
+    let lookup = Dictionary<Type, EntityLookupData> ()
     let lockObj = obj ()
     let deferQueue = MessageQueue<unit -> unit> ()
+
+    member this.RemoveAllComponents (entity: Entity) =
+        lookup
+        |> Seq.iter (fun pair ->
+            match this.TryRemoveComponent (entity, pair.Key) with
+            | Some comp ->
+                eventAggregator.Publish (ComponentRemoved (entity, pair.Key, comp))
+                comp.Dispose ()
+            | _ -> ()
+        )
 
     member this.CreateInactive id : Entity =
         Entity id
@@ -128,9 +138,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
         activeEntities.[entity.Id] <- false
 
-    member this.LoadComponent<'T when 'T :> IComponent> () =
+    member this.LoadComponent (t: Type) =
         lock lockObj <| fun () ->
-            let t = typeof<'T>
             match lookup.TryGetValue t with
             | false, _ ->
                 let entities = ResizeArray ()
@@ -144,29 +153,35 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     }
 
                 lookup.[t] <- data
-            | _ -> ()
+            | _ -> ()        
 
-    member this.AddComponent<'T when 'T :> IComponent> (entity: Entity) (value: 'T) = 
-        this.LoadComponent<'T> ()
+    member this.AddComponent (entity: Entity, value: 'T, t: Type) =
+        this.LoadComponent (t)
 
-        let data = lookup.[typeof<'T>]
+        let data = lookup.[t]
 
         if data.entitySet.Add entity then
             data.entities.Add entity
 
-        data.components.[entity.Id] <- (value :> IComponent)
-
-    member this.RemoveComponent<'T when 'T :> IComponent> (entity: Entity) =
-        let t = typeof<'T>
-
+        data.components.[entity.Id] <- (value :> IComponent)   
+        
+    member this.TryRemoveComponent (entity: Entity, t: Type) : IComponent option =
         match lookup.TryGetValue t with
-        | false, _ -> ()
+        | false, _ -> None
         | _, data ->
             data.entitySet.Remove entity |> ignore
             data.entities.Remove entity |> ignore
             if entity.Id >= 0 && entity.Id < data.components.Length then
-                data.components.[entity.Id].Dispose ()
                 data.components.[entity.Id] <- Unchecked.defaultof<IComponent>
+                Some data.components.[entity.Id]     
+            else
+                None
+
+    member inline this.AddComponent<'T when 'T :> IComponent> (entity: Entity, value: 'T) = 
+        this.AddComponent (entity, value, typeof<'T>)
+
+    member inline this.TryRemoveComponent<'T when 'T :> IComponent> (entity: Entity) =
+        this.TryRemoveComponent (entity, typeof<'T>)
 
     member this.IterateInternal<'T when 'T :> IComponent> (f: Entity * 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T> with
@@ -247,18 +262,28 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     interface IEntityFactory with
 
-        member this.CreateInactive id f =
+        member this.CreateInactive id comps =
             let inline g () =
                 let entity = this.CreateInactive id
-                f entity
+                comps 
+                |> List.iter (fun comp -> 
+                    let t = comp.GetType ()
+                    this.AddComponent (entity, comp, t)
+                    eventAggregator.Publish (ComponentAdded (entity, t, comp))
+                )
                 eventAggregator.Publish (CreatedInactive entity)
 
             this.Defer g
 
-        member this.CreateActive id f =
+        member this.CreateActive id comps =
             let inline g () =
                 let entity = this.CreateActive id
-                f entity
+                comps 
+                |> List.iter (fun comp -> 
+                    let t = comp.GetType ()
+                    this.AddComponent (entity, comp, t)
+                    eventAggregator.Publish (ComponentAdded (entity, t, comp))
+                )
                 eventAggregator.Publish (CreatedActive entity)
 
             this.Defer g
@@ -280,21 +305,25 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         member this.Destroy entity =
             let inline f () =
                 this.Destroy entity
+                this.RemoveAllComponents entity
                 eventAggregator.Publish (Destroyed entity)
 
             this.Defer f
 
         member this.AddComponent<'T when 'T :> IComponent> entity comp =
             let inline f () =
-                this.AddComponent<'T> entity comp
+                this.AddComponent<'T> (entity, comp)
                 eventAggregator.Publish (ComponentAdded (entity, typeof<'T>, comp))
 
             this.Defer f
 
         member this.RemoveComponent<'T when 'T :> IComponent> entity =
             let inline f () =
-                this.RemoveComponent<'T> entity
-                eventAggregator.Publish (ComponentRemoved (entity, typeof<'T>))
+                match this.TryRemoveComponent<'T> (entity) with
+                | Some comp ->
+                    eventAggregator.Publish (ComponentRemoved (entity, typeof<'T>, comp))
+                    comp.Dispose ()
+                | _ -> ()
 
             this.Defer f  
             
