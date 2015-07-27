@@ -13,7 +13,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
     <Name>ECS</Name>
-    <NuGetPackageImportStamp>1e91ce29</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>cc756e8c</NuGetPackageImportStamp>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
@@ -81,13 +81,15 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Ferop">
-      <HintPath>..\packages\Ferop.1.0.0-beta8\lib\net45\Ferop.dll</HintPath>
+      <HintPath>..\packages\Ferop.1.0.0-beta9\lib\portable-net45+monoandroid10+monotouch10+xamarinios10\Ferop.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Ferop" />
     <Reference Include="FSharp.Core">
-      <HintPath>..\packages\FSharp.Core.3.1.2\lib\net40\FSharp.Core.dll</HintPath>
+      <HintPath>..\packages\Ferop.1.0.0-beta9\lib\portable-net45+monoandroid10+monotouch10+xamarinios10\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Core" />
     <Reference Include="gdk-sharp">
       <HintPath>..\packages\GtkSharp.3.1.2\lib\net45\gdk-sharp.dll</HintPath>
       <Private>True</Private>
@@ -149,11 +151,11 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\GtkSharp.3.1.2\build\net45\GtkSharp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\GtkSharp.3.1.2\build\net45\GtkSharp.targets'))" />
     <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
-    <Error Condition="!Exists('..\packages\Ferop.1.0.0-beta8\build\Ferop.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Ferop.1.0.0-beta8\build\Ferop.targets'))" />
+    <Error Condition="!Exists('..\packages\Ferop.1.0.0-beta9\build\Ferop.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Ferop.1.0.0-beta9\build\Ferop.targets'))" />
   </Target>
   <Import Project="..\packages\GtkSharp.3.1.2\build\net45\GtkSharp.targets" Condition="Exists('..\packages\GtkSharp.3.1.2\build\net45\GtkSharp.targets')" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
-  <Import Project="..\packages\Ferop.1.0.0-beta8\build\Ferop.targets" Condition="Exists('..\packages\Ferop.1.0.0-beta8\build\Ferop.targets')" />
+  <Import Project="..\packages\Ferop.1.0.0-beta9\build\Ferop.targets" Condition="Exists('..\packages\Ferop.1.0.0-beta9\build\Ferop.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
