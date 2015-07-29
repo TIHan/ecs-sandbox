@@ -4,6 +4,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <RootNamespace>ECS.Core</RootNamespace>
     <AssemblyName>ECS.Core</AssemblyName>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>

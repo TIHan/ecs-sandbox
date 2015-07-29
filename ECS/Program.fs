@@ -131,9 +131,9 @@ type PhysicsSystem () =
     interface ISystem with
         
         member __.Init world =
-            world.EventAggregator.GetEvent<EntityEvent> ()
+            world.EventAggregator.GetEvent<ComponentEvent> ()
             |> Observable.add (function
-                | ComponentAdded (entity, typ, comp) when typ = typeof<PhysicsPolygon> ->
+                | Added (entity, comp, typ) when typ = typeof<PhysicsPolygon> ->
                     let physicsPolygon = comp :?> PhysicsPolygon
 
                     let data = 

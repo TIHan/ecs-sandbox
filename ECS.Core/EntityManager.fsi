@@ -8,8 +8,10 @@ type EntityEvent =
     | Activated of Entity
     | Deactivated of Entity
     | Destroyed of Entity
-    | ComponentAdded of Entity * Type * obj
-    | ComponentRemoved of Entity * Type * obj
+
+type ComponentEvent =
+    | Added of Entity * IComponent * Type
+    | Removed of Entity * IComponent * Type
 
 type IEntityQuery =
 
