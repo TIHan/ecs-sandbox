@@ -28,8 +28,7 @@ type Centroid =
 
 type Position =
     {
-        PreviousValue: Vector2 ref
-        Value: Vector2 ref
+        Variable: ReactiveVar<Vector2>
         Centroid: Centroid
     }
 
@@ -95,7 +94,7 @@ type Render =
         G: byte
         B: byte
         VBO: Renderer.VBO
-        Position: Position option
+        Position: ReactivePrevVal<Vector2>
         Rotation: Rotation option
     }
 
@@ -158,7 +157,7 @@ type PhysicsSystem () =
 
         member __.Update world =
             world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                physicsPolygon.Body.Position <- !position.Value
+                physicsPolygon.Body.Position <- position.Variable |> ReactiveVar.value
                 physicsPolygon.Body.Rotation <- !rotation.Value
                 physicsPolygon.Body.Awake <- true
             )
@@ -166,8 +165,7 @@ type PhysicsSystem () =
             physicsWorld.Step (single world.Interval.TotalSeconds)
 
             world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                position.PreviousValue := position.Value.Value
-                position.Value := physicsPolygon.Body.Position
+                position.Variable.Value <- physicsPolygon.Body.Position
 
                 position.Centroid.PreviousValue := !position.Centroid.Value
                 position.Centroid.Value := physicsPolygon.Body.WorldCenter
@@ -200,6 +198,19 @@ type RendererSystem () =
             vao <- Renderer.R.CreateVao ()
             defaultShader <- Renderer.R.LoadShaders ("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader")
 
+            world.EventAggregator.GetEvent<ComponentEvent> ()
+            |> Observable.add (function
+                | Added (entity, comp, typ) when typ = typeof<Render> ->
+                    let render = comp :?> Render
+
+                    render.Position.AssignTime (world.Time)
+
+
+
+                    render.Position |> Observable.add (fun x -> printfn "%A" x)
+                | _ -> ()
+            )
+
         member __.Update world =
             Renderer.R.Clear ()
 
@@ -229,7 +240,7 @@ type RendererSystem () =
                 let position = render.Position.Value
                 let rotation = render.Rotation.Value
 
-                let positionValue = Vector2.Lerp (!position.PreviousValue, position.Value.Value, world.Delta)
+                let positionValue = Vector2.Lerp (render.Position.PreviousValue, render.Position.Value, world.Delta)
                 let rotationValue = Vector2.Lerp(Vector2 (!rotation.PreviousValue, 0.f), Vector2 (!rotation.Value, 0.f), world.Delta).X
 
                 let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
@@ -313,8 +324,7 @@ type MovementSystem () =
 
                                 let position = 
                                     { 
-                                        Position.Value = ref (v)
-                                        PreviousValue = ref v
+                                        Variable = ReactiveVar.create v
                                         Centroid = 
                                             {
                                                 Value = ref Vector2.Zero
@@ -343,7 +353,7 @@ type MovementSystem () =
                                         G = 0uy
                                         B = 0uy
                                         VBO = Renderer.R.CreateVBO(data)
-                                        Position = Some position
+                                        Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
                                         Rotation = Some rotation
                                     }
 
@@ -397,8 +407,7 @@ let main argv =
 
         let position = 
             { 
-                Position.Value = ref (Vector2.Zero)
-                PreviousValue = ref Vector2.Zero
+                Variable = ReactiveVar.create Vector2.Zero
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -427,7 +436,7 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = Some position
+                Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
                 Rotation = Some rotation
             }
         
@@ -449,8 +458,7 @@ let main argv =
 
         let position = 
             { 
-                Position.Value = ref (positionValue)
-                PreviousValue = ref positionValue
+                Variable = ReactiveVar.create Vector2.Zero
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -479,7 +487,7 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = Some position
+                Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
                 Rotation = Some rotation
             }
 
@@ -501,8 +509,7 @@ let main argv =
 
         let position = 
             { 
-                Position.Value = ref (positionValue)
-                PreviousValue = ref positionValue
+                Variable = ReactiveVar.create positionValue
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -531,7 +538,7 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = Some position
+                Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
                 Rotation = Some rotation
             }
 
@@ -569,7 +576,7 @@ let main argv =
                 Input.clearEvents ()
                 Input.pollEvents ()
 
-                world.Time <- TimeSpan.FromTicks time
+                world.Time.Value <- TimeSpan.FromTicks time
                 world.Interval <- TimeSpan.FromTicks interval
                 world.Run ()
 

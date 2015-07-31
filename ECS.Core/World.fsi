@@ -7,7 +7,7 @@ type World =
 
     new : int -> World
 
-    member Time : TimeSpan with get, set
+    member Time : ReactiveVar<TimeSpan> with get
 
     member Interval : TimeSpan with get, set
 

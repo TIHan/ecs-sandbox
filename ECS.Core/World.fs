@@ -18,7 +18,7 @@ type World (entityAmount) =
     member inline this.Defer f =
         deferQueue.Push f
 
-    member val Time = TimeSpan.Zero with get, set
+    member val Time = ReactiveVar.create TimeSpan.Zero with get
 
     member val Interval = TimeSpan.Zero with get, set
 
