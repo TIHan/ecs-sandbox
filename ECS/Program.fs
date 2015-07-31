@@ -28,7 +28,7 @@ type Centroid =
 
 type Position =
     {
-        Variable: ReactiveVar<Vector2>
+        Variable: Var<Vector2>
         Centroid: Centroid
     }
 
@@ -94,7 +94,7 @@ type Render =
         G: byte
         B: byte
         VBO: Renderer.VBO
-        Position: ReactivePrevVal<Vector2>
+        Position: PrevVal<Vector2>
         Rotation: Rotation option
     }
 
@@ -157,7 +157,7 @@ type PhysicsSystem () =
 
         member __.Update world =
             world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                physicsPolygon.Body.Position <- position.Variable |> ReactiveVar.value
+                physicsPolygon.Body.Position <- position.Variable |> Var.value
                 physicsPolygon.Body.Rotation <- !rotation.Value
                 physicsPolygon.Body.Awake <- true
             )
@@ -324,7 +324,7 @@ type MovementSystem () =
 
                                 let position = 
                                     { 
-                                        Variable = ReactiveVar.create v
+                                        Variable = Var.create v
                                         Centroid = 
                                             {
                                                 Value = ref Vector2.Zero
@@ -353,7 +353,7 @@ type MovementSystem () =
                                         G = 0uy
                                         B = 0uy
                                         VBO = Renderer.R.CreateVBO(data)
-                                        Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
+                                        Position = PrevVal.createWithObservable Vector2.Zero position.Variable
                                         Rotation = Some rotation
                                     }
 
@@ -407,7 +407,7 @@ let main argv =
 
         let position = 
             { 
-                Variable = ReactiveVar.create Vector2.Zero
+                Variable = Var.create Vector2.Zero
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -436,7 +436,7 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
+                Position = PrevVal.createWithObservable Vector2.Zero position.Variable
                 Rotation = Some rotation
             }
         
@@ -458,7 +458,7 @@ let main argv =
 
         let position = 
             { 
-                Variable = ReactiveVar.create Vector2.Zero
+                Variable = Var.create Vector2.Zero
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -487,7 +487,7 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
+                Position = PrevVal.createWithObservable Vector2.Zero position.Variable
                 Rotation = Some rotation
             }
 
@@ -509,7 +509,7 @@ let main argv =
 
         let position = 
             { 
-                Variable = ReactiveVar.create positionValue
+                Variable = Var.create positionValue
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -538,7 +538,7 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = ReactivePrevVal.createWithObservable Vector2.Zero position.Variable
+                Position = PrevVal.createWithObservable Vector2.Zero position.Variable
                 Rotation = Some rotation
             }
 
@@ -564,7 +564,7 @@ let main argv =
 
     GameLoop.start
         world
-        30.
+        25.
         (
             fun () ->
                 GC.Collect 0

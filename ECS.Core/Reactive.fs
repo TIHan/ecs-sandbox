@@ -5,7 +5,7 @@ open System.Reactive.Linq
 open System.Reactive.Subjects
 
 [<Sealed>]
-type ReactiveVar<'T> (initialValue) =
+type Var<'T> (initialValue) =
     let subject = new BehaviorSubject<'T> (initialValue)
 
     member this.Value
@@ -22,18 +22,18 @@ type ReactiveVar<'T> (initialValue) =
         member __.Dispose () =
             subject.Dispose ()
 
-module ReactiveVar =
+module Var =
 
     let create initialValue =
-        new ReactiveVar<'T> (initialValue)
+        new Var<'T> (initialValue)
 
-    let inline value (reactVar: ReactiveVar<'T>) = reactVar.Value
+    let inline value (reactVar: Var<'T>) = reactVar.Value
 
-    let inline setValue value (reactVar: ReactiveVar<'T>) =
+    let inline setValue value (reactVar: Var<'T>) =
         reactVar.Value <- value
 
 [<Sealed>]
-type ReactiveVal<'T> (initialValue, source: IObservable<'T>) =
+type Val<'T> (initialValue, source: IObservable<'T>) =
     let subject = new BehaviorSubject<'T> (initialValue)
     let mutable subscription = source.Subscribe subject.OnNext
 
@@ -56,20 +56,20 @@ type ReactiveVal<'T> (initialValue, source: IObservable<'T>) =
             subscription.Dispose ()
             subject.Dispose ()
 
-module ReactiveVal =
+module Val =
 
     let create initialValue =
-        new ReactiveVal<'T> (initialValue, Observable.Never ())
+        new Val<'T> (initialValue, Observable.Never ())
 
     let createWithObservable initialValue source =
-        new ReactiveVal<'T> (initialValue, source)
+        new Val<'T> (initialValue, source)
 
-    let inline value (reactVal: ReactiveVal<'T>) = reactVal.Value
+    let inline value (reactVal: Val<'T>) = reactVal.Value
 
 [<Sealed>]
-type ReactiveTimeVal<'T> (initialValue, time: IObservable<TimeSpan>, source: IObservable<'T>) =
-    let value = ReactiveVal.createWithObservable initialValue source
-    let timeVal = ReactiveVal.createWithObservable TimeSpan.Zero time
+type TimeVal<'T> (initialValue, time: IObservable<TimeSpan>, source: IObservable<'T>) =
+    let value = Val.createWithObservable initialValue source
+    let timeVal = Val.createWithObservable TimeSpan.Zero time
     let observable =
         timeVal.DistinctUntilChanged().Select(fun _ -> value.Value).DistinctUntilChanged()
 
@@ -94,9 +94,9 @@ type ReactiveTimeVal<'T> (initialValue, time: IObservable<TimeSpan>, source: IOb
             value.Dispose ()
 
 [<Sealed>]
-type ReactivePrevVal<'T> (initialValue, time: IObservable<TimeSpan>, source: IObservable<'T>) =
-    let value = new ReactiveTimeVal<'T> (initialValue, time, source)
-    let previousVal = ReactiveVal.createWithObservable initialValue value
+type PrevVal<'T> (initialValue, time: IObservable<TimeSpan>, source: IObservable<'T>) =
+    let value = new TimeVal<'T> (initialValue, time, source)
+    let previousVal = Val.createWithObservable initialValue value
 
     member this.Value = value.Value
 
@@ -121,16 +121,16 @@ type ReactivePrevVal<'T> (initialValue, time: IObservable<TimeSpan>, source: IOb
             value.Dispose ()
             previousVal.Dispose ()
 
-module ReactivePrevVal =
+module PrevVal =
 
     let create initialValue =
-        new ReactivePrevVal<'T> (initialValue, Observable.Never (), Observable.Never ())
+        new PrevVal<'T> (initialValue, Observable.Never (), Observable.Never ())
 
     let createWithObservable initialValue source =
-        new ReactivePrevVal<'T> (initialValue, Observable.Never (), source)
+        new PrevVal<'T> (initialValue, Observable.Never (), source)
 
     let createWithTime initialValue time =
-        new ReactivePrevVal<'T> (initialValue, time, Observable.Never ())
+        new PrevVal<'T> (initialValue, time, Observable.Never ())
 
     let createWithTimeAndObservable initialValue time source =
-        new ReactivePrevVal<'T> (initialValue, time, source)
+        new PrevVal<'T> (initialValue, time, source)
