@@ -9,33 +9,13 @@ open System.Reactive.Linq
 
 open ECS.Core
 
+open Salty.Core.Components
+open Salty.Input
+
 #nowarn "9"
 #nowarn "51"
 
 open System.Numerics
-
-type Centroid =
-    {
-        PreviousValue: Vector2 ref
-        Value: Vector2 ref
-    }
-
-    interface IComponent
-
-type Position =
-    {
-        Var: Var<Vector2>
-        Centroid: Centroid
-    }
-
-    interface IComponent
-
-type Rotation =
-    {
-        Var: Var<single>
-    }
-
-    interface IComponent
 
 type Health =
     {
@@ -63,6 +43,8 @@ type Camera =
         mutable ViewportPosition: Vector2
         mutable ViewportDimensions: Vector2
         mutable ViewportDepth: Vector2
+        Position: Val<Vector2>
+        PreviousPosition: Val<Vector2>
     }
 
     interface IComponent
@@ -103,11 +85,9 @@ type PhysicsSystem () =
     interface ISystem with
         
         member __.Init world =
-            world.EventAggregator.GetEvent<ComponentEvent> ()
+            world.EventAggregator.GetEvent<ComponentEvent<PhysicsPolygon>> ()
             |> Observable.add (function
-                | Added (entity, comp, typ) when typ = typeof<PhysicsPolygon> ->
-                    let physicsPolygon = comp :?> PhysicsPolygon
-
+                | Added (entity, physicsPolygon) ->
                     let data = 
                         physicsPolygon.Data
 
@@ -139,11 +119,12 @@ type PhysicsSystem () =
 
             world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
                 position.Var.Value <- physicsPolygon.Body.Position
-
-                position.Centroid.PreviousValue := !position.Centroid.Value
-                position.Centroid.Value := physicsPolygon.Body.WorldCenter
-
                 rotation.Var.Value <- physicsPolygon.Body.Rotation
+
+                match world.EntityQuery.TryGetComponent<Centroid> entity with
+                | Some centroid ->
+                    centroid.Var.Value <- physicsPolygon.Body.WorldCenter
+                | _ -> ()
             )
 
 ///////////////////////////////////////////////////////////////////
@@ -170,32 +151,47 @@ type RendererSystem () =
             vao <- Renderer.R.CreateVao ()
             defaultShader <- Renderer.R.LoadShaders ("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader")
 
-            world.EventAggregator.GetEvent<ComponentEvent> ()
+            world.EventAggregator.GetEvent<ComponentEvent<Render>> ()
             |> Observable.add (function
-                | Added (entity, comp, typ) ->
-                    match typ with
+                | Added (entity, comp) ->
+                    comp.PreviousPosition.Assign (world.Time.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
+                    comp.PreviousRotation.Assign (world.Time.DistinctUntilChanged().Zip(comp.Rotation, fun _ x -> x))
+                | _ -> ()
+            )
 
+            world.EventAggregator.GetEvent<ComponentEvent<Camera>> ()
+            |> Observable.add (function
+                | Added (entity, comp) ->
+                    comp.PreviousPosition.Assign (world.Time.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
+                | _ -> ()
+            )
 
+            world.EventAggregator.GetEvent<ComponentEvent<Position>> ()
+            |> Observable.add (function
+                | Added (entity, position) ->
+                    match world.EntityQuery.TryGetComponent<Render> entity with
+                    | Some render ->
+                        render.Position.Assign position.Var
+                    | _ -> ()
+                | _ -> ()
+            )
 
-                    | _ when typ = typeof<Render> ->
-                        let comp = comp :?> Render
-                        comp.PreviousPosition.Assign (world.Time.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
-                        comp.PreviousRotation.Assign (world.Time.DistinctUntilChanged().Zip(comp.Rotation, fun _ x -> x))
+            world.EventAggregator.GetEvent<ComponentEvent<Centroid>> ()
+            |> Observable.add (function
+                | Added (entity, centroid) ->
+                    match world.EntityQuery.TryGetComponent<Camera> entity with
+                    | Some camera ->
+                        camera.Position.Assign centroid.Var
+                    | _ -> ()
+                | _ -> ()
+            )
 
-                    | _ when typ = typeof<Position> ->
-                        let position = comp :?> Position
-                        match world.EntityQuery.TryGetComponent<Render> entity with
-                        | Some render ->
-                            render.Position.Assign position.Var
-                        | _ -> ()
-
-                    | _ when typ = typeof<Rotation> ->
-                        let rotation = comp :?> Rotation
-                        match world.EntityQuery.TryGetComponent<Render> entity with
-                        | Some render ->
-                            render.Rotation.Assign rotation.Var
-                        | _ -> ()
-
+            world.EventAggregator.GetEvent<ComponentEvent<Rotation>> ()
+            |> Observable.add (function
+                | Added (entity, rotation) ->
+                    match world.EntityQuery.TryGetComponent<Render> entity with
+                    | Some render ->
+                        render.Rotation.Assign rotation.Var
                     | _ -> ()
                 | _ -> ()
             )
@@ -213,9 +209,8 @@ type RendererSystem () =
             let projection = camera.Projection
             let view = ref camera.View
 
-            world.EntityQuery.ForEachActiveComponent<Player, Position> (fun (_, _, position) ->
-                let centroid = position.Centroid
-                let value = Vector2.Lerp (!centroid.PreviousValue, !centroid.Value, world.Delta)
+            world.EntityQuery.ForEachActiveComponent<Player, Camera> (fun (_, _, camera) ->
+                let value = Vector2.Lerp (camera.PreviousPosition.Value, camera.Position.Value, world.Delta)
                 view := Matrix4x4.CreateTranslation (Vector3 (value, 0.f) * -1.f)
             )
 
@@ -242,28 +237,14 @@ type RendererSystem () =
 
             Renderer.R.Draw (context)
 
-
-
-open Input
-
-type InputSystem () =
-
-    interface ISystem with
-
-        member __.Init world =
-            ()
-
-        member __.Update world =
-            world.EventAggregator.Publish<InputEvent list> (Input.getEvents ())
-
 type MovementSystem () =
     let count = ref 10
 
     interface ISystem with
         
         member __.Init world =
-            world.EventAggregator.GetEvent<InputEvent list> ()
-            |> Observable.add (fun events ->
+            world.EventAggregator.GetEvent<InputEvents> ()
+            |> Observable.add (fun (InputEvents (events)) ->
 
                 world.EntityQuery.ForEachActiveComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
 
@@ -284,6 +265,16 @@ type MovementSystem () =
 //                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
 //                        | JoystickButtonPressed 10 -> 
 //                            physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
+                        | MouseButtonPressed MouseButtonType.Right ->
+
+                            let (playerEntity, _) = world.EntityQuery.GetComponents<Player> () |> Seq.head
+
+                            match world.EntityQuery.TryGetComponent<Camera> playerEntity with
+                            | None -> ()                                    
+                            | Some camera ->
+                                camera.Position.Assign (Observable.Never ())
+                                camera.PreviousPosition.Assign (Observable.Never ())
+
                         | MouseButtonPressed MouseButtonType.Left ->
 
                             let cameras = world.EntityQuery.GetComponents<Camera> ()
@@ -294,7 +285,7 @@ type MovementSystem () =
             
                             let (_,camera) = cameras.[0]
 
-                            let mouse = Input.Input.getMousePosition()
+                            let mouse = Input.getMousePosition()
                             let mouseV = Vector3 (single mouse.X, single mouse.Y, 0.f)
 
                             let v = unProject (mouseV, Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
@@ -314,12 +305,7 @@ type MovementSystem () =
 
                                 let position = 
                                     { 
-                                        Var = Var.create v
-                                        Centroid = 
-                                            {
-                                                Value = ref Vector2.Zero
-                                                PreviousValue = ref Vector2.Zero
-                                            }
+                                        Position.Var = Var.create v
                                     }
 
                                 let rotation = { Rotation.Var = Var.create 0.f }
@@ -399,12 +385,12 @@ let main argv =
 
         let position = 
             { 
-                Var = Var.create Vector2.Zero
-                Centroid = 
-                    {
-                        Value = ref Vector2.Zero
-                        PreviousValue = ref Vector2.Zero
-                    }
+                Position.Var = Var.create Vector2.Zero
+            }
+
+        let centroid =
+            {
+                Centroid.Var = Var.create Vector2.Zero
             }
 
         let rotation = { Rotation.Var = Var.create 0.f }
@@ -433,8 +419,19 @@ let main argv =
                 Rotation = Val.create 0.f
                 PreviousRotation = Val.create 0.f
             }
+
+        let camera =
+            {
+                Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
+                View = Matrix4x4.Identity
+                ViewportPosition = Vector2(0.f, 0.f)
+                ViewportDimensions = Vector2(1280.f, 720.f)
+                ViewportDepth = Vector2(0.1f, 1.f)
+                Position = Val.create Vector2.Zero
+                PreviousPosition = Val.create Vector2.Zero
+            }
         
-        [position;rotation;Player();physicsPolygon;render]
+        [position;centroid;rotation;Player();physicsPolygon;render;camera]
 
     world.EntityFactory.CreateActive 0 comps
 
@@ -452,12 +449,7 @@ let main argv =
 
         let position = 
             { 
-                Var = Var.create Vector2.Zero
-                Centroid = 
-                    {
-                        Value = ref Vector2.Zero
-                        PreviousValue = ref Vector2.Zero
-                    }
+                Position.Var = Var.create Vector2.Zero
             }
 
         let rotation = { Rotation.Var = Var.create 0.f }
@@ -505,12 +497,7 @@ let main argv =
 
         let position = 
             { 
-                Var = Var.create positionValue
-                Centroid = 
-                    {
-                        Value = ref Vector2.Zero
-                        PreviousValue = ref Vector2.Zero
-                    }
+                Position.Var = Var.create positionValue
             }
 
         let rotation = { Rotation.Var = Var.create 0.f }
@@ -544,20 +531,6 @@ let main argv =
 
     world.EntityFactory.CreateActive 2 comps
 
-
-    let comps : IComponent list =
-        let camera =
-            {
-                Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
-                View = Matrix4x4.Identity
-                ViewportPosition = Vector2(0.f, 0.f)
-                ViewportDimensions = Vector2(1280.f, 720.f)
-                ViewportDepth = Vector2(0.1f, 1.f)
-            }
-        [camera]
-
-    world.EntityFactory.CreateActive 3 comps
-
     let stopwatch = Stopwatch ()
 
     GameLoop.start
@@ -570,10 +543,6 @@ let main argv =
         (
             fun time interval world ->
                 stopwatch.Restart ()
-
-
-                Input.clearEvents ()
-                Input.pollEvents ()
 
 
                 world.Time.Value <- TimeSpan.FromTicks time

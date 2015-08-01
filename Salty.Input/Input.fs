@@ -1,4 +1,4 @@
-﻿namespace Input
+﻿namespace Salty.Input
 
 open Ferop
 
@@ -12,11 +12,6 @@ type MouseButtonType =
     | X1 = 4
     | X2 = 5
 
-[<Struct>]
-type MousePosition =
-    val X : int
-    val Y : int
-
 type InputEvent =
     | KeyPressed of char
     | KeyReleased of char
@@ -25,6 +20,11 @@ type InputEvent =
     | MouseWheelScrolled of x: int * y: int
     | JoystickButtonPressed of int
     | JoystickButtonReleased of int
+
+[<Struct>]
+type MousePosition =
+    val X : int
+    val Y : int
 
 [<Struct>]
 type KeyboardEvent =

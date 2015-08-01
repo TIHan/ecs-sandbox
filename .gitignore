@@ -49,3 +49,4 @@ TestResults
 *.DS_Store
 
 \bin
+\build

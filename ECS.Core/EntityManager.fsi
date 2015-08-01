@@ -9,9 +9,13 @@ type EntityEvent =
     | Deactivated of Entity
     | Destroyed of Entity
 
-type ComponentEvent =
-    | Added of Entity * IComponent * Type
-    | Removed of Entity * IComponent * Type
+    interface IEvent
+
+type ComponentEvent<'T> =
+    | Added of Entity * 'T
+    | Removed of Entity * 'T
+
+    interface IEvent
 
 type IEntityQuery =
 
@@ -44,6 +48,8 @@ type IEntityQuery =
     abstract ForEachActiveComponent<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : (Entity * 'T1 * 'T2 -> unit) -> unit
 
     abstract ForEachActiveComponent<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : (Entity * 'T1 * 'T2 * 'T3 -> unit) -> unit
+
+    abstract ForEachActiveComponent<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> : (Entity * 'T1 * 'T2 * 'T3 * 'T4 -> unit) -> unit
 
 
     abstract ForEachInactiveComponent<'T when 'T :> IComponent> : (Entity * 'T -> unit) -> unit

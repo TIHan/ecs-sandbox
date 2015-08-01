@@ -1,4 +1,4 @@
-﻿namespace Input
+﻿namespace Salty.Input
 
 type MouseButtonType =
     | Left = 1
@@ -45,10 +45,10 @@ type JoystickButtonEvent =
     val Button : int
 
 module Input =
-    val private dispatchKeyboardEvent : KeyboardEvent -> unit
-    val private dispatchMouseButtonEvent : MouseButtonEvent -> unit
-    val private dispatchMouseWheelEvent : MouseWheelEvent -> unit
-    val private dispatchJoystickButtonEvent : JoystickButtonEvent -> unit
+    val dispatchKeyboardEvent : KeyboardEvent -> unit
+    val dispatchMouseButtonEvent : MouseButtonEvent -> unit
+    val dispatchMouseWheelEvent : MouseWheelEvent -> unit
+    val dispatchJoystickButtonEvent : JoystickButtonEvent -> unit
     val pollEvents : unit -> unit
     val getEvents : unit -> InputEvent list
     val clearEvents : unit -> unit

@@ -2,11 +2,13 @@
 
 open System
 
+type IEvent = interface end
+
 type IEventAggregator =
 
-    abstract GetEvent : unit -> IObservable<'T>
+    abstract GetEvent<'T when 'T :> IEvent> : unit -> IObservable<'T>
 
-    abstract Publish : 'T -> unit
+    abstract Publish<'T when 'T :> IEvent> : 'T -> unit
 
 [<Sealed>]
 type internal EventAggregator =
