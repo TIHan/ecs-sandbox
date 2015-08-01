@@ -2,6 +2,4 @@
 
 open System
 
-[<Interface>]
-type IComponent =
-    inherit IDisposable
+type IComponent = interface end

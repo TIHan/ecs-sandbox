@@ -22,33 +22,20 @@ type Centroid =
 
     interface IComponent
 
-    interface IDisposable with
-
-        member __.Dispose () = ()
-
 type Position =
     {
-        Variable: Var<Vector2>
+        Var: Var<Vector2>
         Centroid: Centroid
     }
 
     interface IComponent
 
-    interface IDisposable with
-
-        member __.Dispose () = ()
-
 type Rotation =
     {
-        PreviousValue: single ref
-        Value: single ref
+        Var: Var<single>
     }
 
     interface IComponent
-
-    interface IDisposable with
-
-        member __.Dispose () = ()
 
 type Health =
     {
@@ -69,10 +56,6 @@ type Player = Player of unit with
 
     interface IComponent
 
-    interface IDisposable with
-
-        member __.Dispose () = ()
-
 type Camera =
     {
         mutable Projection: Matrix4x4
@@ -84,25 +67,19 @@ type Camera =
 
     interface IComponent
 
-    interface IDisposable with
-
-        member __.Dispose () = ()
-
 type Render =
     {
         R: byte
         G: byte
         B: byte
         VBO: Renderer.VBO
-        Position: PrevVal<Vector2>
-        Rotation: Rotation option
+        Position: Val<Vector2>
+        PreviousPosition: Val<Vector2>
+        Rotation: Val<single>
+        PreviousRotation: Val<single>
     }
 
     interface IComponent
-
-    interface IDisposable with
-
-        member __.Dispose () = ()
 
 ///////////////////////////////////////////////////////////////////
 
@@ -120,10 +97,6 @@ type PhysicsPolygon =
     }
 
     interface IComponent
-
-    interface IDisposable with
-
-        member __.Dispose () = ()
 
 type PhysicsSystem () =
     let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
@@ -157,21 +130,20 @@ type PhysicsSystem () =
 
         member __.Update world =
             world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                physicsPolygon.Body.Position <- position.Variable |> Var.value
-                physicsPolygon.Body.Rotation <- !rotation.Value
+                physicsPolygon.Body.Position <- position.Var |> Var.value
+                physicsPolygon.Body.Rotation <- rotation.Var |> Var.value
                 physicsPolygon.Body.Awake <- true
             )
 
             physicsWorld.Step (single world.Interval.TotalSeconds)
 
             world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                position.Variable.Value <- physicsPolygon.Body.Position
+                position.Var.Value <- physicsPolygon.Body.Position
 
                 position.Centroid.PreviousValue := !position.Centroid.Value
                 position.Centroid.Value := physicsPolygon.Body.WorldCenter
 
-                rotation.PreviousValue := !rotation.Value
-                rotation.Value := physicsPolygon.Body.Rotation
+                rotation.Var.Value <- physicsPolygon.Body.Rotation
             )
 
 ///////////////////////////////////////////////////////////////////
@@ -200,14 +172,31 @@ type RendererSystem () =
 
             world.EventAggregator.GetEvent<ComponentEvent> ()
             |> Observable.add (function
-                | Added (entity, comp, typ) when typ = typeof<Render> ->
-                    let render = comp :?> Render
-
-                    render.Position.AssignTime (world.Time)
+                | Added (entity, comp, typ) ->
+                    match typ with
 
 
 
-                    render.Position |> Observable.add (fun x -> printfn "%A" x)
+                    | _ when typ = typeof<Render> ->
+                        let comp = comp :?> Render
+                        comp.PreviousPosition.Assign (world.Time.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
+                        comp.PreviousRotation.Assign (world.Time.DistinctUntilChanged().Zip(comp.Rotation, fun _ x -> x))
+
+                    | _ when typ = typeof<Position> ->
+                        let position = comp :?> Position
+                        match world.EntityQuery.TryGetComponent<Render> entity with
+                        | Some render ->
+                            render.Position.Assign position.Var
+                        | _ -> ()
+
+                    | _ when typ = typeof<Rotation> ->
+                        let rotation = comp :?> Rotation
+                        match world.EntityQuery.TryGetComponent<Render> entity with
+                        | Some render ->
+                            render.Rotation.Assign rotation.Var
+                        | _ -> ()
+
+                    | _ -> ()
                 | _ -> ()
             )
 
@@ -240,13 +229,14 @@ type RendererSystem () =
                 let position = render.Position.Value
                 let rotation = render.Rotation.Value
 
-                let positionValue = Vector2.Lerp (render.Position.PreviousValue, render.Position.Value, world.Delta)
-                let rotationValue = Vector2.Lerp(Vector2 (!rotation.PreviousValue, 0.f), Vector2 (!rotation.Value, 0.f), world.Delta).X
+                let positionValue = Vector2.Lerp (render.PreviousPosition.Value, render.Position.Value, world.Delta)
+                let rotationValue = Vector2.Lerp(Vector2 (render.PreviousRotation.Value, 0.f), Vector2 (render.Rotation.Value, 0.f), world.Delta).X
 
                 let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
                 let model = rotationMatrix * Matrix4x4.CreateTranslation (Vector3 (positionValue, 0.f))
 
                 Renderer.R.SetModel defaultShader model
+
                 Renderer.R.DrawLineLoop defaultShader render.VBO
             )
 
@@ -324,7 +314,7 @@ type MovementSystem () =
 
                                 let position = 
                                     { 
-                                        Variable = Var.create v
+                                        Var = Var.create v
                                         Centroid = 
                                             {
                                                 Value = ref Vector2.Zero
@@ -332,7 +322,7 @@ type MovementSystem () =
                                             }
                                     }
 
-                                let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
+                                let rotation = { Rotation.Var = Var.create 0.f }
 
                                 let physicsPolygon =
                                     {
@@ -353,8 +343,10 @@ type MovementSystem () =
                                         G = 0uy
                                         B = 0uy
                                         VBO = Renderer.R.CreateVBO(data)
-                                        Position = PrevVal.createWithObservable Vector2.Zero position.Variable
-                                        Rotation = Some rotation
+                                        Position = Val.create Vector2.Zero
+                                        PreviousPosition = Val.create Vector2.Zero
+                                        Rotation = Val.create 0.f
+                                        PreviousRotation = Val.create 0.f
                                     }
 
                                 [position;rotation;physicsPolygon;render]
@@ -407,7 +399,7 @@ let main argv =
 
         let position = 
             { 
-                Variable = Var.create Vector2.Zero
+                Var = Var.create Vector2.Zero
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -415,7 +407,7 @@ let main argv =
                     }
             }
 
-        let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
+        let rotation = { Rotation.Var = Var.create 0.f }
 
         let physicsPolygon =
             {
@@ -436,8 +428,10 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = PrevVal.createWithObservable Vector2.Zero position.Variable
-                Rotation = Some rotation
+                Position = Val.create Vector2.Zero
+                PreviousPosition = Val.create Vector2.Zero
+                Rotation = Val.create 0.f
+                PreviousRotation = Val.create 0.f
             }
         
         [position;rotation;Player();physicsPolygon;render]
@@ -458,7 +452,7 @@ let main argv =
 
         let position = 
             { 
-                Variable = Var.create Vector2.Zero
+                Var = Var.create Vector2.Zero
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -466,7 +460,7 @@ let main argv =
                     }
             }
 
-        let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
+        let rotation = { Rotation.Var = Var.create 0.f }
 
         let physicsPolygon =
             {
@@ -487,8 +481,10 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = PrevVal.createWithObservable Vector2.Zero position.Variable
-                Rotation = Some rotation
+                Position = Val.create Vector2.Zero
+                PreviousPosition = Val.create Vector2.Zero
+                Rotation = Val.create 0.f
+                PreviousRotation = Val.create 0.f
             }
 
         [position;rotation;physicsPolygon;render]
@@ -509,7 +505,7 @@ let main argv =
 
         let position = 
             { 
-                Variable = Var.create positionValue
+                Var = Var.create positionValue
                 Centroid = 
                     {
                         Value = ref Vector2.Zero
@@ -517,7 +513,7 @@ let main argv =
                     }
             }
 
-        let rotation = { Rotation.Value = ref 0.f; PreviousValue = ref 0.f }
+        let rotation = { Rotation.Var = Var.create 0.f }
 
         let physicsPolygon =
             {
@@ -538,8 +534,10 @@ let main argv =
                 G = 0uy
                 B = 0uy
                 VBO = Renderer.R.CreateVBO(data)
-                Position = PrevVal.createWithObservable Vector2.Zero position.Variable
-                Rotation = Some rotation
+                Position = Val.create Vector2.Zero
+                PreviousPosition = Val.create Vector2.Zero
+                Rotation = Val.create 0.f
+                PreviousRotation = Val.create 0.f
             }
 
         [position;rotation;physicsPolygon;render]
@@ -573,8 +571,10 @@ let main argv =
             fun time interval world ->
                 stopwatch.Restart ()
 
+
                 Input.clearEvents ()
                 Input.pollEvents ()
+
 
                 world.Time.Value <- TimeSpan.FromTicks time
                 world.Interval <- TimeSpan.FromTicks interval
@@ -587,6 +587,8 @@ let main argv =
                 world.Delta <- delta
                 rendererSystem.Update world
                 Console.Clear ()
+
+                //printfn "FPS: %.2f" (1000.f / single stopwatch.ElapsedMilliseconds)
                 printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
         )
 

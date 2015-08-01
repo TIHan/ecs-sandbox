@@ -1,6 +1,7 @@
 ﻿namespace ECS.Core
 
 open System
+open System.Reflection
 open System.Collections.Generic
 open System.Threading.Tasks
 
@@ -105,7 +106,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let deferQueue = MessageQueue<unit -> unit> ()
     let deferComponentEventQueue = MessageQueue<ComponentEvent> ()
     let deferEntityEventQueue = MessageQueue<EntityEvent> ()
-    let deferDispose = MessageQueue<IDisposable> ()
+    let deferDispose = MessageQueue<IComponent> ()
+    let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
     member inline this.Defer f =
         deferQueue.Push f
@@ -316,12 +318,16 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 this.TryRemoveComponent (entity, typeof<'T>) |> ignore
 
             this.Defer f  
-            
+
         member this.Process () =
             deferQueue.Process (fun f -> f ())
             deferComponentEventQueue.Process eventAggregator.Publish
             deferEntityEventQueue.Process eventAggregator.Publish
-            deferDispose.Process (fun x -> x.Dispose ())   
+            deferDispose.Process (fun x ->
+                x.GetType().GetRuntimeProperties()
+                |> Seq.filter (fun p -> disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo()))
+                |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
+            )   
 
     interface IEntityQuery with
 

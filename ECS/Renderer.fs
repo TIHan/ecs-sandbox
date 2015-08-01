@@ -184,6 +184,7 @@ type R private () =
         r.GLContext = SDL_GL_CreateContext ((SDL_Window*)r.Window);
         SDL_GL_SetSwapInterval (1);
 
+
         #if defined(__GNUC__)
         #else
         glewExperimental = GL_TRUE;
