@@ -1,9 +1,9 @@
 ﻿namespace Salty.Input
 
 open Ferop
+open ECS.Core
 
 open System.Collections.Generic
-open System.Runtime.InteropServices
 
 type MouseButtonType =
     | Left = 1
@@ -12,19 +12,22 @@ type MouseButtonType =
     | X1 = 4
     | X2 = 5
 
-type InputEvent =
-    | KeyPressed of char
-    | KeyReleased of char
-    | MouseButtonPressed of MouseButtonType
-    | MouseButtonReleased of MouseButtonType
-    | MouseWheelScrolled of x: int * y: int
-    | JoystickButtonPressed of int
-    | JoystickButtonReleased of int
-
 [<Struct>]
 type MousePosition =
     val X : int
     val Y : int
+
+    override this.ToString () =
+        sprintf "{ X = %i; Y = %i }" this.X this.Y
+
+type InputEvent =
+    | KeyToggled of char * isPressed: bool
+    | MouseButtonToggled of MouseButtonType * isPressed: bool
+    | MousePositionChanged of MousePosition
+    | MouseWheelScrolled of x: int * y: int
+    | JoystickButtonToggled of int * isPressed: bool
+
+    interface IEvent
 
 [<Struct>]
 type KeyboardEvent =
@@ -68,34 +71,16 @@ module Input =
 
     let inputEvents = ResizeArray<InputEvent> ()
 
-    let keyPressedSet = HashSet<char> ()
-
-    let mouseButtonPressedSet = HashSet<MouseButtonType> ()
-
-    let joystickButtonPressedSet = HashSet<int> ()
-
     [<Export>]
     let dispatchKeyboardEvent (kbEvt: KeyboardEvent) : unit =
         inputEvents.Add (
-            let key = char kbEvt.KeyCode
-            if kbEvt.IsPressed = 0 then 
-                keyPressedSet.Remove key |> ignore
-                InputEvent.KeyReleased key
-            else 
-                keyPressedSet.Add key |> ignore
-                InputEvent.KeyPressed key
+            InputEvent.KeyToggled (char kbEvt.KeyCode, kbEvt.IsPressed = 1)
         )
 
     [<Export>]
     let dispatchMouseButtonEvent (mbEvt: MouseButtonEvent) : unit =
         inputEvents.Add (
-            let btn = mbEvt.Button
-            if mbEvt.IsPressed = 0 then
-                mouseButtonPressedSet.Remove btn |> ignore
-                InputEvent.MouseButtonReleased btn
-            else
-                mouseButtonPressedSet.Add btn |> ignore
-                InputEvent.MouseButtonPressed btn
+            InputEvent.MouseButtonToggled (mbEvt.Button, mbEvt.IsPressed = 1)
         )
 
     [<Export>]
@@ -104,18 +89,9 @@ module Input =
 
     [<Export>]
     let dispatchJoystickButtonEvent (jEvt: JoystickButtonEvent) : unit =
-        let btn = jEvt.Button
-        let isPressed = jEvt.IsPressed = 1
-        if not (joystickButtonPressedSet.Contains btn) && isPressed then 
-            inputEvents.Add (
-                joystickButtonPressedSet.Add btn |> ignore
-                InputEvent.JoystickButtonPressed btn
-            )
-        elif joystickButtonPressedSet.Contains btn && not isPressed then
-            inputEvents.Add (
-                joystickButtonPressedSet.Remove btn |> ignore
-                InputEvent.JoystickButtonReleased btn
-            )
+        inputEvents.Add (
+            InputEvent.JoystickButtonToggled (jEvt.Button, jEvt.IsPressed = 1)
+        )
 
 
     [<Import; MI (MIO.NoInlining)>]
@@ -219,15 +195,6 @@ module Input =
   }
         """
 
-    let getEvents () = 
-        let events = inputEvents.ToArray ()
-        events
-        |> Seq.distinct
-        |> List.ofSeq
-
-    let clearEvents () =
-        inputEvents.Clear ()
-
     [<Import; MI (MIO.NoInlining)>]
     let getMousePosition () : MousePosition =
         C """
@@ -240,9 +207,25 @@ module Input =
         return state;
         """
 
-    let isKeyPressed key = keyPressedSet.Contains key
+    let mutable currentMousePosition = None
 
-    let isMouseButtonPressed btn = mouseButtonPressedSet.Contains btn
+    let getEvents () = 
+        let events = inputEvents.ToArray ()
+        events
+        |> Seq.distinct
+        |> List.ofSeq
+        |> List.append (
+            let p = getMousePosition ()
+            match currentMousePosition with
+            | None ->
+                currentMousePosition <- Some p
+                [InputEvent.MousePositionChanged p]
+            | Some currentP when currentP <> p ->
+                currentMousePosition <- Some p
+                [InputEvent.MousePositionChanged p]
+            | _ -> []
+        )
 
-    let isJoystickButtonPressed btn = joystickButtonPressedSet.Contains btn
+    let clearEvents () =
+        inputEvents.Clear ()
         

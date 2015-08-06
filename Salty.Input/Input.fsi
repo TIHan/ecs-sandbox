@@ -1,5 +1,7 @@
 ﻿namespace Salty.Input
 
+open ECS.Core
+
 type MouseButtonType =
     | Left = 1
     | Middle = 2
@@ -7,27 +9,27 @@ type MouseButtonType =
     | X1 = 4
     | X2 = 5
 
-type InputEvent =
-    | KeyPressed of char
-    | KeyReleased of char
-    | MouseButtonPressed of MouseButtonType
-    | MouseButtonReleased of MouseButtonType
-    | MouseWheelScrolled of x: int * y: int
-    | JoystickButtonPressed of int
-    | JoystickButtonReleased of int
-
 [<Struct>]
 type MousePosition =
     val X : int
     val Y : int
 
+type InputEvent =
+    | KeyToggled of char * isPressed: bool
+    | MouseButtonToggled of MouseButtonType * isPressed: bool
+    | MousePositionChanged of MousePosition
+    | MouseWheelScrolled of x: int * y: int
+    | JoystickButtonToggled of int * isPressed: bool
+
+    interface IEvent
+
 [<Struct>]
-type KeyboardEvent =
+type private KeyboardEvent =
     val IsPressed : int
     val KeyCode : int
 
 [<Struct>]
-type MouseButtonEvent =
+type private MouseButtonEvent =
     val IsPressed : int
     val Clicks : int
     val Button : MouseButtonType
@@ -35,24 +37,21 @@ type MouseButtonEvent =
     val Y : int
 
 [<Struct>]
-type MouseWheelEvent =
+type private MouseWheelEvent =
     val X : int
     val Y : int
 
 [<Struct>]
-type JoystickButtonEvent =
+type private JoystickButtonEvent =
     val IsPressed : int
     val Button : int
 
-module Input =
-    val dispatchKeyboardEvent : KeyboardEvent -> unit
-    val dispatchMouseButtonEvent : MouseButtonEvent -> unit
-    val dispatchMouseWheelEvent : MouseWheelEvent -> unit
-    val dispatchJoystickButtonEvent : JoystickButtonEvent -> unit
+module internal Input =
+    val private dispatchKeyboardEvent : KeyboardEvent -> unit
+    val private dispatchMouseButtonEvent : MouseButtonEvent -> unit
+    val private dispatchMouseWheelEvent : MouseWheelEvent -> unit
+    val private dispatchJoystickButtonEvent : JoystickButtonEvent -> unit
     val pollEvents : unit -> unit
+    val private getMousePosition : unit -> MousePosition
     val getEvents : unit -> InputEvent list
     val clearEvents : unit -> unit
-    val getMousePosition : unit -> MousePosition
-    val isKeyPressed : char -> bool
-    val isMouseButtonPressed : MouseButtonType -> bool
-    val isJoystickButtonPressed : int -> bool

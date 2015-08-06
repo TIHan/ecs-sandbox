@@ -2,10 +2,6 @@
 
 open ECS.Core
 
-type InputEvents = InputEvents of InputEvent list with
-
-    interface IEvent
-
 type InputSystem () =
 
     interface ISystem with
@@ -16,4 +12,5 @@ type InputSystem () =
         member __.Update world =
             Input.clearEvents ()
             Input.pollEvents ()
-            world.EventAggregator.Publish (InputEvents (Input.getEvents ()))
+            Input.getEvents ()
+            |> List.iter world.EventAggregator.Publish

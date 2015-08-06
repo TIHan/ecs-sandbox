@@ -292,66 +292,66 @@ type MovementSystem () =
     interface ISystem with
         
         member __.Init world =
-            world.EventAggregator.GetEvent<InputEvents> ()
-            |> Observable.add (fun (InputEvents (events)) ->
+            let mousePositionChanged =
+                world.EventAggregator.GetEvent<InputEvent> ()
+                |> Observable.choose (function | MousePositionChanged x -> Some x | _ -> None)
 
-                world.EntityQuery.ForEachActiveComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
+            let mouseButtonPressed btn =
+                world.EventAggregator.GetEvent<InputEvent> ()
+                |> Observable.choose (function | MouseButtonToggled (btn, true) -> Some () | _ -> None)                
+            ()
 
-                    if Input.isKeyPressed 'a' then
-                        physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
-
-                    if Input.isKeyPressed 'd' then
-                        physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
-
-                    if Input.isKeyPressed 'w' then
-                        physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
-
-                    events
-                    |> List.iter (function
-//                        | JoystickButtonPressed 2 -> 
-//                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
-//                        | JoystickButtonPressed 3 -> 
-//                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
-//                        | JoystickButtonPressed 10 -> 
-//                            physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
-                        | MouseButtonPressed MouseButtonType.Right ->
-
-                            let (playerEntity, _) = world.EntityQuery.GetComponents<Player> () |> Seq.head
-
-                            match world.EntityQuery.TryGetComponent<Camera> playerEntity with
-                            | None -> ()                                    
-                            | Some camera ->
-                                camera.Position.Assign (Observable.Never ())
-                                camera.PreviousPosition.Assign (Observable.Never ())
-
-                        | MouseButtonPressed MouseButtonType.Left ->
-
-                            let cameras = world.EntityQuery.GetComponents<Camera> ()
-
-                            match cameras with
-                            | [||] -> ()
-                            | _ ->
-            
-                            let (_,camera) = cameras.[0]
-
-                            let mouse = Input.getMousePosition()
-                            let mouseV = Vector3 (single mouse.X, single mouse.Y, 0.f)
-
-                            let v = unProject (mouseV, Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
-                            let v = Vector2 (v.X, v.Y)
-
-                            let n = !count
-                            count := n + 1
-
-                            world.EntityFactory.CreateActive n <| boxEntity v 
-                                                   
-                        | _ -> ()
-                    )
-                )
-
+//            world.EventAggregator.GetEvent<InputEvent> ()
+//            |> Observable.add (fun (InputEvents (events)) ->
+//
+//                world.EntityQuery.ForEachActiveComponent<Player, PhysicsPolygon> (fun (entity, _, physicsPolygon) ->
+//
+////                    if Input.isKeyPressed 'a' then
+////                        physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
+////
+////                    if Input.isKeyPressed 'd' then
+////                        physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
+////
+////                    if Input.isKeyPressed 'w' then
+////                        physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
+//
+//                    events
+//                    |> List.iter (function
+////                        | JoystickButtonPressed 2 -> 
+////                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * -20.f)
+////                        | JoystickButtonPressed 3 -> 
+////                            physicsPolygon.Body.ApplyForce (Vector2.UnitX * 20.f)
+////                        | JoystickButtonPressed 10 -> 
+////                            physicsPolygon.Body.ApplyForce (Vector2.UnitY * 50.0f)
+//
+//                        | MouseButtonToggled (MouseButtonType.Left, true) ->
+//
+//                            let cameras = world.EntityQuery.GetComponents<Camera> ()
+//
+//                            match cameras with
+//                            | [||] -> ()
+//                            | _ ->
+//            
+//                            let (_,camera) = cameras.[0]
+//
+//                            let mouse = Input.getMousePosition()
+//                            let mouseV = Vector3 (single mouse.X, single mouse.Y, 0.f)
+//
+//                            let v = unProject (mouseV, Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
+//                            let v = Vector2 (v.X, v.Y)
+//
+//                            let n = !count
+//                            count := n + 1
+//
+//                            world.EntityFactory.CreateActive n <| boxEntity v 
+//                                                   
+//                        | _ -> ()
+//                    )
+//                )
 
 
-            )
+
+//            )
 
         member __.Update world =
             ()
@@ -458,10 +458,10 @@ let main argv =
             fun delta world ->
                 world.Delta <- delta
                 rendererSystem.Update world
-                Console.Clear ()
+                //Console.Clear ()
 
                 //printfn "FPS: %.2f" (1000.f / single stopwatch.ElapsedMilliseconds)
-                printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
+                //printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
         )
 
     0
