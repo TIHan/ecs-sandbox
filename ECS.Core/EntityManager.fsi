@@ -23,6 +23,8 @@ type IEntityQuery =
 
     abstract TryGetComponent<'T when 'T :> IComponent> : Entity -> 'T option
 
+    abstract TryFind<'T when 'T :> IComponent> : (Entity * 'T -> bool) -> (Entity * 'T) option
+
     abstract IsActive : Entity -> bool
 
     abstract ForEachActive : (Entity -> unit) -> unit

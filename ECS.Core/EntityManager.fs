@@ -26,6 +26,8 @@ type IEntityQuery =
 
     abstract TryGetComponent<'T when 'T :> IComponent> : Entity -> 'T option
 
+    abstract TryFind<'T when 'T :> IComponent> : (Entity * 'T -> bool) -> (Entity * 'T) option
+
     abstract IsActive : Entity -> bool
 
     abstract ForEachActive : (Entity -> unit) -> unit
@@ -406,6 +408,25 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     match obj.ReferenceEquals (comp, null) with
                     | true -> None
                     | _ -> Some (comp :?> 'T)
+
+        member this.TryFind<'T when 'T :> IComponent> (f: (Entity * 'T) -> bool) : (Entity * 'T) option =
+            match lookup.TryGetValue typeof<'T> with
+            | false, _ -> None
+            | _, data -> 
+                let count = data.entities.Count
+
+                let rec loop count = function
+                    | n when n.Equals count -> None
+                    | n ->
+                        let entity = data.entities.[n]
+                        let comp = data.components.[n]
+                        let x = (entity, comp :?> 'T)
+
+                        if f x 
+                        then Some x
+                        else loop count (n + 1)
+               
+                loop (data.entities.Count - 1) 0
 
         member this.IsActive (entity: Entity) =
             activeEntities.[entity.Id]

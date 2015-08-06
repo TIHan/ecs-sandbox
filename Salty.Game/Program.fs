@@ -176,16 +176,6 @@ type RendererSystem () =
                 | _ -> ()
             )
 
-            world.EventAggregator.GetEvent<ComponentEvent<Centroid>> ()
-            |> Observable.add (function
-                | Added (entity, centroid) ->
-                    match world.EntityQuery.TryGetComponent<Camera> entity with
-                    | Some camera ->
-                        camera.Position.Assign centroid.Var
-                    | _ -> ()
-                | _ -> ()
-            )
-
             world.EventAggregator.GetEvent<ComponentEvent<Rotation>> ()
             |> Observable.add (function
                 | Added (entity, rotation) ->
@@ -236,6 +226,65 @@ type RendererSystem () =
             )
 
             Renderer.R.Draw (context)
+
+let boxEntity position : IComponent list =
+    let data =
+        [|
+            Vector2 (1.127f, 1.77f)
+            Vector2 (0.f, 1.77f)
+            Vector2 (0.f, 0.f)
+            Vector2 (1.127f, 0.f)
+        |]
+
+    let position = 
+        { 
+            Position.Var = Var.create position
+        }
+
+    let rotation = { Rotation.Var = Var.create 0.f }
+
+    let physicsPolygon =
+        {
+            Data = data
+            Density = 1.f
+            Restitution = 0.f
+            Friction = 1.f
+            Mass = 1.f
+            IsStatic = false
+            Body = null
+            PolygonShape = null
+            Fixture = null
+        }
+
+    let render =
+        {
+            R = 0uy
+            G = 0uy
+            B = 0uy
+            VBO = Renderer.R.CreateVBO(data)
+            Position = Val.create Vector2.Zero
+            PreviousPosition = Val.create Vector2.Zero
+            Rotation = Val.create 0.f
+            PreviousRotation = Val.create 0.f
+        }
+
+    [position;rotation;physicsPolygon;render]
+
+let playerBoxEntity position : IComponent list =
+    boxEntity position |> List.append [Player()]
+
+let cameraEntity : IComponent list =
+    let camera =
+        {
+            Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
+            View = Matrix4x4.Identity
+            ViewportPosition = Vector2(0.f, 0.f)
+            ViewportDimensions = Vector2(1280.f, 720.f)
+            ViewportDepth = Vector2(0.1f, 1.f)
+            Position = Val.create Vector2.Zero
+            PreviousPosition = Val.create Vector2.Zero
+        }
+    [camera]
 
 type MovementSystem () =
     let count = ref 10
@@ -294,50 +343,7 @@ type MovementSystem () =
                             let n = !count
                             count := n + 1
 
-                            let comps : IComponent list =
-                                let data =
-                                    [|
-                                        Vector2 (1.127f, 1.77f)
-                                        Vector2 (0.f, 1.77f)
-                                        Vector2 (0.f, 0.f)
-                                        Vector2 (1.127f, 0.f)
-                                    |]
-
-                                let position = 
-                                    { 
-                                        Position.Var = Var.create v
-                                    }
-
-                                let rotation = { Rotation.Var = Var.create 0.f }
-
-                                let physicsPolygon =
-                                    {
-                                        Data = data
-                                        Density = 1.f
-                                        Restitution = 0.f
-                                        Friction = 1.f
-                                        Mass = 1.f
-                                        IsStatic = false
-                                        Body = null
-                                        PolygonShape = null
-                                        Fixture = null
-                                    }
-
-                                let render =
-                                    {
-                                        R = 0uy
-                                        G = 0uy
-                                        B = 0uy
-                                        VBO = Renderer.R.CreateVBO(data)
-                                        Position = Val.create Vector2.Zero
-                                        PreviousPosition = Val.create Vector2.Zero
-                                        Rotation = Val.create 0.f
-                                        PreviousRotation = Val.create 0.f
-                                    }
-
-                                [position;rotation;physicsPolygon;render]
-
-                            world.EntityFactory.CreateActive n comps     
+                            world.EntityFactory.CreateActive n <| boxEntity v 
                                                    
                         | _ -> ()
                     )
@@ -374,66 +380,8 @@ let main argv =
     let rendererSystem : ISystem = RendererSystem () :> ISystem
     rendererSystem.Init world
 
-    let comps : IComponent list =
-        let data =
-            [|
-                Vector2 (1.127f, 1.77f)
-                Vector2 (0.f, 1.77f)
-                Vector2 (0.f, 0.f)
-                Vector2 (1.127f, 0.f)
-            |]
-
-        let position = 
-            { 
-                Position.Var = Var.create Vector2.Zero
-            }
-
-        let centroid =
-            {
-                Centroid.Var = Var.create Vector2.Zero
-            }
-
-        let rotation = { Rotation.Var = Var.create 0.f }
-
-        let physicsPolygon =
-            {
-                Data = data
-                Density = 1.f
-                Restitution = 0.f
-                Friction = 1.f
-                Mass = 1.f
-                IsStatic = false
-                Body = null
-                PolygonShape = null
-                Fixture = null
-            }
-
-        let render =
-            {
-                R = 0uy
-                G = 0uy
-                B = 0uy
-                VBO = Renderer.R.CreateVBO(data)
-                Position = Val.create Vector2.Zero
-                PreviousPosition = Val.create Vector2.Zero
-                Rotation = Val.create 0.f
-                PreviousRotation = Val.create 0.f
-            }
-
-        let camera =
-            {
-                Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
-                View = Matrix4x4.Identity
-                ViewportPosition = Vector2(0.f, 0.f)
-                ViewportDimensions = Vector2(1280.f, 720.f)
-                ViewportDepth = Vector2(0.1f, 1.f)
-                Position = Val.create Vector2.Zero
-                PreviousPosition = Val.create Vector2.Zero
-            }
-        
-        [position;centroid;rotation;Player();physicsPolygon;render;camera]
-
-    world.EntityFactory.CreateActive 0 comps
+    playerBoxEntity Vector2.Zero
+    |> world.EntityFactory.CreateActive 0
 
 
     let comps : IComponent list =
@@ -483,53 +431,8 @@ let main argv =
 
     world.EntityFactory.CreateActive 1 comps
 
-
-    let comps : IComponent list =
-        let data =
-            [|
-                Vector2 (-50.f, 0.6858f)
-                Vector2 (0.f, 0.6858f)
-                Vector2 (0.f, 0.f)
-                Vector2 (-50.f, 0.f)
-            |]
-
-        let positionValue = Vector2 (-5.f, 0.f)
-
-        let position = 
-            { 
-                Position.Var = Var.create positionValue
-            }
-
-        let rotation = { Rotation.Var = Var.create 0.f }
-
-        let physicsPolygon =
-            {
-                Data = data
-                Density = 1.f
-                Restitution = 0.f
-                Friction = 1.f
-                Mass = 1.f
-                IsStatic = false
-                Body = null
-                PolygonShape = null
-                Fixture = null
-            }
-
-        let render =
-            {
-                R = 0uy
-                G = 0uy
-                B = 0uy
-                VBO = Renderer.R.CreateVBO(data)
-                Position = Val.create Vector2.Zero
-                PreviousPosition = Val.create Vector2.Zero
-                Rotation = Val.create 0.f
-                PreviousRotation = Val.create 0.f
-            }
-
-        [position;rotation;physicsPolygon;render]
-
-    world.EntityFactory.CreateActive 2 comps
+    cameraEntity 
+    |> world.EntityFactory.CreateActive 2
 
     let stopwatch = Stopwatch ()
 
