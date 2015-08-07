@@ -122,7 +122,7 @@ type PhysicsSystem () =
             )
 
         member __.Update world =
-            world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
+            world.ComponentQuery.ForEach<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
                 physicsPolygon.Body.Position <- position.Var |> Var.value
                 physicsPolygon.Body.Rotation <- rotation.Var |> Var.value
                 physicsPolygon.Body.Awake <- true
@@ -130,11 +130,11 @@ type PhysicsSystem () =
 
             physicsWorld.Step (single world.Interval.TotalSeconds)
 
-            world.EntityQuery.ForEachActiveComponent<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
+            world.ComponentQuery.ForEach<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
                 position.Var.Value <- physicsPolygon.Body.Position
                 rotation.Var.Value <- physicsPolygon.Body.Rotation
 
-                match world.EntityQuery.TryGetComponent<Centroid> entity with
+                match world.ComponentQuery.TryGet<Centroid> entity with
                 | Some centroid ->
                     centroid.Var.Value <- physicsPolygon.Body.WorldCenter
                 | _ -> ()
@@ -182,7 +182,7 @@ type RendererSystem () =
             world.EventAggregator.GetEvent<ComponentEvent<Position>> ()
             |> Observable.add (function
                 | Added (entity, position) ->
-                    match world.EntityQuery.TryGetComponent<Render> entity with
+                    match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Position.Assign position.Var
                     | _ -> ()
@@ -192,7 +192,7 @@ type RendererSystem () =
             world.EventAggregator.GetEvent<ComponentEvent<Rotation>> ()
             |> Observable.add (function
                 | Added (entity, rotation) ->
-                    match world.EntityQuery.TryGetComponent<Render> entity with
+                    match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Rotation.Assign rotation.Var
                     | _ -> ()
@@ -202,7 +202,7 @@ type RendererSystem () =
         member __.Update world =
             Renderer.R.Clear ()
 
-            let cameras = world.EntityQuery.GetComponents<Camera> ()
+            let cameras = world.ComponentQuery.Get<Camera> ()
 
             match cameras with
             | [||] -> ()
@@ -212,7 +212,7 @@ type RendererSystem () =
             let projection = camera.Projection
             let view = ref camera.View
 
-            world.EntityQuery.ForEachActiveComponent<Player, Camera> (fun (_, _, camera) ->
+            world.ComponentQuery.ForEach<Player, Camera> (fun (_, _, camera) ->
                 let value = Vector2.Lerp (camera.PreviousPosition.Value, camera.Position.Value, world.Delta)
                 view := Matrix4x4.CreateTranslation (Vector3 (value, 0.f) * -1.f)
             )
@@ -223,7 +223,7 @@ type RendererSystem () =
             Renderer.R.SetProjection defaultShader projection
             Renderer.R.SetView defaultShader !view
 
-            world.EntityQuery.ForEachActiveComponent<Render, Position> (fun (entity, render, position) ->
+            world.ComponentQuery.ForEach<Render, Position> (fun (entity, render, position) ->
                 let position = render.Position.Value
                 let rotation = render.Rotation.Value
 
@@ -308,7 +308,7 @@ module World =
         world.EventAggregator.Publish<'T> (e)
 
     let tryGetComponent<'T when 'T :> IComponent> entity (world: World) =
-        world.EntityQuery.TryGetComponent<'T> (entity)
+        world.ComponentQuery.TryGet<'T> (entity)
 
 module Input =
     
@@ -412,7 +412,7 @@ type MovementSystem () =
 //            )
 
         member __.Update world =
-            world.EntityQuery.ForEachActiveComponent<Player, PhysicsPolygon> (fun (entity, player, physicsPolygon) ->
+            world.ComponentQuery.ForEach<Player, PhysicsPolygon> (fun (entity, player, physicsPolygon) ->
                 if player.IsMovingUp.Value then
                     physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
             )
@@ -432,7 +432,7 @@ let main argv =
     let movementSystem = MovementSystem ()
     let physicsSystem = PhysicsSystem ()
 
-    let world = World (20480)
+    let world = World (65536)
 
     world.AddSystem inputSystem
     world.AddSystem movementSystem
@@ -442,7 +442,7 @@ let main argv =
     rendererSystem.Init world
 
     playerBoxEntity Vector2.Zero
-    |> world.EntityFactory.CreateActive 0
+    |> world.EntityFactory.Create 0
 
 
     let comps : IComponent list =
@@ -490,10 +490,10 @@ let main argv =
 
         [position;rotation;physicsPolygon;render]
 
-    world.EntityFactory.CreateActive 1 comps
+    world.EntityFactory.Create 1 comps
 
     cameraEntity 
-    |> world.EntityFactory.CreateActive 2
+    |> world.EntityFactory.Create 2
 
     let stopwatch = Stopwatch ()
 
@@ -522,7 +522,7 @@ let main argv =
                 //Console.Clear ()
 
                 //printfn "FPS: %.2f" (1000.f / single stopwatch.ElapsedMilliseconds)
-                //printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
+                printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
         )
 
     0

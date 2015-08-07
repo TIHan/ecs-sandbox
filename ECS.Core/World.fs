@@ -11,7 +11,7 @@ type World (entityAmount) =
     let eventAggregator = EventAggregator () :> IEventAggregator
     let entityManager = EntityManager (eventAggregator, entityAmount)
     let entityFactory = entityManager :> IEntityFactory
-    let entityQuery = entityManager :> IEntityQuery
+    let componentQuery = entityManager :> IComponentQuery
     let systems = ResizeArray ()
     let deferQueue = MessageQueue<unit -> unit> ()
 
@@ -32,7 +32,7 @@ type World (entityAmount) =
             entityFactory.Process ()
         )
 
-    member this.EntityQuery = entityQuery
+    member this.ComponentQuery = componentQuery
 
     member this.EntityFactory = entityFactory
 

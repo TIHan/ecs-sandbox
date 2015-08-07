@@ -18,7 +18,7 @@ type InputSystem () =
             let mousePosition = Input.getMousePosition ()
             let events = Input.getEvents ()
 
-            world.EntityQuery.ForEachActiveComponent<Input> (fun (_, input) ->
+            world.ComponentQuery.ForEach<Input> (fun (_, input) ->
                 input.MousePosition.Value <- mousePosition
                 input.Events.Value <- events
             )

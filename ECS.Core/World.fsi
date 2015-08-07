@@ -15,7 +15,7 @@ type World =
 
     member Run : unit -> unit
 
-    member EntityQuery : IEntityQuery
+    member ComponentQuery : IComponentQuery
 
     member EntityFactory : IEntityFactory
 
