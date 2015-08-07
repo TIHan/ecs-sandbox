@@ -1,17 +1,8 @@
 ﻿namespace Salty.Input
 
+open Salty.Input.Components
+
 open ECS.Core
-
-type InputState =
-    {
-        MousePosition: MousePosition
-        Events: InputEvent list
-    }
-
-type InputStateEvent =
-    | InputStateUpdated of InputState
-
-    interface IEvent
 
 type InputSystem () =
 
@@ -24,9 +15,10 @@ type InputSystem () =
             Input.clearEvents ()
             Input.pollEvents ()
 
-            {
-                MousePosition = Input.getMousePosition ()
-                Events = Input.getEvents ()
-            }
-            |> InputStateUpdated
-            |> world.EventAggregator.Publish
+            let mousePosition = Input.getMousePosition ()
+            let events = Input.getEvents ()
+
+            world.EntityQuery.ForEachActiveComponent<Input> (fun (_, input) ->
+                input.MousePosition.Value <- mousePosition
+                input.Events.Value <- events
+            )

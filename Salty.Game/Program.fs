@@ -11,6 +11,7 @@ open ECS.Core
 
 open Salty.Core.Components
 open Salty.Input
+open Salty.Input.Components
 
 #nowarn "9"
 #nowarn "51"
@@ -33,12 +34,18 @@ type Weapon =
     }
 
 type PlayerCommand =
-    | ToggleMoveUp = 0
-    | ToggleMoveLeft = 1
-    | ToggleMoveRight = 2
-    | SpawnBox = 3
+    | StartMovingUp = 0
+    | StopMovingUp = 1
 
-type Player = Player of unit with
+type Player =
+    {
+        IsMovingUp: Var<bool>
+    }
+
+    static member Default =
+        {
+            IsMovingUp = Var.create false
+        }
 
     interface IComponent
 
@@ -277,7 +284,7 @@ let boxEntity position : IComponent list =
     [position;rotation;physicsPolygon;render]
 
 let playerBoxEntity position : IComponent list =
-    boxEntity position |> List.append [Player()]
+    boxEntity position |> List.append [Player.Default;Input.Default]
 
 let cameraEntity : IComponent list =
     let camera =
@@ -292,12 +299,65 @@ let cameraEntity : IComponent list =
         }
     [camera]
 
+module World =
+
+    let event<'T when 'T :> IEvent> (world: World) =
+        world.EventAggregator.GetEvent<'T> ()
+
+    let raise<'T when 'T :> IEvent> e (world: World) =
+        world.EventAggregator.Publish<'T> (e)
+
+    let tryGetComponent<'T when 'T :> IComponent> entity (world: World) =
+        world.EntityQuery.TryGetComponent<'T> (entity)
+
+module Input =
+    
+    let handle f (world: World) =
+        world 
+        |> World.event<ComponentEvent<Input>>
+        |> Observable.add (function
+            | Added (entity, input) ->
+                match World.tryGetComponent<Player> entity world with
+                | None -> ()
+                | Some player ->
+                    input.Events
+                    |> Observable.add (fun events ->
+                        events
+                        |> List.iter (f input.MousePosition player)
+                    )
+            | _ -> ()
+        )
+
+    let handleCircular f g (world: World) =
+        handle f world
+
+        world
+        |> World.event<ComponentEvent<Player>>
+        |> Observable.add (function
+            | Added (entity, player) ->
+                match World.tryGetComponent<Input> entity world with
+                | None -> ()
+                | Some input ->
+                    input.Events
+                    |> Observable.add (fun events ->
+                        events
+                        |> List.iter (f input.MousePosition player)
+                    )
+            | _ -> ()                    
+        )
+
 type MovementSystem () =
     let count = ref 10
 
     interface ISystem with
         
         member __.Init world =
+            world
+            |> Input.handle (fun mousePosition player -> function
+                | KeyPressed 'w' -> player.IsMovingUp.Value <- true
+                | KeyReleased 'w' -> player.IsMovingUp.Value <- false
+                | _ -> ()
+            )
             ()
 //            world.EventAggregator.GetEvent<InputEvent> ()
 //            |> Observable.add (fun (InputEvents (events)) ->
@@ -352,7 +412,10 @@ type MovementSystem () =
 //            )
 
         member __.Update world =
-            ()
+            world.EntityQuery.ForEachActiveComponent<Player, PhysicsPolygon> (fun (entity, player, physicsPolygon) ->
+                if player.IsMovingUp.Value then
+                    physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
+            )
 
 ///////////////////////////////////////////////////////////////////
 

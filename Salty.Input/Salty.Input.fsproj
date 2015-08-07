@@ -61,6 +61,7 @@
   <ItemGroup>
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
+    <Compile Include="Components.fs" />
     <Compile Include="InputSystem.fs" />
     <Content Include="packages.config" />
   </ItemGroup>

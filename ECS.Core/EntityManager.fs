@@ -196,9 +196,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
         if data.entitySet.Add entity then
             data.entities.Add entity
+            this.DeferComponentEvent <| fun () -> publishComponentAdded entity comp t
 
         data.components.[entity.Id] <- comp
-        this.DeferComponentEvent <| fun () -> publishComponentAdded entity comp t
         
     member this.TryRemoveComponent (entity: Entity, t: Type) : IComponent option =
         match lookup.TryGetValue t with
