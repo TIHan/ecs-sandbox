@@ -1,7 +1,6 @@
 ﻿namespace Salty.Input
 
 open Ferop
-open ECS.Core
 
 open System.Collections.Generic
 
@@ -17,17 +16,19 @@ type MousePosition =
     val X : int
     val Y : int
 
+    new (x, y) = { X = x; Y = y }
+
     override this.ToString () =
         sprintf "{ X = %i; Y = %i }" this.X this.Y
 
 type InputEvent =
-    | KeyToggled of char * isPressed: bool
-    | MouseButtonToggled of MouseButtonType * isPressed: bool
-    | MousePositionChanged of MousePosition
+    | KeyPressed of char
+    | KeyReleased of char
+    | MouseButtonPressed of MouseButtonType
+    | MouseButtonReleased of MouseButtonType
     | MouseWheelScrolled of x: int * y: int
-    | JoystickButtonToggled of int * isPressed: bool
-
-    interface IEvent
+    | JoystickButtonPressed of int
+    | JoystickButtonReleased of int
 
 [<Struct>]
 type KeyboardEvent =
@@ -74,13 +75,21 @@ module Input =
     [<Export>]
     let dispatchKeyboardEvent (kbEvt: KeyboardEvent) : unit =
         inputEvents.Add (
-            InputEvent.KeyToggled (char kbEvt.KeyCode, kbEvt.IsPressed = 1)
+            let key = char kbEvt.KeyCode
+            if kbEvt.IsPressed = 0 then 
+                InputEvent.KeyReleased key
+            else 
+                InputEvent.KeyPressed key
         )
 
     [<Export>]
     let dispatchMouseButtonEvent (mbEvt: MouseButtonEvent) : unit =
         inputEvents.Add (
-            InputEvent.MouseButtonToggled (mbEvt.Button, mbEvt.IsPressed = 1)
+            let btn = mbEvt.Button
+            if mbEvt.IsPressed = 0 then
+                InputEvent.MouseButtonReleased btn
+            else
+                InputEvent.MouseButtonPressed btn
         )
 
     [<Export>]
@@ -90,9 +99,24 @@ module Input =
     [<Export>]
     let dispatchJoystickButtonEvent (jEvt: JoystickButtonEvent) : unit =
         inputEvents.Add (
-            InputEvent.JoystickButtonToggled (jEvt.Button, jEvt.IsPressed = 1)
+            let btn = jEvt.Button
+            if jEvt.IsPressed = 1 then 
+                InputEvent.JoystickButtonPressed btn
+            else 
+                InputEvent.JoystickButtonReleased btn
         )
 
+    [<Import; MI (MIO.NoInlining)>]
+    let getMousePosition () : MousePosition =
+        C """
+        int32_t x;
+        int32_t y;
+        Input_MousePosition state;
+        SDL_GetMouseState (&x, &y);
+        state.X = x;
+        state.Y = y;
+        return state;
+        """
 
     [<Import; MI (MIO.NoInlining)>]
     let pollEvents () : unit =
@@ -195,37 +219,10 @@ module Input =
   }
         """
 
-    [<Import; MI (MIO.NoInlining)>]
-    let getMousePosition () : MousePosition =
-        C """
-        int32_t x;
-        int32_t y;
-        Input_MousePosition state;
-        SDL_GetMouseState (&x, &y);
-        state.X = x;
-        state.Y = y;
-        return state;
-        """
-
-    let mutable currentMousePosition = None
-
     let getEvents () = 
-        let events = inputEvents.ToArray ()
-        events
+        inputEvents
         |> Seq.distinct
         |> List.ofSeq
-        |> List.append (
-            let p = getMousePosition ()
-            match currentMousePosition with
-            | None ->
-                currentMousePosition <- Some p
-                [InputEvent.MousePositionChanged p]
-            | Some currentP when currentP <> p ->
-                currentMousePosition <- Some p
-                [InputEvent.MousePositionChanged p]
-            | _ -> []
-        )
 
     let clearEvents () =
         inputEvents.Clear ()
-        

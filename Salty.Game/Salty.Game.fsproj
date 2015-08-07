@@ -78,7 +78,6 @@
       <Name>Salty.Renderer</Name>
       <Project>{42AE588D-1C77-4778-A806-F49EAF7C2B5A}</Project>
     </ProjectReference>
-    <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -94,6 +93,10 @@
     </Reference>
     <Reference Include="System.Reactive.Linq">
       <HintPath>..\packages\Rx-Linq.2.2.5\lib\net45\System.Reactive.Linq.dll</HintPath>
+    </Reference>
+    <Reference Include="FSharp.Core" />
+    <Reference Include="System.Runtime">
+      <HintPath>..\..\..\..\..\Library\Frameworks\Xamarin.iOS.framework\Versions\8.10.3.2\lib\mono\2.1\Facades\System.Runtime.dll</HintPath>
     </Reference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

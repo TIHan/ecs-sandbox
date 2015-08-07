@@ -15,13 +15,13 @@ type MousePosition =
     val Y : int
 
 type InputEvent =
-    | KeyToggled of char * isPressed: bool
-    | MouseButtonToggled of MouseButtonType * isPressed: bool
-    | MousePositionChanged of MousePosition
+    | KeyPressed of char
+    | KeyReleased of char
+    | MouseButtonPressed of MouseButtonType
+    | MouseButtonReleased of MouseButtonType
     | MouseWheelScrolled of x: int * y: int
-    | JoystickButtonToggled of int * isPressed: bool
-
-    interface IEvent
+    | JoystickButtonPressed of int
+    | JoystickButtonReleased of int
 
 [<Struct>]
 type private KeyboardEvent =
@@ -51,7 +51,7 @@ module internal Input =
     val private dispatchMouseButtonEvent : MouseButtonEvent -> unit
     val private dispatchMouseWheelEvent : MouseWheelEvent -> unit
     val private dispatchJoystickButtonEvent : JoystickButtonEvent -> unit
+    val getMousePosition : unit -> MousePosition
     val pollEvents : unit -> unit
-    val private getMousePosition : unit -> MousePosition
     val getEvents : unit -> InputEvent list
     val clearEvents : unit -> unit

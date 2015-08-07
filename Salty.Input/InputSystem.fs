@@ -2,6 +2,17 @@
 
 open ECS.Core
 
+type InputState =
+    {
+        MousePosition: MousePosition
+        Events: InputEvent list
+    }
+
+type InputStateEvent =
+    | InputStateUpdated of InputState
+
+    interface IEvent
+
 type InputSystem () =
 
     interface ISystem with
@@ -12,5 +23,10 @@ type InputSystem () =
         member __.Update world =
             Input.clearEvents ()
             Input.pollEvents ()
-            Input.getEvents ()
-            |> List.iter world.EventAggregator.Publish
+
+            {
+                MousePosition = Input.getMousePosition ()
+                Events = Input.getEvents ()
+            }
+            |> InputStateUpdated
+            |> world.EventAggregator.Publish

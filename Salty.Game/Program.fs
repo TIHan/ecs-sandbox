@@ -32,6 +32,12 @@ type Weapon =
         Damage: int
     }
 
+type PlayerCommand =
+    | ToggleMoveUp = 0
+    | ToggleMoveLeft = 1
+    | ToggleMoveRight = 2
+    | SpawnBox = 3
+
 type Player = Player of unit with
 
     interface IComponent
@@ -292,15 +298,7 @@ type MovementSystem () =
     interface ISystem with
         
         member __.Init world =
-            let mousePositionChanged =
-                world.EventAggregator.GetEvent<InputEvent> ()
-                |> Observable.choose (function | MousePositionChanged x -> Some x | _ -> None)
-
-            let mouseButtonPressed btn =
-                world.EventAggregator.GetEvent<InputEvent> ()
-                |> Observable.choose (function | MouseButtonToggled (btn, true) -> Some () | _ -> None)                
             ()
-
 //            world.EventAggregator.GetEvent<InputEvent> ()
 //            |> Observable.add (fun (InputEvents (events)) ->
 //
