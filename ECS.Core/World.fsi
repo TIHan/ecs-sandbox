@@ -3,29 +3,31 @@
 open System
 
 [<Sealed>]
+type WorldTime =
+
+    member Current : Var<TimeSpan>
+
+    member Interval : Var<TimeSpan>
+
+    member Delta : Var<single>
+
+type ISystem =
+
+    abstract Init : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+
+    abstract Update : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+
+[<Sealed>]
 type World =
 
-    new : int -> World
+    new : int * ISystem list -> World
 
-    member Time : Var<TimeSpan> with get
-
-    member Interval : TimeSpan with get, set
-
-    member Delta : single with get, set
-
-    member Run : unit -> unit
-
-    member ComponentQuery : IComponentQuery
-
-    member EntityFactory : IEntityFactory
+    member Time : WorldTime
 
     member EventAggregator : IEventAggregator
 
-    member AddSystem : ISystem -> unit
+    member EntityFactory : IEntityFactory
 
-and ISystem =
+    member ComponentQuery : IComponentQuery
 
-    abstract Init :  World -> unit
-
-    abstract Update : World -> unit
-
+    member Run : unit -> unit

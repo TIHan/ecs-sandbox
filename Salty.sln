@@ -3,10 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Farseer Physics", "Farseer Physics Engine 3.5 SIMD\Farseer Physics.csproj", "{A4610E4C-DD34-428B-BABB-779CA0B5993A}"
-EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "ECS.Core", "ECS.Core\ECS.Core.fsproj", "{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}"
-EndProject
 Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Salty.Core", "Salty.Core\Salty.Core.fsproj", "{2610244A-1000-479E-BAD0-1E42770754CC}"
 EndProject
 Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Salty.Game", "Salty.Game\Salty.Game.fsproj", "{FD0D8316-10C9-4755-8FC2-E0DE400BF9E5}"
@@ -14,6 +10,12 @@ EndProject
 Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Salty.Renderer", "Salty.Renderer\Salty.Renderer.fsproj", "{42AE588D-1C77-4778-A806-F49EAF7C2B5A}"
 EndProject
 Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Salty.Input", "Salty.Input\Salty.Input.fsproj", "{CE1F8C45-C665-4F36-A2C2-1FA973F9DA47}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libs", "libs", "{54C210F2-3168-4FDA-A396-0ED5DEEB3B1D}"
+EndProject
+Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "ECS.Core", "ECS.Core\ECS.Core.fsproj", "{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Farseer Physics", "Farseer Physics Engine 3.5 SIMD\Farseer Physics.csproj", "{A4610E4C-DD34-428B-BABB-779CA0B5993A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{FD0D8316-10C9-4755-8FC2-E0DE400BF9E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD0D8316-10C9-4755-8FC2-E0DE400BF9E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FD0D8316-10C9-4755-8FC2-E0DE400BF9E5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785} = {54C210F2-3168-4FDA-A396-0ED5DEEB3B1D}
+		{A4610E4C-DD34-428B-BABB-779CA0B5993A} = {54C210F2-3168-4FDA-A396-0ED5DEEB3B1D}
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -48,13 +48,13 @@ type IEntityFactory =
 
     abstract RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
 
-    abstract Process : unit -> unit
-
 [<Sealed>]
 type internal EntityManager =
 
     interface IEntityFactory
     
     interface IComponentQuery
+
+    member Process : unit -> unit
 
     new : IEventAggregator * entityAmount: int -> EntityManager

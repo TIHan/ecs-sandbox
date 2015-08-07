@@ -7,46 +7,44 @@ open System.Collections.Concurrent
 open System.Threading.Tasks
 
 [<Sealed>]
-type World (entityAmount) =
+type WorldTime () =
+
+    member val Current = Var.create TimeSpan.Zero with get
+
+    member val Interval = Var.create TimeSpan.Zero with get
+
+    member val Delta = Var.create 0.f with get
+
+type ISystem =
+
+    abstract Init : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+
+    abstract Update : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+
+[<Sealed>]
+type World (entityAmount, systems: ISystem list) =
     let eventAggregator = EventAggregator () :> IEventAggregator
     let entityManager = EntityManager (eventAggregator, entityAmount)
     let entityFactory = entityManager :> IEntityFactory
     let componentQuery = entityManager :> IComponentQuery
-    let systems = ResizeArray ()
-    let deferQueue = MessageQueue<unit -> unit> ()
+    let time = WorldTime ()
 
-    member inline this.Defer f =
-        deferQueue.Push f
+    do
+        systems
+        |> List.iter (fun system -> system.Init time eventAggregator entityFactory componentQuery)
 
-    member val Time = Var.create TimeSpan.Zero with get
+    member __.Time = time
 
-    member val Interval = TimeSpan.Zero with get, set
+    member __.EventAggregator = eventAggregator
 
-    member val Delta = 0.f with get, set
+    member __.EntityFactory = entityFactory
 
-    member this.Run () =
-        deferQueue.Process (fun f -> f ())
+    member __.ComponentQuery = componentQuery
 
-        systems |> Seq.iter (fun (sys: ISystem) ->
-            sys.Update this
-            entityFactory.Process ()
+    member __.Run () =
+        entityManager.Process ()
+
+        systems |> List.iter (fun (sys: ISystem) ->
+            sys.Update time eventAggregator entityFactory componentQuery
+            entityManager.Process ()
         )
-
-    member this.ComponentQuery = componentQuery
-
-    member this.EntityFactory = entityFactory
-
-    member this.EventAggregator = eventAggregator
-
-    member this.AddSystem (system: ISystem) : unit =
-        let inline f () =
-            systems.Add system
-            system.Init this
-
-        this.Defer f
-
-and ISystem =
-
-    abstract Init : World -> unit
-
-    abstract Update : World -> unit

@@ -51,8 +51,6 @@ type IEntityFactory =
 
     abstract RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
 
-    abstract Process : unit -> unit
-
 type EntityLookupData =
     {
         entities: Entity ResizeArray
@@ -269,6 +267,16 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     then
                     f (entity, (com1 :?> 'T1), (com2 :?> 'T2), (com3 :?> 'T3), (com4 :?> 'T4))
 
+    member this.Process () =
+        deferQueue.Process (fun f -> f ())
+        deferComponentEventQueue.Process (fun f -> f ())
+        deferEntityEventQueue.Process eventAggregator.Publish
+        deferDispose.Process (fun x ->
+            x.GetType().GetRuntimeProperties()
+            |> Seq.filter (fun p -> disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo()))
+            |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
+        )  
+
     interface IEntityFactory with
 
         member this.Create id comps =
@@ -294,17 +302,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             let inline f () =
                 this.TryRemoveComponent (entity, typeof<'T>) |> ignore
 
-            this.Defer f  
-
-        member this.Process () =
-            deferQueue.Process (fun f -> f ())
-            deferComponentEventQueue.Process (fun f -> f ())
-            deferEntityEventQueue.Process eventAggregator.Publish
-            deferDispose.Process (fun x ->
-                x.GetType().GetRuntimeProperties()
-                |> Seq.filter (fun p -> disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo()))
-                |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
-            )   
+            this.Defer f
 
     interface IComponentQuery with
 
