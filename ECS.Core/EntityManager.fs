@@ -11,7 +11,7 @@ type EntityEvent =
 
     interface IEvent
 
-type ComponentEvent<'T> =
+type ComponentEvent<'T when 'T :> IComponent> =
     | Added of Entity * 'T
     | Removed of Entity * 'T
 
@@ -41,15 +41,41 @@ type IComponentQuery =
 
     abstract ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : (Entity * 'T1 * 'T2 -> unit) -> unit
 
-type IEntityFactory =
+type IComponentService =
+
+    abstract Add<'T when 'T :> IComponent> : Entity -> 'T -> unit
+
+    abstract Remove<'T when 'T :> IComponent> : Entity -> unit
+
+type IEntityService =
 
     abstract Create : id: int -> IComponent list -> unit
 
     abstract Destroy : Entity -> unit
 
-    abstract AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
+type CompositeComponent =
+    {
+        entity: Entity
+        componentsF: (IComponentService -> unit) list
+    }
 
-    abstract RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
+module Component =
+
+    let forEntity (entity: Entity) =
+        {
+            entity = entity
+            componentsF = []
+        }
+
+    let add<'T when 'T :> IComponent> (comp: 'T) (comps: CompositeComponent) : CompositeComponent =
+        { comps with
+            componentsF = (fun (service: IComponentService) -> service.Add<'T> comps.entity comp) :: comps.componentsF
+        }
+
+    let remove<'T when 'T :> IComponent> (comps: CompositeComponent) : CompositeComponent =
+        { comps with
+            componentsF = (fun (service: IComponentService) -> service.Remove<'T> comps.entity) :: comps.componentsF
+        }
 
 type EntityLookupData =
     {
@@ -275,9 +301,23 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             x.GetType().GetRuntimeProperties()
             |> Seq.filter (fun p -> disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo()))
             |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
-        )  
+        )
 
-    interface IEntityFactory with
+    interface IComponentService with
+
+        member this.Add<'T when 'T :> IComponent> entity (comp: 'T) =
+            let inline f () =
+                this.AddComponent (entity, comp, typeof<'T>)
+
+            this.Defer f
+
+        member this.Remove<'T when 'T :> IComponent> entity =
+            let inline f () =
+                this.TryRemoveComponent (entity, typeof<'T>) |> ignore
+
+            this.Defer f
+
+    interface IEntityService with
 
         member this.Create id comps =
             let inline g () =
@@ -289,18 +329,6 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         member this.Destroy entity =
             let inline f () =
                 this.Destroy entity
-
-            this.Defer f
-
-        member this.AddComponent<'T when 'T :> IComponent> entity (comp: 'T) =
-            let inline f () =
-                this.AddComponent (entity, comp, typeof<'T>)
-
-            this.Defer f
-
-        member this.RemoveComponent<'T when 'T :> IComponent> entity =
-            let inline f () =
-                this.TryRemoveComponent (entity, typeof<'T>) |> ignore
 
             this.Defer f
 

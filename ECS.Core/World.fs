@@ -17,34 +17,52 @@ type WorldTime () =
 
 type ISystem =
 
-    abstract Init : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+    abstract Init : IWorld -> unit
 
-    abstract Update : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+    abstract Update : IWorld -> unit
+
+and IWorld =
+
+    abstract Time : WorldTime
+
+    abstract EventAggregator : IEventAggregator
+
+    abstract ComponentQuery : IComponentQuery
+
+    abstract ComponentService : IComponentService
+
+    abstract EntityService : IEntityService
 
 [<Sealed>]
-type World (entityAmount, systems: ISystem list) =
+type World (entityAmount, systems: ISystem list) as this =
     let eventAggregator = EventAggregator () :> IEventAggregator
     let entityManager = EntityManager (eventAggregator, entityAmount)
-    let entityFactory = entityManager :> IEntityFactory
+    let componentQuery = entityManager :> IComponentQuery
+    let componentService = entityManager :> IComponentService
+    let entityService = entityManager :> IEntityService
     let componentQuery = entityManager :> IComponentQuery
     let time = WorldTime ()
 
     do
         systems
-        |> List.iter (fun system -> system.Init time eventAggregator entityFactory componentQuery)
-
-    member __.Time = time
-
-    member __.EventAggregator = eventAggregator
-
-    member __.EntityFactory = entityFactory
-
-    member __.ComponentQuery = componentQuery
+        |> List.iter (fun system -> system.Init this)
 
     member __.Run () =
         entityManager.Process ()
 
         systems |> List.iter (fun (sys: ISystem) ->
-            sys.Update time eventAggregator entityFactory componentQuery
+            sys.Update this
             entityManager.Process ()
         )
+
+    interface IWorld with
+
+        member __.Time = time
+
+        member __.EventAggregator = eventAggregator
+
+        member __.ComponentQuery = componentQuery
+
+        member __.ComponentService = componentService
+
+        member __.EntityService = entityService

@@ -13,21 +13,27 @@ type WorldTime =
 
 type ISystem =
 
-    abstract Init : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+    abstract Init : IWorld -> unit
 
-    abstract Update : WorldTime -> IEventAggregator -> IEntityFactory -> IComponentQuery -> unit
+    abstract Update : IWorld -> unit
+
+and IWorld =
+
+    abstract Time : WorldTime
+
+    abstract EventAggregator : IEventAggregator
+
+    abstract ComponentQuery : IComponentQuery
+
+    abstract ComponentService : IComponentService
+
+    abstract EntityService : IEntityService
 
 [<Sealed>]
 type World =
 
     new : int * ISystem list -> World
-
-    member Time : WorldTime
-
-    member EventAggregator : IEventAggregator
-
-    member EntityFactory : IEntityFactory
-
-    member ComponentQuery : IComponentQuery
-
+   
     member Run : unit -> unit
+
+    interface IWorld

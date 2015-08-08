@@ -8,17 +8,17 @@ type InputSystem () =
 
     interface ISystem with
 
-        member __.Init _ _ _ _ =
+        member __.Init _ =
             ()
 
-        member __.Update _ _ _ componentQuery =
+        member __.Update world =
             Input.clearEvents ()
             Input.pollEvents ()
 
             let mousePosition = Input.getMousePosition ()
             let events = Input.getEvents ()
 
-            componentQuery.ForEach<Input> (fun (_, input) ->
+            world.ComponentQuery.ForEach<Input> (fun (_, input) ->
                 input.MousePosition.Value <- mousePosition
                 input.Events.Value <- events
             )

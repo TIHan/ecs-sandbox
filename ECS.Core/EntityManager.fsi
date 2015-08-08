@@ -8,7 +8,7 @@ type EntityEvent =
 
     interface IEvent
 
-type ComponentEvent<'T> =
+type ComponentEvent<'T when 'T :> IComponent> =
     | Added of Entity * 'T
     | Removed of Entity * 'T
 
@@ -38,22 +38,37 @@ type IComponentQuery =
 
     abstract ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : (Entity * 'T1 * 'T2 -> unit) -> unit
 
-type IEntityFactory =
+type IComponentService =
+
+    abstract Add<'T when 'T :> IComponent> : Entity -> 'T -> unit
+
+    abstract Remove<'T when 'T :> IComponent> : Entity -> unit
+
+type IEntityService =
 
     abstract Create : id: int -> IComponent list -> unit
 
     abstract Destroy : Entity -> unit
 
-    abstract AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
+[<Sealed>]
+type CompositeComponent
 
-    abstract RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
+module Component =
+
+    val forEntity : Entity -> CompositeComponent
+
+    val add<'T when 'T :> IComponent> : 'T -> CompositeComponent -> CompositeComponent
+
+    val remove<'T when 'T :> IComponent> : CompositeComponent -> CompositeComponent
 
 [<Sealed>]
 type internal EntityManager =
-
-    interface IEntityFactory
     
     interface IComponentQuery
+
+    interface IComponentService
+
+    interface IEntityService
 
     member Process : unit -> unit
 
