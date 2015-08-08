@@ -7,6 +7,7 @@ open System.Threading.Tasks
 
 type EntityEvent =
     | Created of Entity
+    | Spawned of Entity
     | Destroyed of Entity
 
     interface IEvent
@@ -49,33 +50,9 @@ type IComponentService =
 
 type IEntityService =
 
-    abstract Create : id: int -> IComponent list -> unit
+    abstract Create : id: int -> unit
 
     abstract Destroy : Entity -> unit
-
-type CompositeComponent =
-    {
-        entity: Entity
-        componentsF: (IComponentService -> unit) list
-    }
-
-module Component =
-
-    let forEntity (entity: Entity) =
-        {
-            entity = entity
-            componentsF = []
-        }
-
-    let add<'T when 'T :> IComponent> (comp: 'T) (comps: CompositeComponent) : CompositeComponent =
-        { comps with
-            componentsF = (fun (service: IComponentService) -> service.Add<'T> comps.entity comp) :: comps.componentsF
-        }
-
-    let remove<'T when 'T :> IComponent> (comps: CompositeComponent) : CompositeComponent =
-        { comps with
-            componentsF = (fun (service: IComponentService) -> service.Remove<'T> comps.entity) :: comps.componentsF
-        }
 
 type EntityLookupData =
     {
@@ -89,6 +66,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let lookup = Dictionary<Type, EntityLookupData> ()
     let lockObj = obj ()
     let deferQueue = MessageQueue<unit -> unit> ()
+    let deferPreEntityEventQueue = MessageQueue<EntityEvent> ()
     let deferComponentEventQueue = MessageQueue<unit -> unit> ()
     let deferEntityEventQueue = MessageQueue<EntityEvent> ()
     let deferDispose = MessageQueue<IComponent> ()
@@ -117,6 +95,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     member inline this.Defer f =
         deferQueue.Push f
 
+    member inline this.DeferPreEntityEvent x =
+        deferPreEntityEventQueue.Push x
+
     member inline this.DeferComponentEvent f =
         deferComponentEventQueue.Push f
 
@@ -143,10 +124,10 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 lookup.[t] <- data
             | _ -> ()  
 
-    member this.Create id : Entity =
+    member this.Create id : unit =
         let entity = Entity id
-        this.DeferEntityEvent (Created entity)
-        entity
+        this.DeferPreEntityEvent (Created entity)
+        this.DeferEntityEvent (Spawned entity)
 
     member this.Destroy (entity: Entity) =
         this.RemoveAllComponents (entity)     
@@ -295,6 +276,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     member this.Process () =
         deferQueue.Process (fun f -> f ())
+        deferPreEntityEventQueue.Process eventAggregator.Publish
         deferComponentEventQueue.Process (fun f -> f ())
         deferEntityEventQueue.Process eventAggregator.Publish
         deferDispose.Process (fun x ->
@@ -319,10 +301,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     interface IEntityService with
 
-        member this.Create id comps =
+        member this.Create id =
             let inline g () =
-                let entity = this.Create id
-                this.AddComponents entity comps
+                this.Create id
 
             this.Defer g
 

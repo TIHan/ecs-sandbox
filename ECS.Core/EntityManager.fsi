@@ -2,13 +2,14 @@
 
 open System
 
-type EntityEvent =
+type internal EntityEvent =
     | Created of Entity
+    | Spawned of Entity
     | Destroyed of Entity
 
     interface IEvent
 
-type ComponentEvent<'T when 'T :> IComponent> =
+type internal ComponentEvent<'T when 'T :> IComponent> =
     | Added of Entity * 'T
     | Removed of Entity * 'T
 
@@ -46,20 +47,9 @@ type IComponentService =
 
 type IEntityService =
 
-    abstract Create : id: int -> IComponent list -> unit
+    abstract Create : id: int -> unit
 
     abstract Destroy : Entity -> unit
-
-[<Sealed>]
-type CompositeComponent
-
-module Component =
-
-    val forEntity : Entity -> CompositeComponent
-
-    val add<'T when 'T :> IComponent> : 'T -> CompositeComponent -> CompositeComponent
-
-    val remove<'T when 'T :> IComponent> : CompositeComponent -> CompositeComponent
 
 [<Sealed>]
 type internal EntityManager =

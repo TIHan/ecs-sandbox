@@ -100,9 +100,9 @@ type PhysicsSystem () =
     interface ISystem with
         
         member __.Init world =
-            world.EventAggregator.GetEvent<ComponentEvent<PhysicsPolygon>> ()
+            World.componentAdded world
             |> Observable.add (function
-                | Added (entity, physicsPolygon) ->
+                | (entity, physicsPolygon) ->
                     let data = 
                         physicsPolygon.Data
 
@@ -120,7 +120,6 @@ type PhysicsSystem () =
                             fun fixture1 fixture2 _ -> 
                                 true
                         )
-                | _ -> ()
             )
 
         member __.Update world =
@@ -166,39 +165,35 @@ type RendererSystem () =
             vao <- Renderer.R.CreateVao ()
             defaultShader <- Renderer.R.LoadShaders ("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader")
 
-            world.EventAggregator.GetEvent<ComponentEvent<Render>> ()
+            World.componentAdded<Render> world
             |> Observable.add (function
-                | Added (entity, comp) ->
+                | (entity, comp) ->
                     comp.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
                     comp.PreviousRotation.Assign (world.Time.Current.DistinctUntilChanged().Zip(comp.Rotation, fun _ x -> x))
-                | _ -> ()
             )
 
-            world.EventAggregator.GetEvent<ComponentEvent<Camera>> ()
+            World.componentAdded<Camera> world
             |> Observable.add (function
-                | Added (entity, comp) ->
+                | (entity, comp) ->
                     comp.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
-                | _ -> ()
             )
 
-            world.EventAggregator.GetEvent<ComponentEvent<Position>> ()
+            World.componentAdded<Position> world
             |> Observable.add (function
-                | Added (entity, position) ->
+                | (entity, position) ->
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Position.Assign position.Var
                     | _ -> ()
-                | _ -> ()
             )
 
-            world.EventAggregator.GetEvent<ComponentEvent<Rotation>> ()
+            World.componentAdded<Rotation> world
             |> Observable.add (function
-                | Added (entity, rotation) ->
+                | (entity, rotation) ->
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Rotation.Assign rotation.Var
                     | _ -> ()
-                | _ -> ()
             )
 
         member __.Update world =
@@ -242,7 +237,7 @@ type RendererSystem () =
 
             Renderer.R.Draw (context)
 
-let boxEntity position : IComponent list =
+let boxEntity position (desc: EntityDescription) =
     let data =
         [|
             Vector2 (1.127f, 1.77f)
@@ -283,12 +278,18 @@ let boxEntity position : IComponent list =
             PreviousRotation = Val.create 0.f
         }
 
-    [position;rotation;physicsPolygon;render]
+    desc
+    |> Entity.add position
+    |> Entity.add rotation
+    |> Entity.add physicsPolygon
+    |> Entity.add render
 
-let playerBoxEntity position : IComponent list =
-    boxEntity position |> List.append [Player.Default;Input ()]
+let playerBoxEntity position desc =
+    boxEntity position desc
+    |> Entity.add Player.Default
+    |> Entity.add (Input ())
 
-let cameraEntity : IComponent list =
+let cameraEntity (desc: EntityDescription) =
     let camera =
         {
             Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
@@ -299,7 +300,7 @@ let cameraEntity : IComponent list =
             Position = Val.create Vector2.Zero
             PreviousPosition = Val.create Vector2.Zero
         }
-    [camera]
+    desc |> Entity.add camera
 
 type MovementSystem () =
     let count = ref 10
@@ -393,11 +394,12 @@ let main argv =
     let rendererSystem : ISystem = RendererSystem () :> ISystem
     rendererSystem.Init world
 
-    playerBoxEntity Vector2.Zero
-    |> (world :> IWorld).EntityService.Create 0
+    Entity.create 0
+    |> playerBoxEntity Vector2.Zero
+    |> Entity.run world
 
 
-    let comps : IComponent list =
+    let comps desc =
         let data =
             [|
                 Vector2 (-1000.f, -1.f)
@@ -440,12 +442,19 @@ let main argv =
                 PreviousRotation = Val.create 0.f
             }
 
-        [position;rotation;physicsPolygon;render]
+        desc
+        |> Entity.add position
+        |> Entity.add rotation
+        |> Entity.add physicsPolygon
+        |> Entity.add render
 
-    (world :> IWorld).EntityService.Create 1 comps
+    Entity.create 1
+    |> comps
+    |> Entity.run world
 
-    cameraEntity 
-    |> (world :> IWorld).EntityService.Create 2
+    Entity.create 2
+    |> cameraEntity 
+    |> Entity.run world
 
     let stopwatch = Stopwatch ()
 
