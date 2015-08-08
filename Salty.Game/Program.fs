@@ -284,7 +284,7 @@ let boxEntity position : IComponent list =
     [position;rotation;physicsPolygon;render]
 
 let playerBoxEntity position : IComponent list =
-    boxEntity position |> List.append [Player.Default;Input.Default]
+    boxEntity position |> List.append [Player.Default;Input ()]
 
 let cameraEntity : IComponent list =
     let camera =

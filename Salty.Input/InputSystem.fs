@@ -4,7 +4,7 @@ open Salty.Input.Components
 
 open ECS.Core
 
-type InputSystem = InputSystem of unit with
+type InputSystem () =
 
     interface ISystem with
 

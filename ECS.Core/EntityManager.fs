@@ -82,7 +82,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         m.Invoke (eventAggregator, [|e|]) |> ignore
 
     let publishComponentRemoved entity comp (t: Type) =
-        let eventType = componentAddedType.MakeGenericType(t)
+        let eventType = componentRemovedType.MakeGenericType(t)
         let ctor = eventType.GetTypeInfo().DeclaredConstructors |> Seq.head
         let m = publishMethod.MakeGenericMethod (eventType)
         let e = ctor.Invoke(parameters = [|entity;comp|])

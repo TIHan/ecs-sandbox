@@ -4,16 +4,10 @@ open Salty.Input
 
 open ECS.Core
 
-type Input =
-    {
-        MousePosition: Var<MousePosition>
-        Events: Var<InputEvent list>
-    }
+type Input () =
 
-    static member Default =
-        {
-            MousePosition = Var.create <| MousePosition ()
-            Events = Var.create []
-        }
+    member val MousePosition = Var.create <| MousePosition () with get
+
+    member val Events : Var<InputEvent list> = Var.create [] with get
 
     interface IComponent
