@@ -56,6 +56,9 @@
   <ItemGroup>
     <Compile Include="Game.fs" />
     <Compile Include="Program.fs" />
+    <Content Include="App.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -75,6 +78,7 @@
       <Name>Salty.Renderer</Name>
       <Project>{42AE588D-1C77-4778-A806-F49EAF7C2B5A}</Project>
     </ProjectReference>
+    <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -93,9 +97,6 @@
     </Reference>
     <Reference Include="System.Runtime">
       <HintPath>..\..\..\..\..\Library\Frameworks\Xamarin.iOS.framework\Versions\8.10.3.2\lib\mono\2.1\Facades\System.Runtime.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharp.Core">
-      <Private>True</Private>
     </Reference>
     <ProjectReference Include="..\Salty.Physics\Salty.Physics.fsproj">
       <Project>{BC928CFE-3FD1-4497-9553-EAC8E90D9372}</Project>
