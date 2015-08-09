@@ -12,6 +12,8 @@ open ECS.Core
 open Salty.Core.Components
 open Salty.Input
 open Salty.Input.Components
+open Salty.Physics
+open Salty.Physics.Components
 open Salty.Renderer
 open Salty.Renderer.Components
 
@@ -30,76 +32,6 @@ type Player () =
 
     interface IComponent<Player>
 
-type PhysicsPolygon () =
-
-    member val Data : Vector2 [] Var = Var.create [||]
-
-    member val IsStatic = Var.create false
-
-    member val Density = Var.create 0.f
-
-    member val Restitution = Var.create 0.f
-
-    member val Friction = Var.create 0.f
-
-    member val Mass = Var.create 0.f
-
-    member val Body : FarseerPhysics.Dynamics.Body = null with get, set
-
-    member val PolygonShape : FarseerPhysics.Collision.Shapes.PolygonShape = null with get, set
-
-    member val Fixture : FarseerPhysics.Dynamics.Fixture = null with get, set
-
-    interface IComponent<PhysicsPolygon>
-
-type PhysicsSystem () =
-
-    let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
-
-    interface ISystem with
-        
-        member __.Init world =
-            World.componentAdded<PhysicsPolygon> world
-            |> Observable.add (function
-                | (entity, physicsPolygon) ->
-                    let data = 
-                        physicsPolygon.Data.Value
-
-                    physicsPolygon.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
-                    physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
-                    physicsPolygon.Body.Restitution <- physicsPolygon.Restitution.Value
-                    physicsPolygon.Body.Friction <- physicsPolygon.Friction.Value
-                    physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density.Value)
-                    physicsPolygon.Fixture <- physicsPolygon.Body.CreateFixture (physicsPolygon.PolygonShape)
-                    physicsPolygon.Fixture.UserData <- entity.Id
-                    physicsPolygon.Body.Mass <- physicsPolygon.Mass.Value
-
-                    physicsPolygon.Fixture.OnCollision <-
-                        new FarseerPhysics.Dynamics.OnCollisionEventHandler (
-                            fun fixture1 fixture2 _ -> 
-                                true
-                        )
-            )
-
-        member __.Update world =
-            world.ComponentQuery.ForEach<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                physicsPolygon.Body.Position <- position.Var |> Var.value
-                physicsPolygon.Body.Rotation <- rotation.Var |> Var.value
-                physicsPolygon.Body.Awake <- true
-            )
-
-            physicsWorld.Step (single world.Time.Interval.Value.TotalSeconds)
-
-            world.ComponentQuery.ForEach<PhysicsPolygon, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                position.Var.Value <- physicsPolygon.Body.Position
-                rotation.Var.Value <- physicsPolygon.Body.Rotation
-
-                match world.ComponentQuery.TryGet<Centroid> entity with
-                | Some centroid ->
-                    centroid.Var.Value <- physicsPolygon.Body.WorldCenter
-                | _ -> ()
-            )
-
 let boxEntity p (desc: EntityDescription) =
     let data =
         [|
@@ -115,13 +47,13 @@ let boxEntity p (desc: EntityDescription) =
     let rotation = Rotation ()
     rotation.Var.Value <- 0.f
 
-    let physicsPolygon = PhysicsPolygon ()
-    physicsPolygon.Data.Value <- data
-    physicsPolygon.Density.Value <- 1.f
-    physicsPolygon.Restitution.Value <- 0.f
-    physicsPolygon.Friction.Value <- 1.f
-    physicsPolygon.Mass.Value <- 1.f
-    physicsPolygon.IsStatic.Value <- false
+    let physics = Physics ()
+    physics.Data.Value <- data
+    physics.Density.Value <- 1.f
+    physics.Restitution.Value <- 0.f
+    physics.Friction.Value <- 1.f
+    physics.Mass.Value <- 1.f
+    physics.IsStatic.Value <- false
 
     let render = Render ()
     render.VBO <- Renderer.R.CreateVBO (data)
@@ -129,7 +61,7 @@ let boxEntity p (desc: EntityDescription) =
     desc
     |> Entity.add position
     |> Entity.add rotation
-    |> Entity.add physicsPolygon
+    |> Entity.add physics
     |> Entity.add render
 
 let playerBoxEntity position desc =
@@ -205,7 +137,7 @@ type MovementSystem () =
 //            )
 
         member __.Update world =
-            world.ComponentQuery.ForEach<Player, PhysicsPolygon> (fun (entity, player, physicsPolygon) ->
+            world.ComponentQuery.ForEach<Player, Physics> (fun (entity, player, physicsPolygon) ->
                 if player.IsMovingUp.Value then
                     physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
             )
@@ -258,13 +190,13 @@ let main argv =
 
         let rotation = Rotation ()
 
-        let physicsPolygon = PhysicsPolygon ()
-        physicsPolygon.Data.Value <- data
-        physicsPolygon.Density.Value <- 1.f
-        physicsPolygon.Restitution.Value <- 0.f
-        physicsPolygon.Friction.Value <- 1.f
-        physicsPolygon.Mass.Value <- 1.f
-        physicsPolygon.IsStatic.Value <- true
+        let physics = Physics ()
+        physics.Data.Value <- data
+        physics.Density.Value <- 1.f
+        physics.Restitution.Value <- 0.f
+        physics.Friction.Value <- 1.f
+        physics.Mass.Value <- 1.f
+        physics.IsStatic.Value <- true
 
         let render = Render ()
         render.VBO <- Renderer.R.CreateVBO (data)
@@ -272,7 +204,7 @@ let main argv =
         desc
         |> Entity.add position
         |> Entity.add rotation
-        |> Entity.add physicsPolygon
+        |> Entity.add physics
         |> Entity.add render
 
     Entity.create 1

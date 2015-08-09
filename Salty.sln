@@ -17,6 +17,8 @@ Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "ECS.Core", "ECS.Core\ECS.Co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Farseer Physics", "Farseer Physics Engine 3.5 SIMD\Farseer Physics.csproj", "{A4610E4C-DD34-428B-BABB-779CA0B5993A}"
 EndProject
+Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Salty.Physics", "Salty.Physics\Salty.Physics.fsproj", "{BC928CFE-3FD1-4497-9553-EAC8E90D9372}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC928CFE-3FD1-4497-9553-EAC8E90D9372}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC928CFE-3FD1-4497-9553-EAC8E90D9372}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC928CFE-3FD1-4497-9553-EAC8E90D9372}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC928CFE-3FD1-4497-9553-EAC8E90D9372}.Release|Any CPU.Build.0 = Release|Any CPU
 		{CE1F8C45-C665-4F36-A2C2-1FA973F9DA47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CE1F8C45-C665-4F36-A2C2-1FA973F9DA47}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CE1F8C45-C665-4F36-A2C2-1FA973F9DA47}.Release|Any CPU.ActiveCfg = Release|Any CPU
