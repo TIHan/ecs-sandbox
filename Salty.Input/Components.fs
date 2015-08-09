@@ -10,4 +10,4 @@ type Input () =
 
     member val Events : Var<InputEvent list> = Var.create [] with get
 
-    interface IComponent
+    interface IComponent<Input>

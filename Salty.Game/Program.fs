@@ -18,80 +18,77 @@ open Salty.Input.Components
 
 open System.Numerics
 
-type Health =
-    {
-        Value: int ref
-    }
-
-type Armor =
-    {
-        Value: int ref
-    }
-
-type Weapon =
-    {
-        Damage: int
-    }
-
 type PlayerCommand =
     | StartMovingUp = 0
     | StopMovingUp = 1
 
-type Player =
-    {
-        IsMovingUp: Var<bool>
-    }
+type Player () =
 
-    static member Default =
-        {
-            IsMovingUp = Var.create false
-        }
+    member val IsMovingUp = Var.create false
 
-    interface IComponent
+    interface IComponent<Player>
 
-type Camera =
-    {
-        mutable Projection: Matrix4x4
-        mutable View: Matrix4x4
-        mutable ViewportPosition: Vector2
-        mutable ViewportDimensions: Vector2
-        mutable ViewportDepth: Vector2
-        Position: Val<Vector2>
-        PreviousPosition: Val<Vector2>
-    }
+type Camera () =
 
-    interface IComponent
+    member val Projection = Matrix4x4.Identity with get, set
 
-type Render =
-    {
-        R: byte
-        G: byte
-        B: byte
-        VBO: Renderer.VBO
-        Position: Val<Vector2>
-        PreviousPosition: Val<Vector2>
-        Rotation: Val<single>
-        PreviousRotation: Val<single>
-    }
+    member val View = Matrix4x4.Identity with get, set
 
-    interface IComponent
+    member val ViewportPosition = Vector2.Zero with get, set
+
+    member val ViewportDimensions = Vector2.Zero with get, set
+
+    member val ViewportDepth = Vector2.Zero with get, set
+
+    member val Position = Val.create Vector2.Zero with get, set
+
+    member val PreviousPosition = Val.create Vector2.Zero with get, set
+
+    interface IComponent<Camera>
+
+type Render () =
+
+    member val R = 0uy with get, set
+
+    member val G = 0uy with get, set
+
+    member val B = 0uy with get, set
+
+    member val VBO = Unchecked.defaultof<Renderer.VBO> with get, set
+
+    member val Position = Val.create Vector2.Zero
+
+    member val PreviousPosition = Val.create Vector2.Zero
+
+    member val Rotation = Val.create 0.f
+
+    member val PreviousRotation = Val.create 0.f
+
+    interface IComponent<Render>
 
 ///////////////////////////////////////////////////////////////////
 
-type PhysicsPolygon =
-    {
-        Data: Vector2 []
-        IsStatic: bool
-        Density: float32
-        Restitution: float32
-        Friction: float32
-        Mass: float32
-        mutable Body: FarseerPhysics.Dynamics.Body
-        mutable PolygonShape: FarseerPhysics.Collision.Shapes.PolygonShape
-        mutable Fixture: FarseerPhysics.Dynamics.Fixture
-    }
+type PhysicsPolygon () =
 
-    interface IComponent
+    member val Data : Vector2 [] Var = Var.create [||]
+
+    member val IsStatic = Var.create false
+
+    member val Density = Var.create 0.f
+
+    member val Restitution = Var.create 0.f
+
+    member val Friction = Var.create 0.f
+
+    member val Mass = Var.create 0.f
+
+    member val Body : FarseerPhysics.Dynamics.Body = null with get, set
+
+    member val PolygonShape : FarseerPhysics.Collision.Shapes.PolygonShape = null with get, set
+
+    member val Fixture : FarseerPhysics.Dynamics.Fixture = null with get, set
+
+    interface IComponent<PhysicsPolygon>
 
 type PhysicsSystem () =
 
@@ -100,20 +97,20 @@ type PhysicsSystem () =
     interface ISystem with
         
         member __.Init world =
-            World.componentAdded world
+            World.componentAdded<PhysicsPolygon> world
             |> Observable.add (function
                 | (entity, physicsPolygon) ->
                     let data = 
-                        physicsPolygon.Data
+                        physicsPolygon.Data.Value
 
                     physicsPolygon.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
-                    physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
-                    physicsPolygon.Body.Restitution <- physicsPolygon.Restitution
-                    physicsPolygon.Body.Friction <- physicsPolygon.Friction
-                    physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density)
+                    physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
+                    physicsPolygon.Body.Restitution <- physicsPolygon.Restitution.Value
+                    physicsPolygon.Body.Friction <- physicsPolygon.Friction.Value
+                    physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density.Value)
                     physicsPolygon.Fixture <- physicsPolygon.Body.CreateFixture (physicsPolygon.PolygonShape)
                     physicsPolygon.Fixture.UserData <- entity.Id
-                    physicsPolygon.Body.Mass <- physicsPolygon.Mass
+                    physicsPolygon.Body.Mass <- physicsPolygon.Mass.Value
 
                     physicsPolygon.Fixture.OnCollision <-
                         new FarseerPhysics.Dynamics.OnCollisionEventHandler (
@@ -174,8 +171,8 @@ type RendererSystem () =
 
             World.componentAdded<Camera> world
             |> Observable.add (function
-                | (entity, comp) ->
-                    comp.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
+                | (entity, camera) ->
+                    camera.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(camera.Position, fun _ x -> x))
             )
 
             World.componentAdded<Position> world
@@ -184,6 +181,7 @@ type RendererSystem () =
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Position.Assign position.Var
+                        render.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(render.Position, fun _ x -> x))
                     | _ -> ()
             )
 
@@ -237,7 +235,7 @@ type RendererSystem () =
 
             Renderer.R.Draw (context)
 
-let boxEntity position (desc: EntityDescription) =
+let boxEntity p (desc: EntityDescription) =
     let data =
         [|
             Vector2 (1.127f, 1.77f)
@@ -246,37 +244,22 @@ let boxEntity position (desc: EntityDescription) =
             Vector2 (1.127f, 0.f)
         |]
 
-    let position = 
-        { 
-            Position.Var = Var.create position
-        }
+    let position = Position ()
+    position.Var.Value <- p
 
-    let rotation = { Rotation.Var = Var.create 0.f }
+    let rotation = Rotation ()
+    rotation.Var.Value <- 0.f
 
-    let physicsPolygon =
-        {
-            Data = data
-            Density = 1.f
-            Restitution = 0.f
-            Friction = 1.f
-            Mass = 1.f
-            IsStatic = false
-            Body = null
-            PolygonShape = null
-            Fixture = null
-        }
+    let physicsPolygon = PhysicsPolygon ()
+    physicsPolygon.Data.Value <- data
+    physicsPolygon.Density.Value <- 1.f
+    physicsPolygon.Restitution.Value <- 0.f
+    physicsPolygon.Friction.Value <- 1.f
+    physicsPolygon.Mass.Value <- 1.f
+    physicsPolygon.IsStatic.Value <- false
 
-    let render =
-        {
-            R = 0uy
-            G = 0uy
-            B = 0uy
-            VBO = Renderer.R.CreateVBO(data)
-            Position = Val.create Vector2.Zero
-            PreviousPosition = Val.create Vector2.Zero
-            Rotation = Val.create 0.f
-            PreviousRotation = Val.create 0.f
-        }
+    let render = Render ()
+    render.VBO <- Renderer.R.CreateVBO (data)
 
     desc
     |> Entity.add position
@@ -286,20 +269,15 @@ let boxEntity position (desc: EntityDescription) =
 
 let playerBoxEntity position desc =
     boxEntity position desc
-    |> Entity.add Player.Default
+    |> Entity.add (Player ())
     |> Entity.add (Input ())
 
 let cameraEntity (desc: EntityDescription) =
-    let camera =
-        {
-            Projection = Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
-            View = Matrix4x4.Identity
-            ViewportPosition = Vector2(0.f, 0.f)
-            ViewportDimensions = Vector2(1280.f, 720.f)
-            ViewportDepth = Vector2(0.1f, 1.f)
-            Position = Val.create Vector2.Zero
-            PreviousPosition = Val.create Vector2.Zero
-        }
+    let camera = Camera ()
+    camera.Projection <- Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
+    camera.ViewportDimensions <- Vector2 (1280.f, 720.f)
+    camera.ViewportDepth <- Vector2 (0.1f, 1.f)
+
     desc |> Entity.add camera
 
 type MovementSystem () =
@@ -408,39 +386,23 @@ let main argv =
                 Vector2 (-1000.f, 1.f)
             |]
 
-        let positionValue = Vector2 (0.f, -10.f)
+        let positionValue = Vector2 (0.f, -2.f)
 
-        let position = 
-            { 
-                Position.Var = Var.create Vector2.Zero
-            }
+        let position = Position ()
+        position.Var.Value <- positionValue
 
-        let rotation = { Rotation.Var = Var.create 0.f }
+        let rotation = Rotation ()
 
-        let physicsPolygon =
-            {
-                Data = data
-                Density = 1.f
-                Restitution = 0.f
-                Friction = 1.f
-                Mass = 1.f
-                IsStatic = true
-                Body = null
-                PolygonShape = null
-                Fixture = null
-            }
+        let physicsPolygon = PhysicsPolygon ()
+        physicsPolygon.Data.Value <- data
+        physicsPolygon.Density.Value <- 1.f
+        physicsPolygon.Restitution.Value <- 0.f
+        physicsPolygon.Friction.Value <- 1.f
+        physicsPolygon.Mass.Value <- 1.f
+        physicsPolygon.IsStatic.Value <- true
 
-        let render =
-            {
-                R = 0uy
-                G = 0uy
-                B = 0uy
-                VBO = Renderer.R.CreateVBO(data)
-                Position = Val.create Vector2.Zero
-                PreviousPosition = Val.create Vector2.Zero
-                Rotation = Val.create 0.f
-                PreviousRotation = Val.create 0.f
-            }
+        let render = Render ()
+        render.VBO <- Renderer.R.CreateVBO (data)
 
         desc
         |> Entity.add position

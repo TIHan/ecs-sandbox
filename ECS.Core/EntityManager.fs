@@ -12,7 +12,7 @@ type EntityEvent =
 
     interface IEvent
 
-type ComponentEvent<'T when 'T :> IComponent> =
+type ComponentEvent<'T> =
     | Added of Entity * 'T
     | Removed of Entity * 'T
 
@@ -20,33 +20,33 @@ type ComponentEvent<'T when 'T :> IComponent> =
 
 type IComponentQuery =
 
-    abstract Has<'T when 'T :> IComponent> : Entity -> bool
+    abstract Has<'T when 'T :> IComponent<'T>> : Entity -> bool
 
-    abstract TryGet<'T when 'T :> IComponent> : Entity -> 'T option
+    abstract TryGet<'T when 'T :> IComponent<'T>> : Entity -> 'T option
 
-    abstract TryFind<'T when 'T :> IComponent> : (Entity * 'T -> bool) -> (Entity * 'T) option
+    abstract TryFind<'T when 'T :> IComponent<'T>> : (Entity * 'T -> bool) -> (Entity * 'T) option
 
-    abstract Get<'T when 'T :> IComponent> : unit -> (Entity * 'T) []
+    abstract Get<'T when 'T :> IComponent<'T>> : unit -> (Entity * 'T) []
 
-    abstract Get<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : unit -> (Entity * 'T1 * 'T2) []
+    abstract Get<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> : unit -> (Entity * 'T1 * 'T2) []
 
-    abstract ForEach<'T when 'T :> IComponent> : (Entity * 'T -> unit) -> unit
+    abstract ForEach<'T when 'T :> IComponent<'T>> : (Entity * 'T -> unit) -> unit
 
-    abstract ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : (Entity * 'T1 * 'T2 -> unit) -> unit
+    abstract ForEach<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> : (Entity * 'T1 * 'T2 -> unit) -> unit
 
-    abstract ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : (Entity * 'T1 * 'T2 * 'T3 -> unit) -> unit
+    abstract ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2> and 'T3 :> IComponent<'T3>> : (Entity * 'T1 * 'T2 * 'T3 -> unit) -> unit
 
-    abstract ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> : (Entity * 'T1 * 'T2 * 'T3 * 'T4 -> unit) -> unit
+    abstract ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2> and 'T3 :> IComponent<'T3> and 'T4 :> IComponent<'T4>> : (Entity * 'T1 * 'T2 * 'T3 * 'T4 -> unit) -> unit
 
-    abstract ParallelForEach<'T when 'T :> IComponent> : (Entity * 'T -> unit) -> unit
+    abstract ParallelForEach<'T when 'T :> IComponent<'T>> : (Entity * 'T -> unit) -> unit
 
-    abstract ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : (Entity * 'T1 * 'T2 -> unit) -> unit
+    abstract ParallelForEach<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> : (Entity * 'T1 * 'T2 -> unit) -> unit
 
 type IComponentService =
 
-    abstract Add<'T when 'T :> IComponent> : Entity -> 'T -> unit
+    abstract Add<'T when 'T :> IComponent<'T>> : Entity -> 'T -> unit
 
-    abstract Remove<'T when 'T :> IComponent> : Entity -> unit
+    abstract Remove<'T when 'T :> IComponent<'T>> : Entity -> unit
 
 type IEntityService =
 
@@ -58,7 +58,7 @@ type EntityLookupData =
     {
         entities: Entity ResizeArray
         entitySet: Entity HashSet
-        components: IComponent []
+        components: obj []
     }
 
 [<Sealed>]
@@ -69,7 +69,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let deferPreEntityEventQueue = MessageQueue<EntityEvent> ()
     let deferComponentEventQueue = MessageQueue<unit -> unit> ()
     let deferEntityEventQueue = MessageQueue<EntityEvent> ()
-    let deferDispose = MessageQueue<IComponent> ()
+    let deferDispose = MessageQueue<obj> ()
     let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
     let eventAggregatorType = typeof<IEventAggregator>
@@ -113,7 +113,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             | false, _ ->
                 let entities = ResizeArray ()
                 let entitySet = HashSet ()
-                let components = Array.init entityAmount (fun _ -> Unchecked.defaultof<IComponent>)
+                let components = Array.init entityAmount (fun _ -> null)
                 let data =
                     {
                         entities = entities
@@ -132,7 +132,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     member this.Destroy (entity: Entity) =
         this.RemoveAllComponents (entity)     
 
-    member this.AddComponent (entity: Entity, comp: IComponent, t: Type) =
+    member this.AddComponent (entity: Entity, comp: obj, t: Type) =
         this.LoadComponent (t)
 
         let data = lookup.[t]
@@ -143,7 +143,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
         data.components.[entity.Id] <- comp
         
-    member this.TryRemoveComponent (entity: Entity, t: Type) : IComponent option =
+    member this.TryRemoveComponent (entity: Entity, t: Type) : obj option =
         match lookup.TryGetValue t with
         | false, _ -> None
         | _, data ->
@@ -151,14 +151,14 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             data.entities.Remove entity |> ignore
             if entity.Id >= 0 && entity.Id < data.components.Length then
                 let comp = data.components.[entity.Id]
-                data.components.[entity.Id] <- Unchecked.defaultof<IComponent>
+                data.components.[entity.Id] <- null
                 this.DeferComponentEvent <| fun () -> publishComponentRemoved entity comp t
                 this.DeferDispose comp
                 Some comp    
             else
                 None
 
-    member this.AddComponents (entity: Entity) (comps: IComponent list) =
+    member this.AddComponents (entity: Entity) (comps: obj list) =
         comps
         |> List.iter (fun comp ->
             this.AddComponent (entity, comp, comp.GetType ())
@@ -170,7 +170,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             this.TryRemoveComponent (entity, key) |> ignore
         )
 
-    member this.IterateInternal<'T when 'T :> IComponent> (f: Entity * 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member this.IterateInternal<'T> (f: Entity * 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T> with
         | (false,_) -> ()
         | (_,data) ->
@@ -193,7 +193,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member this.IterateInternal<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> (f: Entity * 'T1 * 'T2 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member this.IterateInternal<'T1, 'T2> (f: Entity * 'T1 * 'T2 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2> with
         | (false,_),_
         | _,(false,_) -> ()
@@ -217,7 +217,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     then
                     f (entity, (com1 :?> 'T1), (com2 :?> 'T2))
 
-    member this.IterateInternal<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> (f: Entity * 'T1 * 'T2 * 'T3 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member this.IterateInternal<'T1, 'T2, 'T3> (f: Entity * 'T1 * 'T2 * 'T3 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3> with
         | (false,_),_,_
         | _,(false,_),_
@@ -244,7 +244,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     then
                     f (entity, (com1 :?> 'T1), (com2 :?> 'T2), (com3 :?> 'T3))
 
-    member this.IterateInternal<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> (f: Entity * 'T1 * 'T2 * 'T3 * 'T4 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f: Entity * 'T1 * 'T2 * 'T3 * 'T4 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3>, lookup.TryGetValue typeof<'T4> with
         | (false,_),_,_,_
         | _,(false,_),_,_
@@ -287,13 +287,13 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     interface IComponentService with
 
-        member this.Add<'T when 'T :> IComponent> entity (comp: 'T) =
+        member this.Add<'T when 'T :> IComponent<'T>> entity (comp: 'T) =
             let inline f () =
                 this.AddComponent (entity, comp, typeof<'T>)
 
             this.Defer f
 
-        member this.Remove<'T when 'T :> IComponent> entity =
+        member this.Remove<'T when 'T :> IComponent<'T>> entity =
             let inline f () =
                 this.TryRemoveComponent (entity, typeof<'T>) |> ignore
 
@@ -315,7 +315,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     interface IComponentQuery with
 
-        member this.Has<'T when 'T :> IComponent> (entity: Entity) : bool =
+        member this.Has<'T when 'T :> IComponent<'T>> (entity: Entity) : bool =
             match lookup.TryGetValue typeof<'T> with
             | false, _ -> false
             | _, data -> 
@@ -323,7 +323,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 then false
                 else not <| obj.ReferenceEquals (data.components.[entity.Id], null)
 
-        member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
+        member this.TryGet<'T when 'T :> IComponent<'T>> (entity: Entity) : 'T option = 
             match lookup.TryGetValue typeof<'T> with
             | false, _ -> None
             | _, data ->
@@ -335,7 +335,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     | true -> None
                     | _ -> Some (comp :?> 'T)
 
-        member this.TryFind<'T when 'T :> IComponent> (f: (Entity * 'T) -> bool) : (Entity * 'T) option =
+        member this.TryFind<'T when 'T :> IComponent<'T>> (f: (Entity * 'T) -> bool) : (Entity * 'T) option =
             match lookup.TryGetValue typeof<'T> with
             | false, _ -> None
             | _, data -> 
@@ -354,34 +354,34 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                
                 loop (data.entities.Count - 1) 0
 
-        member this.Get<'T when 'T :> IComponent> () : (Entity * 'T) [] =
+        member this.Get<'T when 'T :> IComponent<'T>> () : (Entity * 'T) [] =
             let result = ResizeArray<Entity * 'T> ()
 
             this.IterateInternal<'T> (result.Add, false, fun _ -> true)
 
             result.ToArray ()
 
-        member this.Get<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> () : (Entity * 'T1 * 'T2) [] =
+        member this.Get<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> () : (Entity * 'T1 * 'T2) [] =
             let result = ResizeArray<Entity * 'T1 * 'T2> ()
 
             this.IterateInternal<'T1, 'T2> (result.Add, false, fun _ -> true)
 
             result.ToArray ()
 
-        member this.ForEach<'T when 'T :> IComponent> f : unit =
+        member this.ForEach<'T when 'T :> IComponent<'T>> f : unit =
             this.IterateInternal<'T> (f, false, fun _ -> true)
 
-        member this.ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
+        member this.ForEach<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> f : unit =
             this.IterateInternal<'T1, 'T2> (f, false, fun _ -> true)
 
-        member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> f : unit =
+        member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2> and 'T3 :> IComponent<'T3>> f : unit =
             this.IterateInternal<'T1, 'T2, 'T3> (f, false, fun _ -> true)
 
-        member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> f : unit =
+        member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2> and 'T3 :> IComponent<'T3> and 'T4 :> IComponent<'T4>> f : unit =
             this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f, false, fun _ -> true)
 
-        member this.ParallelForEach<'T when 'T :> IComponent> f : unit =
+        member this.ParallelForEach<'T when 'T :> IComponent<'T>> f : unit =
             this.IterateInternal<'T> (f, true, fun _ -> true)
 
-        member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
+        member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> f : unit =
             this.IterateInternal<'T1, 'T2> (f, true, fun _ -> true)

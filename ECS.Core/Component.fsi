@@ -2,8 +2,7 @@
 
 open System
 
-type IComponent = interface end
-
-[<Interface>]
-type IComponent<'T when 'T : (new : unit -> 'T)> =
-    inherit IComponent 
+type IComponent<'T
+        when 'T : (new : unit -> 'T)
+        and 'T : not struct
+    > = interface end

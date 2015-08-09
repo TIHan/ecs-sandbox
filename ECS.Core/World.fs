@@ -102,14 +102,14 @@ module World =
             | _ -> None
         )
 
-    let componentAdded<'T when 'T :> IComponent> (world: IWorld) =
+    let componentAdded<'T when 'T :> IComponent<'T>> (world: IWorld) =
         event<ComponentEvent<'T>> world
         |> Observable.choose (function
             | Added (entity, comp) -> Some (entity, comp)
             | _ -> None
         )
 
-    let componentRemoved<'T when 'T :> IComponent> (world: IWorld) =
+    let componentRemoved<'T when 'T :> IComponent<'T>> (world: IWorld) =
         event<ComponentEvent<'T>> world
         |> Observable.choose (function
             | Removed (entity, comp) -> Some (entity, comp)
@@ -127,12 +127,12 @@ module Entity =
             componentF = []
         }
      
-    let add<'T when 'T :> IComponent> (comp: 'T) (desc: EntityDescription) : EntityDescription =
+    let add<'T when 'T :> IComponent<'T>> (comp: 'T) (desc: EntityDescription) : EntityDescription =
         { desc with
             componentF = (fun entity (service: IComponentService) -> service.Add<'T> entity comp) :: desc.componentF
         }
 
-    let remove<'T when 'T :> IComponent> (desc: EntityDescription) : EntityDescription =
+    let remove<'T when 'T :> IComponent<'T>> (desc: EntityDescription) : EntityDescription =
         { desc with
             componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: desc.componentF
         }

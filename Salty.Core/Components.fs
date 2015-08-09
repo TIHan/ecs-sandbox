@@ -5,23 +5,20 @@ open System.Numerics
 
 open ECS.Core
 
-type Centroid =
-    {
-        Var: Var<Vector2>
-    }
+type Centroid () =
 
-    interface IComponent
+    member val Var = Var.create Vector2.Zero with get
 
-type Position =
-    {
-        Var: Var<Vector2>
-    }
+    interface IComponent<Centroid>
 
-    interface IComponent
+type Position () =
 
-type Rotation =
-    {
-        Var: Var<single>
-    }
+    member val Var = Var.create Vector2.Zero with get
 
-    interface IComponent
+    interface IComponent<Position>
+
+type Rotation () =
+
+    member val Var = Var.create 0.f with get
+
+    interface IComponent<Rotation>
