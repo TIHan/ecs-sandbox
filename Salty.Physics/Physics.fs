@@ -58,8 +58,6 @@ open Components
 
 type PhysicsSystem () =
 
-    let xmlPhysics = XmlSerializer (typeof<Physics>)
-    let fileStream = File.Open ("physics.xml", FileMode.Create)
     let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
 
     interface ISystem with
@@ -67,8 +65,7 @@ type PhysicsSystem () =
         member __.Init world =
             World.componentAdded<Physics> world
             |> Observable.add (function
-                | (entity, physicsPolygon) ->
-                    xmlPhysics.Serialize (fileStream, physicsPolygon)
+                | (entity, physicsPolygon) ->                   
 
                     let data = 
                         physicsPolygon.Data.Value
