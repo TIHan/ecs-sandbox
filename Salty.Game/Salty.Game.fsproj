@@ -101,6 +101,8 @@
       <Project>{BC928CFE-3FD1-4497-9553-EAC8E90D9372}</Project>
       <Name>Salty.Physics</Name>
     </ProjectReference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Serialization" />
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

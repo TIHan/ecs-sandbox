@@ -5,7 +5,12 @@ open ECS.Core
 open Salty.Core
 open Salty.Core.Components
 
+open System
+open System.IO
 open System.Numerics
+open System.Xml
+open System.Xml.Serialization
+open System.Globalization
 
 module Components =
 
@@ -31,10 +36,30 @@ module Components =
 
         interface IComponent<Physics>
 
+        interface IXmlSerializable with
+
+            member this.GetSchema () = null
+
+            member this.WriteXml writer =
+                writer.WriteAttributeString ("IsStatic", this.IsStatic.Value.ToString ())
+                writer.WriteAttributeString ("Density", this.IsStatic.Value.ToString ())
+                writer.WriteAttributeString ("Restitution", this.Restitution.Value.ToString ())
+                writer.WriteAttributeString ("Friction", this.Friction.Value.ToString ())
+                writer.WriteAttributeString ("Mass", this.Mass.Value.ToString ())
+
+            member this.ReadXml reader =
+                this.IsStatic.Value <- bool.Parse (reader.GetAttribute ("IsStatic"))
+                this.Density.Value <- Single.Parse (reader.GetAttribute ("Density"), NumberStyles.Number, CultureInfo.InvariantCulture)
+                this.Restitution.Value <- Single.Parse (reader.GetAttribute ("Restitution"), NumberStyles.Number, CultureInfo.InvariantCulture)
+                this.Friction.Value <- Single.Parse (reader.GetAttribute ("Friction"), NumberStyles.Number, CultureInfo.InvariantCulture)
+                this.Mass.Value <- Single.Parse (reader.GetAttribute ("Mass"), NumberStyles.Number, CultureInfo.InvariantCulture)
+
 open Components
 
 type PhysicsSystem () =
 
+    let xmlPhysics = XmlSerializer (typeof<Physics>)
+    let fileStream = File.Open ("physics.xml", FileMode.Create)
     let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
 
     interface ISystem with
@@ -43,6 +68,8 @@ type PhysicsSystem () =
             World.componentAdded<Physics> world
             |> Observable.add (function
                 | (entity, physicsPolygon) ->
+                    xmlPhysics.Serialize (fileStream, physicsPolygon)
+
                     let data = 
                         physicsPolygon.Data.Value
 

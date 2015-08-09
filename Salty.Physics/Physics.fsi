@@ -6,6 +6,7 @@ open Salty.Core
 open Salty.Core.Components
 
 open System.Numerics
+open System.Xml.Serialization
 
 module Components =
 
@@ -26,6 +27,8 @@ module Components =
         member Mass : Var<single>
 
         interface IComponent<Physics>
+
+        interface IXmlSerializable
 
 type PhysicsSystem =
 
