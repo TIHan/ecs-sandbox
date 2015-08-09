@@ -111,33 +111,29 @@ let benchmark f =
 [<EntryPoint>]
 let main argv = 
 
-    let inputSystem = InputSystem ()
-    let movementSystem = MovementSystem ()
-    let physicsSystem = PhysicsSystem ()
-
     let world = 
         World (65536,
             [
-                inputSystem
-                movementSystem
-                physicsSystem
+                InputSystem ()
+                MovementSystem ()
+                PhysicsSystem ()
             ]
         )
 
     let rendererSystem : ISystem = RendererSystem () :> ISystem
     rendererSystem.Init world
 
-    Entity.create 0
-    |> Game.player Vector2.Zero
-    |> Entity.run world
+    EntityBlueprint.create ()
+    |> EntityBlueprint.player Vector2.Zero
+    |> EntityBlueprint.build world
 
-    Entity.create 1
-    |> Game.staticBox
-    |> Entity.run world
+    EntityBlueprint.create ()
+    |> EntityBlueprint.staticBox
+    |> EntityBlueprint.build world
 
-    Entity.create 2
-    |> Game.camera
-    |> Entity.run world
+    EntityBlueprint.create ()
+    |> EntityBlueprint.camera
+    |> EntityBlueprint.build world
 
     let stopwatch = Stopwatch ()
 

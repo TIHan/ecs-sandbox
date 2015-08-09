@@ -23,9 +23,9 @@ type Player () =
     interface IComponent<Player>
 
 [<RequireQualifiedAccess>]
-module Game =
+module EntityBlueprint =
 
-    let box p (desc: EntityDescription) =
+    let box p (blueprint: EntityBlueprint) =
         let data =
             [|
                 Vector2 (1.127f, 1.77f)
@@ -51,26 +51,26 @@ module Game =
         let render = Render ()
         render.VBO <- Renderer.R.CreateVBO (data)
 
-        desc
-        |> Entity.add position
-        |> Entity.add rotation
-        |> Entity.add physics
-        |> Entity.add render
+        blueprint
+        |> EntityBlueprint.add position
+        |> EntityBlueprint.add rotation
+        |> EntityBlueprint.add physics
+        |> EntityBlueprint.add render
 
     let player position desc =
         box position desc
-        |> Entity.add (Player ())
-        |> Entity.add (Input ())
+        |> EntityBlueprint.add (Player ())
+        |> EntityBlueprint.add (Input ())
 
-    let camera (desc: EntityDescription) =
+    let camera (blueprint: EntityBlueprint) =
         let camera = Camera ()
         camera.Projection <- Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
         camera.ViewportDimensions <- Vector2 (1280.f, 720.f)
         camera.ViewportDepth <- Vector2 (0.1f, 1.f)
 
-        desc |> Entity.add camera
+        blueprint |> EntityBlueprint.add camera
 
-    let staticBox desc =
+    let staticBox blueprint =
         let data =
             [|
                 Vector2 (-1000.f, -1.f)
@@ -97,8 +97,8 @@ module Game =
         let render = Render ()
         render.VBO <- Renderer.R.CreateVBO (data)
 
-        desc
-        |> Entity.add position
-        |> Entity.add rotation
-        |> Entity.add physics
-        |> Entity.add render
+        blueprint
+        |> EntityBlueprint.add position
+        |> EntityBlueprint.add rotation
+        |> EntityBlueprint.add physics
+        |> EntityBlueprint.add render

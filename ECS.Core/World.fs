@@ -67,14 +67,7 @@ type World (entityAmount, systems: ISystem list) as this =
 
         member __.EntityService = entityService
 
- type EntityDescription =
-    {
-        id: int
-        entity: Entity option
-        creationF: IEntityService -> unit
-        componentF: (Entity -> IComponentService -> unit) list
-    }
-
+[<RequireQualifiedAccess>]
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module World =
 
@@ -116,43 +109,48 @@ module World =
             | _ -> None
         )
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module Entity =
+    [<RequireQualifiedAccess>]
+    module Entity =
 
-    let create id =
+        let addComponent<'T when 'T :> IComponent<'T>> entity comp (world: IWorld) =
+            world.ComponentService.Add<'T> entity comp
+
+        let removeComponent<'T when 'T :> IComponent<'T>> entity (world: IWorld) =
+            world.ComponentService.Remove<'T> entity
+
+ type EntityBlueprint =
+    {
+        componentF: (Entity -> IComponentService -> unit) list
+    }
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module EntityBlueprint =
+
+    let create () =
         {
-            id = id
-            entity = None
-            creationF = fun (service: IEntityService) -> service.Create id
             componentF = []
         }
      
-    let add<'T when 'T :> IComponent<'T>> (comp: 'T) (desc: EntityDescription) : EntityDescription =
-        { desc with
-            componentF = (fun entity (service: IComponentService) -> service.Add<'T> entity comp) :: desc.componentF
+    let add<'T when 'T :> IComponent<'T>> (comp: 'T) (blueprint: EntityBlueprint) : EntityBlueprint =
+        { blueprint with
+            componentF = (fun entity (service: IComponentService) -> service.Add<'T> entity comp) :: blueprint.componentF
         }
 
-    let remove<'T when 'T :> IComponent<'T>> (desc: EntityDescription) : EntityDescription =
-        { desc with
-            componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: desc.componentF
+    let remove<'T when 'T :> IComponent<'T>> (blueprint: EntityBlueprint) : EntityBlueprint =
+        { blueprint with
+            componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: blueprint.componentF
         }
 
-    let run (world: IWorld) (desc: EntityDescription) =
-        match desc.entity with
-        | None ->
-            let subscription = ref Unchecked.defaultof<IDisposable>
+    let build (world: IWorld) (blueprint: EntityBlueprint) =
+        let subscription = ref Unchecked.defaultof<IDisposable>
+        let createdEntity = world.EntityService.Create ()
 
-            desc.creationF world.EntityService
-
-            subscription :=
-                World.entityCreated world
-                |> Observable.subscribe (function
-                    | entity when entity.Id.Equals desc.id ->
-                        desc.componentF 
-                        |> List.iter (fun f -> f entity world.ComponentService)
-                        (!subscription).Dispose ()
-                    | _ -> ()
-                )
-        | Some entity ->
-            desc.componentF
-            |> List.iter (fun f -> f entity world.ComponentService)
+        subscription :=
+            World.entityCreated world
+            |> Observable.subscribe (function
+                | entity when entity.Id.Equals createdEntity.Id ->
+                    blueprint.componentF 
+                    |> List.iter (fun f -> f entity world.ComponentService)
+                    (!subscription).Dispose ()
+                | _ -> ()
+            )

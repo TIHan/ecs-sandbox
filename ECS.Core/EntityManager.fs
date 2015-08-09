@@ -50,7 +50,7 @@ type IComponentService =
 
 type IEntityService =
 
-    abstract Create : id: int -> unit
+    abstract Create : unit -> Entity
 
     abstract Destroy : Entity -> unit
 
@@ -78,6 +78,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let componentEventType = Type.GetType ("ECS.Core.ComponentEvent`1")
     let componentAddedType = Type.GetType ("ECS.Core.ComponentEvent`1+Added")
     let componentRemovedType = Type.GetType ("ECS.Core.ComponentEvent`1+Removed")
+
+    let mutable nextEntityId = 0
 
     let publishComponentAdded entity comp (t: Type) =
         let ctor = componentAddedType.MakeGenericType(t).GetTypeInfo().DeclaredConstructors |> Seq.head
@@ -124,10 +126,16 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 lookup.[t] <- data
             | _ -> ()  
 
-    member this.Create id : unit =
-        let entity = Entity id
+    member this.Create () : Entity =
+        let entity = 
+            lock lockObj <| fun () ->
+                let entity = Entity nextEntityId
+                nextEntityId <- nextEntityId + 1
+                entity
+
         this.DeferPreEntityEvent (Created entity)
         this.DeferEntityEvent (Spawned entity)
+        entity
 
     member this.Destroy (entity: Entity) =
         this.RemoveAllComponents (entity)     
@@ -301,11 +309,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     interface IEntityService with
 
-        member this.Create id =
-            let inline g () =
-                this.Create id
-
-            this.Defer g
+        member this.Create () = this.Create ()
 
         member this.Destroy entity =
             let inline f () =

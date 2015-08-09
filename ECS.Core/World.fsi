@@ -38,6 +38,7 @@ type World =
 
     interface IWorld
 
+[<RequireQualifiedAccess>]
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module World =
 
@@ -49,16 +50,23 @@ module World =
 
     val componentRemoved<'T when 'T :> IComponent<'T>> : IWorld -> IObservable<Entity * 'T>
 
+    [<RequireQualifiedAccess>]
+    module Entity =
+
+        val addComponent<'T when 'T :> IComponent<'T>> : Entity -> 'T -> IWorld -> unit
+
+        val removeComponent<'T when 'T :> IComponent<'T>> : Entity -> IWorld -> unit
+
 [<Sealed>]
-type EntityDescription
+type EntityBlueprint
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module Entity =
+module EntityBlueprint =
 
-    val create : int -> EntityDescription
+    val create : unit -> EntityBlueprint
 
-    val add<'T when 'T :> IComponent<'T>> : 'T -> EntityDescription -> EntityDescription
+    val add<'T when 'T :> IComponent<'T>> : 'T -> EntityBlueprint -> EntityBlueprint
 
-    val remove<'T when 'T :> IComponent<'T>> : EntityDescription -> EntityDescription
+    val remove<'T when 'T :> IComponent<'T>> : EntityBlueprint -> EntityBlueprint
 
-    val run : IWorld -> EntityDescription -> unit
+    val build : IWorld -> EntityBlueprint -> unit

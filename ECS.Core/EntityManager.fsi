@@ -47,7 +47,7 @@ type IComponentService =
 
 type IEntityService =
 
-    abstract Create : id: int -> unit
+    abstract Create : unit -> Entity
 
     abstract Destroy : Entity -> unit
 
