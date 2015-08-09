@@ -1,0 +1,34 @@
+﻿namespace Salty.Physics
+
+open ECS.Core
+
+open Salty.Core
+open Salty.Core.Components
+
+open System.Numerics
+
+module Components =
+
+    type Physics =
+
+        new : unit -> Physics
+
+        member Data : Var<Vector2 []>
+
+        member IsStatic : Var<bool>
+
+        member Density : Var<single>
+
+        member Restitution : Var<single>
+
+        member Friction : Var<single>
+
+        member Mass : Var<single>
+
+        interface IComponent<Physics>
+
+type PhysicsSystem =
+
+    new : unit -> PhysicsSystem
+
+    interface ISystem

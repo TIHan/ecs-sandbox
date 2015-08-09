@@ -54,6 +54,7 @@
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
+    <Compile Include="Game.fs" />
     <Compile Include="Program.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
@@ -61,10 +62,6 @@
     <ProjectReference Include="..\ECS.Core\ECS.Core.fsproj">
       <Name>ECS.Core</Name>
       <Project>{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Farseer Physics Engine 3.5 SIMD\Farseer Physics.csproj">
-      <Name>Farseer Physics</Name>
-      <Project>{A4610E4C-DD34-428B-BABB-779CA0B5993A}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Salty.Core\Salty.Core.fsproj">
       <Name>Salty.Core</Name>

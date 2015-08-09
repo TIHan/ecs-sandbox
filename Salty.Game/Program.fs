@@ -17,6 +17,8 @@ open Salty.Physics.Components
 open Salty.Renderer
 open Salty.Renderer.Components
 
+open Salty.Game
+
 #nowarn "9"
 #nowarn "51"
 
@@ -31,51 +33,6 @@ type Player () =
     member val IsMovingUp = Var.create false
 
     interface IComponent<Player>
-
-let boxEntity p (desc: EntityDescription) =
-    let data =
-        [|
-            Vector2 (1.127f, 1.77f)
-            Vector2 (0.f, 1.77f)
-            Vector2 (0.f, 0.f)
-            Vector2 (1.127f, 0.f)
-        |]
-
-    let position = Position ()
-    position.Var.Value <- p
-
-    let rotation = Rotation ()
-    rotation.Var.Value <- 0.f
-
-    let physics = Physics ()
-    physics.Data.Value <- data
-    physics.Density.Value <- 1.f
-    physics.Restitution.Value <- 0.f
-    physics.Friction.Value <- 1.f
-    physics.Mass.Value <- 1.f
-    physics.IsStatic.Value <- false
-
-    let render = Render ()
-    render.VBO <- Renderer.R.CreateVBO (data)
-
-    desc
-    |> Entity.add position
-    |> Entity.add rotation
-    |> Entity.add physics
-    |> Entity.add render
-
-let playerBoxEntity position desc =
-    boxEntity position desc
-    |> Entity.add (Player ())
-    |> Entity.add (Input ())
-
-let cameraEntity (desc: EntityDescription) =
-    let camera = Camera ()
-    camera.Projection <- Matrix4x4.CreateOrthographic (1280.f / 64.f, 720.f / 64.f, 0.1f, 1.f)
-    camera.ViewportDimensions <- Vector2 (1280.f, 720.f)
-    camera.ViewportDepth <- Vector2 (0.1f, 1.f)
-
-    desc |> Entity.add camera
 
 type MovementSystem () =
     let count = ref 10
@@ -138,8 +95,9 @@ type MovementSystem () =
 
         member __.Update world =
             world.ComponentQuery.ForEach<Player, Physics> (fun (entity, player, physicsPolygon) ->
-                if player.IsMovingUp.Value then
-                    physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
+                ()
+                //if player.IsMovingUp.Value then
+                    //physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
             )
 
 ///////////////////////////////////////////////////////////////////
@@ -170,49 +128,15 @@ let main argv =
     rendererSystem.Init world
 
     Entity.create 0
-    |> playerBoxEntity Vector2.Zero
+    |> Game.player Vector2.Zero
     |> Entity.run world
 
-
-    let comps desc =
-        let data =
-            [|
-                Vector2 (-1000.f, -1.f)
-                Vector2 (1000.f, -1.f)
-                Vector2 (1000.f, 1.f)
-                Vector2 (-1000.f, 1.f)
-            |]
-
-        let positionValue = Vector2 (0.f, -2.f)
-
-        let position = Position ()
-        position.Var.Value <- positionValue
-
-        let rotation = Rotation ()
-
-        let physics = Physics ()
-        physics.Data.Value <- data
-        physics.Density.Value <- 1.f
-        physics.Restitution.Value <- 0.f
-        physics.Friction.Value <- 1.f
-        physics.Mass.Value <- 1.f
-        physics.IsStatic.Value <- true
-
-        let render = Render ()
-        render.VBO <- Renderer.R.CreateVBO (data)
-
-        desc
-        |> Entity.add position
-        |> Entity.add rotation
-        |> Entity.add physics
-        |> Entity.add render
-
     Entity.create 1
-    |> comps
+    |> Game.staticBox
     |> Entity.run world
 
     Entity.create 2
-    |> cameraEntity 
+    |> Game.camera
     |> Entity.run world
 
     let stopwatch = Stopwatch ()

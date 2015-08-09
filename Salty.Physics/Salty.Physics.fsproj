@@ -66,9 +66,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Components.fs" />
-    <Compile Include="PhysicsSystem.fs" />
     <None Include="packages.config" />
+    <Compile Include="Physics.fsi" />
+    <Compile Include="Physics.fs" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
