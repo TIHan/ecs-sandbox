@@ -95,6 +95,20 @@ module World =
             | _ -> None
         )
 
+    let anyComponentAdded (world: IWorld) =
+        event<ComponentEvent> world
+        |> Observable.choose (function
+            | AnyAdded (entity, comp, t) -> Some (entity, comp, t)
+            | _ -> None
+        )
+
+    let anyComponentRemoved (world: IWorld) =
+        event<ComponentEvent> world
+        |> Observable.choose (function
+            | AnyRemoved (entity, comp, t) -> Some (entity, comp, t)
+            | _ -> None
+        )
+
     let componentAdded<'T when 'T :> IComponent<'T>> (world: IWorld) =
         event<ComponentEvent<'T>> world
         |> Observable.choose (function

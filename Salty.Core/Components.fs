@@ -22,3 +22,13 @@ type Rotation () =
     member val Var = Var.create 0.f with get
 
     interface IComponent<Rotation>
+
+type SerializationSystem () =
+
+    interface ISystem with
+
+        member this.Init world =
+            ()
+
+        member this.Update world =
+            ()

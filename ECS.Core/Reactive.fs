@@ -15,7 +15,7 @@ type Var<'T> (initialValue) =
     interface IObservable<'T> with
 
         member __.Subscribe observer =
-            subject.Subscribe observer
+            subject.DistinctUntilChanged().Subscribe observer
 
     interface IDisposable with
 
@@ -48,7 +48,7 @@ type Val<'T> (initialValue, source: IObservable<'T>) =
     interface IObservable<'T> with 
              
         member __.Subscribe observer = 
-            subject.Subscribe observer
+            subject.DistinctUntilChanged().Subscribe observer
 
     interface IDisposable with
 

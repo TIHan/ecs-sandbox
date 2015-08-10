@@ -28,6 +28,10 @@ module Components =
 
         member val Mass = Var.create 0.f
 
+        member val Position = Val.create Vector2.Zero
+
+        member val Rotation = Val.create 0.f
+
         member val Body : FarseerPhysics.Dynamics.Body = null with get, set
 
         member val PolygonShape : FarseerPhysics.Collision.Shapes.PolygonShape = null with get, set
@@ -65,7 +69,7 @@ type PhysicsSystem () =
         member __.Init world =
             World.componentAdded<Physics> world
             |> Observable.add (function
-                | (entity, physicsPolygon) ->                   
+                | (entity, physicsPolygon) ->      
 
                     let data = 
                         physicsPolygon.Data.Value
@@ -74,6 +78,17 @@ type PhysicsSystem () =
                     physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
                     physicsPolygon.Body.Restitution <- physicsPolygon.Restitution.Value
                     physicsPolygon.Body.Friction <- physicsPolygon.Friction.Value
+
+                    physicsPolygon.Position
+                    |> Observable.add (fun position ->
+                        physicsPolygon.Body.Position <- position
+                    )
+
+                    physicsPolygon.Rotation
+                    |> Observable.add (fun rotation ->
+                        physicsPolygon.Body.Rotation <- rotation
+                    )
+
                     physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density.Value)
                     physicsPolygon.Fixture <- physicsPolygon.Body.CreateFixture (physicsPolygon.PolygonShape)
                     physicsPolygon.Fixture.UserData <- entity.Id
@@ -86,21 +101,41 @@ type PhysicsSystem () =
                         )
             )
 
-        member __.Update world =
-            world.ComponentQuery.ForEach<Physics, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                physicsPolygon.Body.Position <- position.Var |> Var.value
-                physicsPolygon.Body.Rotation <- rotation.Var |> Var.value
-                physicsPolygon.Body.Awake <- true
+            World.componentAdded<Physics> world
+            |> Observable.add (fun (entity, physics) ->
+                match world.ComponentQuery.TryGet<Position> entity with
+                | Some position -> physics.Position.Assign (position.Var)
+                | _ -> ()
+
+                match world.ComponentQuery.TryGet<Rotation> entity with
+                | Some rotation -> physics.Rotation.Assign (rotation.Var)
+                | _ -> ()
             )
 
+            World.componentAdded<Position> world
+            |> Observable.add (fun (entity, position) ->
+                match world.ComponentQuery.TryGet<Physics> entity with
+                | Some physics -> physics.Position.Assign (position.Var)
+                | _ -> ()
+            )
+
+            World.componentAdded<Rotation> world
+            |> Observable.add (fun (entity, rotation) ->
+                match world.ComponentQuery.TryGet<Physics> entity with
+                | Some physics -> physics.Rotation.Assign (rotation.Var)
+                | _ -> ()
+            )
+
+        member __.Update world =
             physicsWorld.Step (single world.Time.Interval.Value.TotalSeconds)
 
             world.ComponentQuery.ForEach<Physics, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
-                position.Var.Value <- physicsPolygon.Body.Position
-                rotation.Var.Value <- physicsPolygon.Body.Rotation
+                if not physicsPolygon.IsStatic.Value then
+                    position.Var.Value <- physicsPolygon.Body.Position
+                    rotation.Var.Value <- physicsPolygon.Body.Rotation
 
-                match world.ComponentQuery.TryGet<Centroid> entity with
-                | Some centroid ->
-                    centroid.Var.Value <- physicsPolygon.Body.WorldCenter
-                | _ -> ()
+                    match world.ComponentQuery.TryGet<Centroid> entity with
+                    | Some centroid ->
+                        centroid.Var.Value <- physicsPolygon.Body.WorldCenter
+                    | _ -> ()
             )

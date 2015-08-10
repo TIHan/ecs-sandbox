@@ -26,6 +26,10 @@ module Components =
 
         member Mass : Var<single>
 
+        member Position : Val<Vector2>
+
+        member Rotation : Val<single>
+
         interface IComponent<Physics>
 
         interface IXmlSerializable

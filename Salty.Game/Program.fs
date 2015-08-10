@@ -112,7 +112,7 @@ let benchmark f =
 let main argv = 
 
     let world = 
-        World (65536,
+        World (16384,
             [
                 InputSystem ()
                 MovementSystem ()

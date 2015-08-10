@@ -12,6 +12,12 @@ type EntityEvent =
 
     interface IEvent
 
+type ComponentEvent =
+    | AnyAdded of Entity * obj * Type
+    | AnyRemoved of Entity * obj * Type
+
+    interface IEvent
+
 type ComponentEvent<'T> =
     | Added of Entity * 'T
     | Removed of Entity * 'T
@@ -41,6 +47,8 @@ type IComponentQuery =
     abstract ParallelForEach<'T when 'T :> IComponent<'T>> : (Entity * 'T -> unit) -> unit
 
     abstract ParallelForEach<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> : (Entity * 'T1 * 'T2 -> unit) -> unit
+
+    abstract ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2> and 'T3 :> IComponent<'T3>> : (Entity * 'T1 * 'T2 * 'T3 -> unit) -> unit
 
 type IComponentService =
 
@@ -86,6 +94,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         let m = publishMethod.MakeGenericMethod (componentEventType.MakeGenericType (t))
         let e = ctor.Invoke(parameters = [|entity;comp|])
         m.Invoke (eventAggregator, [|e|]) |> ignore
+        eventAggregator.Publish (AnyAdded (entity, comp, t))
 
     let publishComponentRemoved entity comp (t: Type) =
         let eventType = componentRemovedType.MakeGenericType(t)
@@ -93,6 +102,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         let m = publishMethod.MakeGenericMethod (eventType)
         let e = ctor.Invoke(parameters = [|entity;comp|])
         m.Invoke (eventAggregator, [|e|]) |> ignore
+        eventAggregator.Publish (AnyRemoved (entity, comp, t))
 
     member inline this.Defer f =
         deferQueue.Push f
@@ -389,3 +399,6 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
         member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2>> f : unit =
             this.IterateInternal<'T1, 'T2> (f, true, fun _ -> true)
+
+        member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent<'T1> and 'T2 :> IComponent<'T2> and 'T3 :> IComponent<'T3>> f : unit =
+            this.IterateInternal<'T1, 'T2, 'T3> (f, true, fun _ -> true)
