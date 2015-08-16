@@ -1,0 +1,9 @@
+source https://api.nuget.org/v3/index.json
+source https://www.nuget.org/api/v2/
+
+nuget Nuget.CommandLine
+nuget Ferop 1.0.0-beta90001 framework: >= net45
+nuget Rx-Core 2.2.5
+nuget Rx-Interfaces 2.2.5
+nuget Rx-Linq 2.2.5
+nuget System.Numerics.Vectors 4.0.0

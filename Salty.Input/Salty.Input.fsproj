@@ -51,24 +51,14 @@
     </Otherwise>
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
-  <Import Project="..\packages\Ferop.1.0.0-beta90001\build\Ferop.targets" Condition="Exists('..\packages\Ferop.1.0.0-beta90001\build\Ferop.targets')" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\Ferop.1.0.0-beta90001\build\Ferop.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Ferop.1.0.0-beta90001\build\Ferop.targets'))" />
-  </Target>
   <ItemGroup>
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
     <Compile Include="Components.fs" />
     <Compile Include="InputSystem.fs" />
-    <Content Include="packages.config" />
+    <Content Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Ferop">
-      <HintPath>..\packages\Ferop.1.0.0-beta90001\lib\portable-net45+monoandroid10+monotouch10+xamarinios10\Ferop.dll</HintPath>
-    </Reference>
     <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="mscorlib" />
     <Reference Include="System" />
@@ -86,4 +76,24 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <Import Project="..\.paket\paket.targets" />
+  <Choose>
+    <When Condition="($(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6')) Or ($(TargetFrameworkIdentifier) == 'MonoAndroid') Or ($(TargetFrameworkIdentifier) == 'MonoTouch')">
+      <ItemGroup>
+        <Reference Include="Ferop">
+          <HintPath>..\packages\Ferop\lib\portable-net45+monoandroid10+monotouch10+xamarinios10\Ferop.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="($(TargetFrameworkIdentifier) == 'WindowsPhone') Or ($(TargetFrameworkIdentifier) == 'WindowsPhoneApp') Or ($(TargetFrameworkIdentifier) == 'Silverlight') Or ($(TargetFrameworkIdentifier) == '.NETCore') Or ($(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6')) Or ($(TargetFrameworkIdentifier) == 'MonoAndroid') Or ($(TargetFrameworkIdentifier) == 'MonoTouch')">
+      <PropertyGroup>
+        <__paket__Ferop_targets>Ferop</__paket__Ferop_targets>
+      </PropertyGroup>
+    </When>
+  </Choose>
+  <Import Project="..\packages\Ferop\build\$(__paket__Ferop_targets).targets" Condition="Exists('..\packages\Ferop\build\$(__paket__Ferop_targets).targets')" Label="Paket" />
 </Project>
