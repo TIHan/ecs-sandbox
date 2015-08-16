@@ -5,22 +5,12 @@ open ECS.Core
 open System.Numerics
 
 open Salty.Core.Components
-open Salty.Input
-open Salty.Input.Components
 open Salty.Physics
 open Salty.Physics.Components
 open Salty.Renderer
 open Salty.Renderer.Components
 
-type PlayerCommand =
-    | StartMovingUp = 0
-    | StopMovingUp = 1
-
-type Player () =
-
-    member val IsMovingUp = Var.create false
-
-    interface IComponent<Player>
+open Salty.Game.Core.Components
 
 [<RequireQualifiedAccess>]
 module EntityBlueprint =
@@ -60,7 +50,6 @@ module EntityBlueprint =
     let player position desc =
         box position desc
         |> EntityBlueprint.add (Player ())
-        |> EntityBlueprint.add (Input ())
 
     let camera (blueprint: EntityBlueprint) =
         let camera = Camera ()

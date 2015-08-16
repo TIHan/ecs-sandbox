@@ -293,15 +293,26 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     f (entity, (com1 :?> 'T1), (com2 :?> 'T2), (com3 :?> 'T3), (com4 :?> 'T4))
 
     member this.Process () =
-        deferQueue.Process (fun f -> f ())
-        deferPreEntityEventQueue.Process eventAggregator.Publish
-        deferComponentEventQueue.Process (fun f -> f ())
-        deferEntityEventQueue.Process eventAggregator.Publish
-        deferDispose.Process (fun x ->
-            x.GetType().GetRuntimeProperties()
-            |> Seq.filter (fun p -> disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo()))
-            |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
-        )
+        let rec p () =
+            if  deferQueue.HasMessages || 
+                deferPreEntityEventQueue.HasMessages ||
+                deferComponentEventQueue.HasMessages ||
+                deferEntityEventQueue.HasMessages ||
+                deferDispose.HasMessages
+                then
+
+                deferQueue.Process (fun f -> f ())
+                deferPreEntityEventQueue.Process eventAggregator.Publish
+                deferComponentEventQueue.Process (fun f -> f ())
+                deferEntityEventQueue.Process eventAggregator.Publish
+                deferDispose.Process (fun x ->
+                    x.GetType().GetRuntimeProperties()
+                    |> Seq.filter (fun p -> disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo()))
+                    |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
+                )
+                p ()
+            else ()
+        p ()
 
     interface IComponentService with
 

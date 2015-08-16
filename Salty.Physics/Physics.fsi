@@ -34,6 +34,10 @@ module Components =
 
         interface IXmlSerializable
 
+module Physics =
+
+    val applyForce : Vector2 -> Entity -> IWorld -> unit
+
 type PhysicsSystem =
 
     new : unit -> PhysicsSystem

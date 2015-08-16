@@ -6,6 +6,8 @@ open System.Collections.Concurrent
 type MessageQueue<'T> () =
     let queue = ConcurrentQueue<'T> ()
 
+    member __.HasMessages = queue.Count > 0
+
     member __.Push msg = queue.Enqueue msg
 
     member __.TryPop () =

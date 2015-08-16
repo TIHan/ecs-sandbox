@@ -70,9 +70,15 @@
       <Name>Salty.Core</Name>
       <Project>{2610244A-1000-479E-BAD0-1E42770754CC}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\Salty.Input\Salty.Input.fsproj">
-      <Name>Salty.Input</Name>
-      <Project>{CE1F8C45-C665-4F36-A2C2-1FA973F9DA47}</Project>
+    <ProjectReference Include="..\Salty.Game.Command\Salty.Game.Command.fsproj">
+      <Name>Salty.Game.Command</Name>
+      <Project>{04d8d3ca-7f63-4b67-b66d-7707e8395ba8}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Salty.Game.Core\Salty.Game.Core.fsproj">
+      <Name>Salty.Game.Core</Name>
+      <Project>{ff5c3a84-1c72-4907-8143-506248eb0dfd}</Project>
+      <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\Salty.Renderer\Salty.Renderer.fsproj">
       <Name>Salty.Renderer</Name>

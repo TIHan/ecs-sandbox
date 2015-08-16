@@ -10,29 +10,19 @@ open System.Reactive.Linq
 open ECS.Core
 
 open Salty.Core.Components
-open Salty.Input
-open Salty.Input.Components
 open Salty.Physics
 open Salty.Physics.Components
 open Salty.Renderer
 open Salty.Renderer.Components
 
 open Salty.Game
+open Salty.Game.Core.Components
+open Salty.Game.Command
 
 #nowarn "9"
 #nowarn "51"
 
 open System.Numerics
-
-type PlayerCommand =
-    | StartMovingUp = 0
-    | StopMovingUp = 1
-
-type Player () =
-
-    member val IsMovingUp = Var.create false
-
-    interface IComponent<Player>
 
 type MovementSystem () =
     let count = ref 10
@@ -94,10 +84,15 @@ type MovementSystem () =
 //            )
 
         member __.Update world =
-            world.ComponentQuery.ForEach<Player, Physics> (fun (entity, player, physicsPolygon) ->
-                ()
-                //if player.IsMovingUp.Value then
-                    //physicsPolygon.Body.ApplyForce (Vector2.UnitY * 15.f)
+            world.ComponentQuery.ForEach<Player, Physics> (fun (entity, player, physics) ->
+                if player.IsMovingUp.Value then
+                    Physics.applyForce (Vector2.UnitY * 15.f) entity world
+
+                if player.IsMovingLeft.Value then
+                    Physics.applyForce (Vector2.UnitX * -20.f) entity world
+
+                if player.IsMovingRight.Value then
+                    Physics.applyForce (Vector2.UnitX * 20.f) entity world
             )
 
 ///////////////////////////////////////////////////////////////////
@@ -114,7 +109,7 @@ let main argv =
     let world = 
         World (16384,
             [
-                InputSystem ()
+                CommandSystem ()
                 MovementSystem ()
                 PhysicsSystem ()
             ]

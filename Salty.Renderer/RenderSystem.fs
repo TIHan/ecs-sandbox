@@ -34,14 +34,14 @@ type RendererSystem () =
             World.componentAdded<Render> world
             |> Observable.add (function
                 | (entity, comp) ->
-                    comp.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(comp.Position, fun _ x -> x))
-                    comp.PreviousRotation.Assign (world.Time.Current.DistinctUntilChanged().Zip(comp.Rotation, fun _ x -> x))
+                    comp.PreviousPosition.Assign (world.Time.Current |> Observable.map (fun _ -> comp.Position.Value))
+                    comp.PreviousRotation.Assign (world.Time.Current |> Observable.map (fun _ -> comp.Rotation.Value))
             )
 
             World.componentAdded<Camera> world
             |> Observable.add (function
                 | (entity, camera) ->
-                    camera.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(camera.Position, fun _ x -> x))
+                    camera.PreviousPosition.Assign (world.Time.Current |> Observable.map (fun _ -> camera.Position.Value))
             )
 
             World.componentAdded<Position> world
@@ -50,7 +50,6 @@ type RendererSystem () =
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Position.Assign position.Var
-                        render.PreviousPosition.Assign (world.Time.Current.DistinctUntilChanged().Zip(render.Position, fun _ x -> x))
                     | _ -> ()
             )
 

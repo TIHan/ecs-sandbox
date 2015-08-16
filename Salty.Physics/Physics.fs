@@ -60,6 +60,16 @@ module Components =
 
 open Components
 
+type PhysicsRequestEvent =
+    | ApplyForceRequested of Entity * Vector2
+
+    interface IEvent
+
+module Physics =
+    
+    let applyForce force entity (world: IWorld) =
+        world.EventAggregator.Publish (ApplyForceRequested (entity, force))
+
 type PhysicsSystem () =
 
     let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
@@ -124,6 +134,15 @@ type PhysicsSystem () =
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Rotation.Assign (rotation.Var)
                 | _ -> ()
+            )
+
+            world.EventAggregator.GetEvent<PhysicsRequestEvent> ()
+            |> Observable.add (function
+                | ApplyForceRequested (entity, force) ->
+                    match world.ComponentQuery.TryGet<Physics> entity with
+                    | Some physics ->
+                        physics.Body.ApplyForce (force)
+                    | _ -> ()
             )
 
         member __.Update world =
