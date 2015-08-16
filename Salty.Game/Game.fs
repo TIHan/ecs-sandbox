@@ -18,10 +18,10 @@ module EntityBlueprint =
     let box p (blueprint: EntityBlueprint) =
         let data =
             [|
-                Vector2 (1.127f, 1.77f)
-                Vector2 (0.f, 1.77f)
+                Vector2 (1.f, 1.5f)
+                Vector2 (0.f, 1.5f)
                 Vector2 (0.f, 0.f)
-                Vector2 (1.127f, 0.f)
+                Vector2 (1.f, 0.f)
             |]
 
         let position = Position ()

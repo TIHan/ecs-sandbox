@@ -8,6 +8,8 @@ type Camera () =
 
     member val Projection = Matrix4x4.Identity with get, set
 
+    member val PreviousProjection = Val.create Matrix4x4.Identity with get, set
+
     member val View = Matrix4x4.Identity with get, set
 
     member val ViewportPosition = Vector2.Zero with get, set
@@ -16,7 +18,7 @@ type Camera () =
 
     member val ViewportDepth = Vector2.Zero with get, set
 
-    member val Position = Val.create Vector2.Zero with get, set
+    member val Position = Var.create Vector2.Zero with get, set
 
     member val PreviousPosition = Val.create Vector2.Zero with get, set
 

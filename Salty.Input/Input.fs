@@ -27,8 +27,8 @@ type InputEvent =
     | MouseButtonPressed of MouseButtonType
     | MouseButtonReleased of MouseButtonType
     | MouseWheelScrolled of x: int * y: int
-    | JoystickButtonPressed of int
-    | JoystickButtonReleased of int
+    | JoystickButtonPressed of joystickId: int * int
+    | JoystickButtonReleased of joystickId: int * int
 
 [<Struct>]
 type KeyboardEvent =
@@ -50,6 +50,7 @@ type MouseWheelEvent =
 
 [<Struct>]
 type JoystickButtonEvent =
+    val Id : int
     val IsPressed : int
     val Button : int
 
@@ -101,9 +102,9 @@ module Input =
         inputEvents.Add (
             let btn = jEvt.Button
             if jEvt.IsPressed = 1 then 
-                InputEvent.JoystickButtonPressed btn
+                InputEvent.JoystickButtonPressed (jEvt.Id, btn)
             else 
-                InputEvent.JoystickButtonReleased btn
+                InputEvent.JoystickButtonReleased (jEvt.Id, btn)
         )
 
     [<Import; MI (MIO.NoInlining)>]
@@ -194,6 +195,7 @@ module Input =
       char guid_str[1024];
       SDL_JoystickGetGUIDString(guid, guid_str, sizeof(guid_str));
       const char* name = SDL_JoystickName(js);
+      int32_t id = SDL_JoystickInstanceID (js);
 
       int num_axes = SDL_JoystickNumAxes(js);
       int num_buttons = SDL_JoystickNumButtons(js);
@@ -208,6 +210,7 @@ module Input =
         uint8_t isPressed = SDL_JoystickGetButton (js, j);
 
         Input_JoystickButtonEvent evt;
+        evt.Id = id;
         evt.IsPressed = (int32_t)isPressed;
         evt.Button = j;
 

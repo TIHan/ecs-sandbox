@@ -41,6 +41,7 @@ type RendererSystem () =
             World.componentAdded<Camera> world
             |> Observable.add (function
                 | (entity, camera) ->
+                    camera.PreviousProjection.Assign (world.Time.Current |> Observable.map (fun _ -> camera.Projection))
                     camera.PreviousPosition.Assign (world.Time.Current |> Observable.map (fun _ -> camera.Position.Value))
             )
 
@@ -65,40 +66,35 @@ type RendererSystem () =
         member __.Update world =
             Renderer.R.Clear ()
 
-            let cameras = world.ComponentQuery.Get<Camera> ()
+            match world.ComponentQuery.TryFind<Camera> (fun _ -> true) with
+            | None -> ()
+            | Some (_,camera) ->
 
-            match cameras with
-            | [||] -> ()
-            | _ ->
-            
-            let (_,camera) = cameras.[0]
-            let projection = camera.Projection
-            let view = ref camera.View
+                let projection = Matrix4x4.Lerp (camera.PreviousProjection.Value, camera.Projection, world.Time.Delta.Value)
+                let view = ref camera.View
 
-            world.ComponentQuery.ForEach<Camera> (fun (_, camera) ->
                 let value = Vector2.Lerp (camera.PreviousPosition.Value, camera.Position.Value, world.Time.Delta.Value)
                 view := Matrix4x4.CreateTranslation (Vector3 (value, 0.f) * -1.f)
-            )
 
-            camera.View <- !view
+                camera.View <- !view
 
-            Renderer.R.UseProgram defaultShader
-            Renderer.R.SetProjection defaultShader projection
-            Renderer.R.SetView defaultShader !view
+                Renderer.R.UseProgram defaultShader
+                Renderer.R.SetProjection defaultShader projection
+                Renderer.R.SetView defaultShader !view
 
-            world.ComponentQuery.ForEach<Render, Position> (fun (entity, render, position) ->
-                let position = render.Position.Value
-                let rotation = render.Rotation.Value
+                world.ComponentQuery.ForEach<Render, Position> (fun (entity, render, position) ->
+                    let position = render.Position.Value
+                    let rotation = render.Rotation.Value
 
-                let positionValue = Vector2.Lerp (render.PreviousPosition.Value, render.Position.Value, world.Time.Delta.Value)
-                let rotationValue = Vector2.Lerp(Vector2 (render.PreviousRotation.Value, 0.f), Vector2 (render.Rotation.Value, 0.f), world.Time.Delta.Value).X
+                    let positionValue = Vector2.Lerp (render.PreviousPosition.Value, render.Position.Value, world.Time.Delta.Value)
+                    let rotationValue = Vector2.Lerp(Vector2 (render.PreviousRotation.Value, 0.f), Vector2 (render.Rotation.Value, 0.f), world.Time.Delta.Value).X
 
-                let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
-                let model = rotationMatrix * Matrix4x4.CreateTranslation (Vector3 (positionValue, 0.f))
+                    let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
+                    let model = rotationMatrix * Matrix4x4.CreateTranslation (Vector3 (positionValue, 0.f))
 
-                Renderer.R.SetModel defaultShader model
+                    Renderer.R.SetModel defaultShader model
 
-                Renderer.R.DrawLineLoop defaultShader render.VBO
-            )
+                    Renderer.R.DrawLineLoop defaultShader render.VBO
+                )
 
-            Renderer.R.Draw (context)
+                Renderer.R.Draw (context)

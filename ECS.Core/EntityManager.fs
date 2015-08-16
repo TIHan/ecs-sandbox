@@ -366,18 +366,18 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             | _, data -> 
                 let count = data.entities.Count
 
-                let rec loop count = function
+                let rec loop = function
                     | n when n.Equals count -> None
                     | n ->
                         let entity = data.entities.[n]
-                        let comp = data.components.[n]
+                        let comp = data.components.[entity.Id]
                         let x = (entity, comp :?> 'T)
 
                         if f x 
                         then Some x
-                        else loop count (n + 1)
+                        else loop (n + 1)
                
-                loop (data.entities.Count - 1) 0
+                loop 0
 
         member this.Get<'T when 'T :> IComponent<'T>> () : (Entity * 'T) [] =
             let result = ResizeArray<Entity * 'T> ()

@@ -20,8 +20,8 @@ type InputEvent =
     | MouseButtonPressed of MouseButtonType
     | MouseButtonReleased of MouseButtonType
     | MouseWheelScrolled of x: int * y: int
-    | JoystickButtonPressed of int
-    | JoystickButtonReleased of int
+    | JoystickButtonPressed of joystickId: int * int
+    | JoystickButtonReleased of joystickId: int * int
 
 [<Struct>]
 type private KeyboardEvent =

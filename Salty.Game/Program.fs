@@ -24,6 +24,14 @@ open Salty.Game.Command
 
 open System.Numerics
 
+let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
+    let _,m = Matrix4x4.Invert (model * view * projection)
+    let x = (((source.X - viewportPosition.X) / (viewportDimensions.X)) * 2.f) - 1.f
+    let y = -((((source.Y - viewportPosition.Y) / (viewportDimensions.Y)) * 2.f) - 1.f)
+    let z = (source.Z - viewportDepth.X) / (viewportDepth.Y - viewportDepth.X)
+    let mutable v = Vector3.Transform(Vector3 (x, y, z), m)
+    v
+
 type MovementSystem () =
     let count = ref 10
 
@@ -95,6 +103,46 @@ type MovementSystem () =
                     Physics.applyForce (Vector2.UnitX * 20.f) entity world
             )
 
+            match world.ComponentQuery.TryFind<Camera> (fun _ -> true) with
+            | Some (_, camera) ->
+                let players = world.ComponentQuery.Get<Player, Position> ()
+                let positions =
+                    players
+                    |> Array.map (fun (_,_,position) -> position.Var.Value)
+
+                let sum =
+                    positions
+                    |> Array.sum
+
+                let center = Vector2.Divide (sum, single players.Length)
+                camera.Position.Value <- center
+
+                let minX = (positions |> Array.minBy (fun v -> v.X)).X 
+                let maxX = (positions |> Array.maxBy (fun v -> v.X)).X
+                let dist = maxX - minX
+                let dist =
+                    if dist < 64.f then
+                        64.f
+                    else
+                        dist
+                let scale = (1280.f - 64.f) / dist
+
+                ()
+
+//                let unprojected =
+//                    players
+//                    |> Array.map (fun (_,_,position) ->
+//                        let v = camera.Position.Value - position.Var.Value
+//                        unProject (Vector3 (v, 0.f), Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
+//                    )
+//                    |> Array.map (fun v -> Vector2 (v.X, v.Y))
+//
+//                let minX = (unprojected |> Array.minBy (fun v -> v.X)).X
+//                let maxX = (unprojected |> Array.maxBy (fun v -> v.X)).X
+//                printfn "%A %A" minX maxX
+                camera.Projection <- Matrix4x4.CreateOrthographic (1280.f / scale, 720.f / scale, 0.1f, 1.f)
+            | _ -> ()
+
 ///////////////////////////////////////////////////////////////////
 
 let benchmark f =
@@ -120,6 +168,10 @@ let main argv =
 
     EntityBlueprint.create ()
     |> EntityBlueprint.player Vector2.Zero
+    |> EntityBlueprint.build world
+
+    EntityBlueprint.create ()
+    |> EntityBlueprint.player (Vector2.One * 2.f)
     |> EntityBlueprint.build world
 
     EntityBlueprint.create ()
@@ -157,7 +209,7 @@ let main argv =
                 //Console.Clear ()
 
                 //printfn "FPS: %.2f" (1000.f / single stopwatch.ElapsedMilliseconds)
-                printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
+                //printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
         )
 
     0

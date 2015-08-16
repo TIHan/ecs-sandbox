@@ -8,6 +8,8 @@ open Salty.Input
 open Salty.Input.Components
 open Salty.Game.Core.Components
 
+open System.Collections.Generic
+
 type PlayerCommand =
     | StartMovingUp = 0
     | StopMovingUp = 1
@@ -25,6 +27,9 @@ type Command () =
 type CommandSystem () =
     let inputSystem : ISystem = InputSystem () :> ISystem
 
+    let nextPlayerId = ref 0
+    let playerLookup = Dictionary<Input, int> ()
+
     interface ISystem with
 
         member __.Init world =
@@ -39,6 +44,10 @@ type CommandSystem () =
             // Map input events to commands
             World.componentAdded<Input> world
             |> Observable.add (fun (entity, input) ->
+                playerLookup.[input] <- !nextPlayerId
+
+                nextPlayerId := !nextPlayerId + 1
+
                 match world.ComponentQuery.TryGet<Command> entity with
                 | Some command ->
                     input.Events
@@ -51,6 +60,12 @@ type CommandSystem () =
                             | KeyReleased 'a' -> Some PlayerCommand.StopMovingLeft
                             | KeyPressed 'd' -> Some PlayerCommand.StartMovingRight
                             | KeyReleased 'd' -> Some PlayerCommand.StopMovingRight
+                            | JoystickButtonPressed (id, 10) when id = playerLookup.[input] -> Some PlayerCommand.StartMovingUp
+                            | JoystickButtonReleased (id, 10) when id = playerLookup.[input] -> Some PlayerCommand.StopMovingUp
+                            | JoystickButtonPressed (id, 2) when id = playerLookup.[input] -> Some PlayerCommand.StartMovingLeft
+                            | JoystickButtonReleased (id, 2) when id = playerLookup.[input] -> Some PlayerCommand.StopMovingLeft
+                            | JoystickButtonPressed (id, 3) when id = playerLookup.[input] -> Some PlayerCommand.StartMovingRight
+                            | JoystickButtonReleased (id, 3) when id = playerLookup.[input] -> Some PlayerCommand.StopMovingRight
                             | _ -> None
                         )
                     )
