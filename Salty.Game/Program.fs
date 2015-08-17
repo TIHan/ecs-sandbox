@@ -186,7 +186,7 @@ let main argv =
 
     GameLoop.start
         world
-        25.
+        30.
         (
             fun () ->
                 GC.Collect 0

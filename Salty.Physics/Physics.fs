@@ -85,9 +85,6 @@ type PhysicsSystem () =
                         physicsPolygon.Data.Value
 
                     physicsPolygon.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
-                    physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
-                    physicsPolygon.Body.Restitution <- physicsPolygon.Restitution.Value
-                    physicsPolygon.Body.Friction <- physicsPolygon.Friction.Value
 
                     physicsPolygon.Position
                     |> Observable.add (fun position ->
@@ -102,6 +99,9 @@ type PhysicsSystem () =
                     physicsPolygon.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density.Value)
                     physicsPolygon.Fixture <- physicsPolygon.Body.CreateFixture (physicsPolygon.PolygonShape)
                     physicsPolygon.Fixture.UserData <- entity.Id
+                    physicsPolygon.Body.BodyType <- if physicsPolygon.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
+                    physicsPolygon.Body.Restitution <- physicsPolygon.Restitution.Value
+                    physicsPolygon.Body.Friction <- physicsPolygon.Friction.Value
                     physicsPolygon.Body.Mass <- physicsPolygon.Mass.Value
 
                     physicsPolygon.Fixture.OnCollision <-
@@ -146,6 +146,24 @@ type PhysicsSystem () =
             )
 
         member __.Update world =
+            world.ComponentQuery.ForEach<Physics> (fun (entity, physics) ->
+                if not physics.IsStatic.Value then
+                    let mutable v = physics.Body.LinearVelocity
+                    if v.X > 25.f then
+                        v.X <- 25.f
+
+                    if v.X < -25.f then
+                        v.X <- -25.f
+
+                    if v.Y > 25.f then
+                        v.Y <- 25.f
+
+                    if v.Y < -25.f then
+                        v.Y <- -25.f
+
+                    physics.Body.LinearVelocity <- v
+            )
+
             physicsWorld.Step (single world.Time.Interval.Value.TotalSeconds)
 
             world.ComponentQuery.ForEach<Physics, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->

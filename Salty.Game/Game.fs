@@ -33,8 +33,8 @@ module EntityBlueprint =
         let physics = Physics ()
         physics.Data.Value <- data
         physics.Density.Value <- 1.f
-        physics.Restitution.Value <- 0.f
-        physics.Friction.Value <- 1.f
+        physics.Restitution.Value <- 0.1f
+        physics.Friction.Value <- 0.1f
         physics.Mass.Value <- 1.f
         physics.IsStatic.Value <- false
 

@@ -54,12 +54,12 @@ type CommandSystem () =
                     |> Observable.map (fun events ->
                         events
                         |> List.choose (function
-                            | KeyPressed 'w' -> Some PlayerCommand.StartMovingUp
-                            | KeyReleased 'w' -> Some PlayerCommand.StopMovingUp
-                            | KeyPressed 'a' -> Some PlayerCommand.StartMovingLeft
-                            | KeyReleased 'a' -> Some PlayerCommand.StopMovingLeft
-                            | KeyPressed 'd' -> Some PlayerCommand.StartMovingRight
-                            | KeyReleased 'd' -> Some PlayerCommand.StopMovingRight
+                            | KeyPressed 'w' when playerLookup.[input] = 0 -> Some PlayerCommand.StartMovingUp
+                            | KeyReleased 'w' when playerLookup.[input] = 0 -> Some PlayerCommand.StopMovingUp
+                            | KeyPressed 'a' when playerLookup.[input] = 0 -> Some PlayerCommand.StartMovingLeft
+                            | KeyReleased 'a' when playerLookup.[input] = 0 -> Some PlayerCommand.StopMovingLeft
+                            | KeyPressed 'd' when playerLookup.[input] = 0 -> Some PlayerCommand.StartMovingRight
+                            | KeyReleased 'd' when playerLookup.[input] = 0 -> Some PlayerCommand.StopMovingRight
                             | JoystickButtonPressed (id, 10) when id = playerLookup.[input] -> Some PlayerCommand.StartMovingUp
                             | JoystickButtonReleased (id, 10) when id = playerLookup.[input] -> Some PlayerCommand.StopMovingUp
                             | JoystickButtonPressed (id, 2) when id = playerLookup.[input] -> Some PlayerCommand.StartMovingLeft
