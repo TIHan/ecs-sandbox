@@ -119,14 +119,33 @@ type MovementSystem () =
 
                 let minX = (positions |> Array.minBy (fun v -> v.X)).X 
                 let maxX = (positions |> Array.maxBy (fun v -> v.X)).X
-                let dist = maxX - minX
-                let dist =
-                    if dist < 64.f then
+                let minY = (positions |> Array.minBy (fun v -> v.Y)).Y 
+                let maxY = (positions |> Array.maxBy (fun v -> v.Y)).Y
+
+                let distX = maxX - minX
+                let distY = maxY - minY
+
+                let distX =
+                    if distX < 64.f then
                         64.f
                     else
-                        dist
-                let scale = (1280.f - 64.f) / dist
+                        distX
 
+                let distY =
+                    if distY < 24.f then
+                        24.f
+                    else
+                        distY
+
+                let scaleX = (1280.f - 64.f) / distX
+                let c = 720.f / 1280.f
+                let scaleY = c * (1280.f - 64.f) / distY
+
+                let scale =
+                    if scaleX > scaleY then
+                        scaleY
+                    else
+                        scaleX
                 ()
 
 //                let unprojected =
