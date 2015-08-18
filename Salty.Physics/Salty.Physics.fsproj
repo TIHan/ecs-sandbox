@@ -60,6 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Components.fs" />
     <Compile Include="Physics.fsi" />
     <Compile Include="Physics.fs" />
   </ItemGroup>
