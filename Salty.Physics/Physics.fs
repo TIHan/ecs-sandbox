@@ -4,7 +4,6 @@ open ECS.Core
 
 open Salty.Core
 open Salty.Core.Components
-
 open Salty.Physics.Components
 
 open System
@@ -14,12 +13,21 @@ open System.Xml
 open System.Xml.Serialization
 open System.Globalization
 
-type PhysicsRequestEvent =
-    | ApplyForceRequested of Entity * Vector2
+type ApplyForceRequested = ApplyForceRequested of (Entity * Vector2) with
+
+    interface IEvent
+
+type Collided = Collided of ((Entity * Physics) * (Entity * Physics)) with
 
     interface IEvent
 
 module Physics =
+
+    let collided (world: IWorld) =
+        world.EventAggregator.GetEvent<Collided> ()
+        |> Observable.map (function
+            | Collided x -> x
+        )
     
     let applyForce force entity (world: IWorld) =
         world.EventAggregator.Publish (ApplyForceRequested (entity, force))
@@ -52,7 +60,7 @@ type PhysicsSystem () =
 
                     physicsPolygon.Internal.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density.Value)
                     physicsPolygon.Internal.Fixture <- physicsPolygon.Internal.Body.CreateFixture (physicsPolygon.Internal.PolygonShape)
-                    physicsPolygon.Internal.Fixture.UserData <- entity.Id
+                    physicsPolygon.Internal.Fixture.UserData <- (entity, physicsPolygon)
                     physicsPolygon.Internal.Body.BodyType <- if physicsPolygon.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
                     physicsPolygon.Internal.Body.Restitution <- physicsPolygon.Restitution.Value
                     physicsPolygon.Internal.Body.Friction <- physicsPolygon.Friction.Value
@@ -61,6 +69,9 @@ type PhysicsSystem () =
                     physicsPolygon.Internal.Fixture.OnCollision <-
                         new FarseerPhysics.Dynamics.OnCollisionEventHandler (
                             fun fixture1 fixture2 _ -> 
+                                let phys1 = fixture1.UserData :?> (Entity * Physics)
+                                let phys2 = fixture2.UserData :?> (Entity * Physics)
+                                world.EventAggregator.Publish (Collided (phys1, phys2))
                                 true
                         )
             )
@@ -90,13 +101,20 @@ type PhysicsSystem () =
                 | _ -> ()
             )
 
-            world.EventAggregator.GetEvent<PhysicsRequestEvent> ()
+            world.EventAggregator.GetEvent<ApplyForceRequested> ()
             |> Observable.add (function
                 | ApplyForceRequested (entity, force) ->
                     match world.ComponentQuery.TryGet<Physics> entity with
                     | Some physics ->
                         physics.Internal.Body.ApplyForce (force)
                     | _ -> ()
+            )
+
+            World.componentRemoved<Physics> world
+            |> Observable.add (fun (_, physics) ->
+                physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
+                physics.Internal.Body.Dispose ()
+                physics.Internal.Fixture.Dispose ()
             )
 
         member __.Update world =

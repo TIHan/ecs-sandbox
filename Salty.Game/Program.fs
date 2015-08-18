@@ -37,7 +37,17 @@ type MovementSystem () =
 
     interface ISystem with
         
-        member __.Init _ =
+        member __.Init world =
+            Physics.collided world
+            |> Observable.add (fun ((ent1, phys1), (ent2, phys2)) ->
+                match world.ComponentQuery.TryGet<Health> ent1 with
+                | None -> ()
+                | Some health ->
+                    health.Var.Value <- health.Var.Value - 10.f
+                    printfn "%A: %A" ent1.Id health.Var.Value
+                    if health.Var.Value <= 0.f then
+                        world.EntityService.Destroy ent1
+            )
             ()
 //            world.EventAggregator.GetEvent<InputEvent> ()
 //            |> Observable.add (fun (InputEvents (events)) ->
@@ -117,49 +127,38 @@ type MovementSystem () =
                 let center = Vector2.Divide (sum, single players.Length)
                 camera.Position.Value <- center
 
-                let minX = (positions |> Array.minBy (fun v -> v.X)).X 
-                let maxX = (positions |> Array.maxBy (fun v -> v.X)).X
-                let minY = (positions |> Array.minBy (fun v -> v.Y)).Y 
-                let maxY = (positions |> Array.maxBy (fun v -> v.Y)).Y
+                if positions.Length > 0 then
+                    let minX = (positions |> Array.minBy (fun v -> v.X)).X 
+                    let maxX = (positions |> Array.maxBy (fun v -> v.X)).X
+                    let minY = (positions |> Array.minBy (fun v -> v.Y)).Y 
+                    let maxY = (positions |> Array.maxBy (fun v -> v.Y)).Y
 
-                let distX = maxX - minX
-                let distY = maxY - minY
+                    let distX = maxX - minX
+                    let distY = maxY - minY
 
-                let distX =
-                    if distX < 64.f then
-                        64.f
-                    else
-                        distX
+                    let distX =
+                        if distX < 64.f then
+                            64.f
+                        else
+                            distX
 
-                let distY =
-                    if distY < 24.f then
-                        24.f
-                    else
-                        distY
+                    let distY =
+                        if distY < 24.f then
+                            24.f
+                        else
+                            distY
 
-                let scaleX = (1280.f - 64.f) / distX
-                let c = 720.f / 1280.f
-                let scaleY = c * (1280.f - 64.f) / distY
+                    let scaleX = (1280.f - 64.f) / distX
+                    let c = 720.f / 1280.f
+                    let scaleY = c * (1280.f - 64.f) / distY
 
-                let scale =
-                    if scaleX > scaleY then
-                        scaleY
-                    else
-                        scaleX
-                ()
+                    let scale =
+                        if scaleX > scaleY then
+                            scaleY
+                        else
+                            scaleX
 
-//                let unprojected =
-//                    players
-//                    |> Array.map (fun (_,_,position) ->
-//                        let v = camera.Position.Value - position.Var.Value
-//                        unProject (Vector3 (v, 0.f), Matrix4x4.Identity, camera.View, camera.Projection, camera.ViewportPosition, camera.ViewportDimensions, camera.ViewportDepth)
-//                    )
-//                    |> Array.map (fun v -> Vector2 (v.X, v.Y))
-//
-//                let minX = (unprojected |> Array.minBy (fun v -> v.X)).X
-//                let maxX = (unprojected |> Array.maxBy (fun v -> v.X)).X
-//                printfn "%A %A" minX maxX
-                camera.Projection <- Matrix4x4.CreateOrthographic (1280.f / scale, 720.f / scale, 0.1f, 1.f)
+                    camera.Projection <- Matrix4x4.CreateOrthographic (1280.f / scale, 720.f / scale, 0.1f, 1.f)
             | _ -> ()
 
 ///////////////////////////////////////////////////////////////////

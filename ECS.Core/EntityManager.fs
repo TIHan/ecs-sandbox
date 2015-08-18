@@ -169,10 +169,12 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             data.entities.Remove entity |> ignore
             if entity.Id >= 0 && entity.Id < data.components.Length then
                 let comp = data.components.[entity.Id]
-                data.components.[entity.Id] <- null
-                this.DeferComponentEvent <| fun () -> publishComponentRemoved entity comp t
-                this.DeferDispose comp
-                Some comp    
+                if not <| obj.ReferenceEquals (comp, null) then
+                    data.components.[entity.Id] <- null
+                    this.DeferComponentEvent <| fun () -> publishComponentRemoved entity comp t
+                    this.DeferDispose comp
+                    Some comp  
+                else None  
             else
                 None
 

@@ -12,6 +12,12 @@ open Salty.Renderer.Components
 
 open Salty.Game.Core.Components
 
+type Health () =
+
+    member val Var = Var.create 0.f with get
+
+    interface IComponent<Health>
+
 [<RequireQualifiedAccess>]
 module EntityBlueprint =
 
@@ -30,6 +36,9 @@ module EntityBlueprint =
         let rotation = Rotation ()
         rotation.Var.Value <- 0.f
 
+        let health = Health ()
+        health.Var.Value <- 100.f
+
         let physics = Physics ()
         physics.Data.Value <- data
         physics.Density.Value <- 1.f
@@ -44,6 +53,7 @@ module EntityBlueprint =
         blueprint
         |> EntityBlueprint.add position
         |> EntityBlueprint.add rotation
+        |> EntityBlueprint.add health
         |> EntityBlueprint.add physics
         |> EntityBlueprint.add render
 
