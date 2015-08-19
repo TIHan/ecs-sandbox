@@ -23,6 +23,7 @@ open Salty.Game.Command
 #nowarn "51"
 
 open System.Numerics
+open System.Threading
 
 let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
     let _,m = Matrix4x4.Invert (model * view * projection)
@@ -181,6 +182,10 @@ let main argv =
             ]
         )
 
+    let inline runWorld () = world.Run ()
+
+    let world = world :> IWorld
+
     let rendererSystem : ISystem = RendererSystem () :> ISystem
     rendererSystem.Init world
 
@@ -200,8 +205,6 @@ let main argv =
     |> EntityBlueprint.camera
     |> EntityBlueprint.build world
 
-    let stopwatch = Stopwatch ()
-
     GameLoop.start
         world
         30.
@@ -211,23 +214,14 @@ let main argv =
         )
         (
             fun time interval world ->
-                stopwatch.Restart ()
-
-
-                (world :> IWorld).Time.Current.Value <- TimeSpan.FromTicks time
-                (world :> IWorld).Time.Interval.Value <- TimeSpan.FromTicks interval
-                world.Run ()
-
-                stopwatch.Stop ()
+                world.Time.Interval.Value <- TimeSpan.FromTicks interval
+                world.Time.Current.Value <- TimeSpan.FromTicks time
+                runWorld ()
         )
         (
             fun delta world ->
-                (world :> IWorld).Time.Delta.Value <- delta
+                world.Time.Delta.Value <- delta
                 rendererSystem.Update world
-                //Console.Clear ()
-
-                //printfn "FPS: %.2f" (1000.f / single stopwatch.ElapsedMilliseconds)
-                //printfn "Update MS: %A" stopwatch.ElapsedMilliseconds
         )
 
     0

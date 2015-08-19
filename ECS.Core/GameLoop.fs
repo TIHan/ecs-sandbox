@@ -2,6 +2,20 @@
 module GameLoop
 
     open System.Diagnostics
+    open System.Threading
+
+    open ECS.Core
+
+    type private GameLoopSynchronizationContext () =
+        inherit SynchronizationContext ()
+
+        let queue = MessageQueue<unit -> unit> ()
+
+        override this.Post (d, state) =
+            queue.Push (fun () -> d.Invoke (state))
+
+        member this.Process () =
+            queue.Process (fun f -> f ())
 
     type private GameLoop<'T> = { 
         State: 'T
@@ -16,6 +30,10 @@ module GameLoop
         let stopwatch = Stopwatch.StartNew ()
         let inline time () = stopwatch.Elapsed.Ticks
 
+        let ctx = GameLoopSynchronizationContext ()
+
+        SynchronizationContext.SetSynchronizationContext ctx
+
         let rec loop gl =
             let currentTime = time ()
             let deltaTime =
@@ -28,6 +46,7 @@ module GameLoop
             let rec processUpdate gl =
                 if gl.UpdateAccumulator >= targetUpdateInterval
                 then
+                    ctx.Process ()
                     update gl.UpdateTime targetUpdateInterval gl.State
 
                     processUpdate
