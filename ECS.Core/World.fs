@@ -156,15 +156,7 @@ module EntityBlueprint =
         }
 
     let build (world: IWorld) (blueprint: EntityBlueprint) =
-        let subscription = ref Unchecked.defaultof<IDisposable>
         let createdEntity = world.EntityService.Create ()
-
-        subscription :=
-            World.entityCreated world
-            |> Observable.subscribe (function
-                | entity when entity.Id.Equals createdEntity.Id ->
-                    blueprint.componentF 
-                    |> List.iter (fun f -> f entity world.ComponentService)
-                    (!subscription).Dispose ()
-                | _ -> ()
-            )
+        
+        blueprint.componentF
+        |> List.iter (fun f -> f createdEntity world.ComponentService)

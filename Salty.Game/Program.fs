@@ -174,7 +174,7 @@ let benchmark f =
 let main argv = 
 
     let world = 
-        World (16384,
+        World (65536,
             [
                 CommandSystem ()
                 MovementSystem ()
@@ -214,9 +214,13 @@ let main argv =
         )
         (
             fun time interval world ->
+                let stopwatch = Stopwatch.StartNew ()
                 world.Time.Interval.Value <- TimeSpan.FromTicks interval
                 world.Time.Current.Value <- TimeSpan.FromTicks time
                 runWorld ()
+                stopwatch.Stop ()
+
+                printfn "MS: %A" stopwatch.ElapsedMilliseconds
         )
         (
             fun delta world ->
