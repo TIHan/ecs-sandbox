@@ -22,7 +22,7 @@ type Camera () =
 
     member val PreviousPosition = Val.create Vector2.Zero with get, set
 
-    interface IComponent<Camera>
+    interface IComponent
 
 type Render () =
 
@@ -42,4 +42,4 @@ type Render () =
 
     member val PreviousRotation = Val.create 0.f
 
-    interface IComponent<Render>    
+    interface IComponent   

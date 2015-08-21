@@ -9,19 +9,19 @@ type Centroid () =
 
     member val Var = Var.create Vector2.Zero with get
 
-    interface IComponent<Centroid>
+    interface IComponent
 
 type Position () =
 
     member val Var = Var.create Vector2.Zero with get
 
-    interface IComponent<Position>
+    interface IComponent
 
 type Rotation () =
 
     member val Var = Var.create 0.f with get
 
-    interface IComponent<Rotation>
+    interface IComponent
 
 type SerializationSystem () =
 

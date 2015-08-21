@@ -40,7 +40,7 @@ type Physics () =
 
     member val internal Internal = PhysicsInternal () with get, set
 
-    interface IComponent<Physics>
+    interface IComponent
 
     interface IXmlSerializable with
 

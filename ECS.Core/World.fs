@@ -109,14 +109,14 @@ module World =
             | _ -> None
         )
 
-    let componentAdded<'T when 'T :> IComponent<'T>> (world: IWorld) =
+    let componentAdded<'T when 'T :> IComponent> (world: IWorld) =
         event<ComponentEvent<'T>> world
         |> Observable.choose (function
             | Added (entity, comp) -> Some (entity, comp)
             | _ -> None
         )
 
-    let componentRemoved<'T when 'T :> IComponent<'T>> (world: IWorld) =
+    let componentRemoved<'T when 'T :> IComponent> (world: IWorld) =
         event<ComponentEvent<'T>> world
         |> Observable.choose (function
             | Removed (entity, comp) -> Some (entity, comp)
@@ -126,10 +126,10 @@ module World =
     [<RequireQualifiedAccess>]
     module Entity =
 
-        let addComponent<'T when 'T :> IComponent<'T>> entity comp (world: IWorld) =
+        let addComponent<'T when 'T :> IComponent> entity comp (world: IWorld) =
             world.ComponentService.Add<'T> entity comp
 
-        let removeComponent<'T when 'T :> IComponent<'T>> entity (world: IWorld) =
+        let removeComponent<'T when 'T :> IComponent> entity (world: IWorld) =
             world.ComponentService.Remove<'T> entity
 
  type EntityBlueprint =
@@ -145,12 +145,12 @@ module EntityBlueprint =
             componentF = []
         }
      
-    let add<'T when 'T :> IComponent<'T>> (comp: 'T) (blueprint: EntityBlueprint) : EntityBlueprint =
+    let add<'T when 'T :> IComponent> (comp: 'T) (blueprint: EntityBlueprint) : EntityBlueprint =
         { blueprint with
             componentF = (fun entity (service: IComponentService) -> service.Add<'T> entity comp) :: blueprint.componentF
         }
 
-    let remove<'T when 'T :> IComponent<'T>> (blueprint: EntityBlueprint) : EntityBlueprint =
+    let remove<'T when 'T :> IComponent> (blueprint: EntityBlueprint) : EntityBlueprint =
         { blueprint with
             componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: blueprint.componentF
         }

@@ -2,7 +2,4 @@
 
 open System
 
-type IComponent<'T
-        when 'T : (new : unit -> 'T)
-        and 'T : not struct
-    > = interface end
+type IComponent = interface end

@@ -16,7 +16,7 @@ type Health () =
 
     member val Var = Var.create 0.f with get
 
-    interface IComponent<Health>
+    interface IComponent
 
 [<RequireQualifiedAccess>]
 module EntityBlueprint =

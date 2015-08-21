@@ -46,16 +46,16 @@ module World =
 
     val entityDestroyed : IWorld -> IObservable<Entity>
 
-    val componentAdded<'T when 'T :> IComponent<'T>> : IWorld -> IObservable<Entity * 'T>
+    val componentAdded<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
-    val componentRemoved<'T when 'T :> IComponent<'T>> : IWorld -> IObservable<Entity * 'T>
+    val componentRemoved<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
     [<RequireQualifiedAccess>]
     module Entity =
 
-        val addComponent<'T when 'T :> IComponent<'T>> : Entity -> 'T -> IWorld -> unit
+        val addComponent<'T when 'T :> IComponent> : Entity -> 'T -> IWorld -> unit
 
-        val removeComponent<'T when 'T :> IComponent<'T>> : Entity -> IWorld -> unit
+        val removeComponent<'T when 'T :> IComponent> : Entity -> IWorld -> unit
 
 [<Sealed>]
 type EntityBlueprint
@@ -65,8 +65,8 @@ module EntityBlueprint =
 
     val create : unit -> EntityBlueprint
 
-    val add<'T when 'T :> IComponent<'T>> : 'T -> EntityBlueprint -> EntityBlueprint
+    val add<'T when 'T :> IComponent> : 'T -> EntityBlueprint -> EntityBlueprint
 
-    val remove<'T when 'T :> IComponent<'T>> : EntityBlueprint -> EntityBlueprint
+    val remove<'T when 'T :> IComponent> : EntityBlueprint -> EntityBlueprint
 
     val build : IWorld -> EntityBlueprint -> unit

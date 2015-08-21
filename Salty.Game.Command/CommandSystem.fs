@@ -22,7 +22,7 @@ type Command () =
 
     member val PlayerCommands : Val<PlayerCommand list> = Val.create []
 
-    interface IComponent<Command>
+    interface IComponent
 
 type CommandSystem () =
     let inputSystem : ISystem = InputSystem () :> ISystem

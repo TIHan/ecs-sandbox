@@ -10,4 +10,4 @@ type Player () =
 
     member val IsMovingRight = Var.create false
 
-    interface IComponent<Player>
+    interface IComponent
