@@ -43,6 +43,7 @@ type private MouseWheelEvent =
 
 [<Struct>]
 type private JoystickButtonEvent =
+    val Id : int
     val IsPressed : int
     val Button : int
 

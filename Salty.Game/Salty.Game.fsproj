@@ -86,9 +86,6 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <Reference Include="System.Runtime">
-      <HintPath>..\..\..\..\..\Library\Frameworks\Xamarin.iOS.framework\Versions\8.10.3.2\lib\mono\2.1\Facades\System.Runtime.dll</HintPath>
-    </Reference>
     <ProjectReference Include="..\Salty.Physics\Salty.Physics.fsproj">
       <Project>{BC928CFE-3FD1-4497-9553-EAC8E90D9372}</Project>
       <Name>Salty.Physics</Name>
