@@ -35,14 +35,14 @@ type CommandSystem () =
         member __.Init world =
             inputSystem.Init world
 
-            World.componentAdded<Player> world
+            Entity.componentAdded<Player> world
             |> Observable.add (fun (entity, player) ->
-                World.Entity.addComponent entity (Command ()) world
-                World.Entity.addComponent entity (Input ()) world
+                Entity.addComponent entity (Command ()) world
+                Entity.addComponent entity (Input ()) world
             )
 
             // Map input events to commands
-            World.componentAdded<Input> world
+            Entity.componentAdded<Input> world
             |> Observable.add (fun (entity, input) ->
                 playerLookup.[input] <- !nextPlayerId
 
@@ -74,7 +74,7 @@ type CommandSystem () =
             )
 
             // Process commands on players
-            World.componentAdded<Command> world
+            Entity.componentAdded<Command> world
             |> Observable.add (fun (entity, command) ->
                 match world.ComponentQuery.TryGet<Player> entity with
                 | Some player ->

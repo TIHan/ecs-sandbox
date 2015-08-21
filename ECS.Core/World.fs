@@ -74,63 +74,64 @@ module World =
     let event<'T when 'T :> IEvent> (world: IWorld) =
         world.EventAggregator.GetEvent<'T> ()
 
-    let entityCreated (world: IWorld) =
-        event<EntityEvent> world
+[<RequireQualifiedAccess>]
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module Entity =
+
+    let created (world: IWorld) =
+        World.event<EntityEvent> world
         |> Observable.choose (function
             | Created entity -> Some entity
             | _ -> None
         )
 
-    let entitySpawned (world: IWorld) =
-        event<EntityEvent> world
+    let spawned (world: IWorld) =
+        World.event<EntityEvent> world
         |> Observable.choose (function
             | Spawned entity -> Some entity
             | _ -> None
         )
 
-    let entityDestroyed (world: IWorld) =
-        event<EntityEvent> world
+    let destroyed (world: IWorld) =
+        World.event<EntityEvent> world
         |> Observable.choose (function
             | Destroyed entity -> Some entity
             | _ -> None
         )
 
     let anyComponentAdded (world: IWorld) =
-        event<ComponentEvent> world
+        World.event<ComponentEvent> world
         |> Observable.choose (function
             | AnyAdded (entity, comp, t) -> Some (entity, comp, t)
             | _ -> None
         )
 
     let anyComponentRemoved (world: IWorld) =
-        event<ComponentEvent> world
+        World.event<ComponentEvent> world
         |> Observable.choose (function
             | AnyRemoved (entity, comp, t) -> Some (entity, comp, t)
             | _ -> None
         )
 
     let componentAdded<'T when 'T :> IComponent> (world: IWorld) =
-        event<ComponentEvent<'T>> world
+        World.event<ComponentEvent<'T>> world
         |> Observable.choose (function
             | Added (entity, comp) -> Some (entity, comp)
             | _ -> None
         )
 
     let componentRemoved<'T when 'T :> IComponent> (world: IWorld) =
-        event<ComponentEvent<'T>> world
+        World.event<ComponentEvent<'T>> world
         |> Observable.choose (function
             | Removed (entity, comp) -> Some (entity, comp)
             | _ -> None
         )
 
-    [<RequireQualifiedAccess>]
-    module Entity =
+    let addComponent<'T when 'T :> IComponent> entity comp (world: IWorld) =
+        world.ComponentService.Add<'T> entity comp
 
-        let addComponent<'T when 'T :> IComponent> entity comp (world: IWorld) =
-            world.ComponentService.Add<'T> entity comp
-
-        let removeComponent<'T when 'T :> IComponent> entity (world: IWorld) =
-            world.ComponentService.Remove<'T> entity
+    let removeComponent<'T when 'T :> IComponent> entity (world: IWorld) =
+        world.ComponentService.Remove<'T> entity
 
  type EntityBlueprint =
     {

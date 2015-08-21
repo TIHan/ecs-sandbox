@@ -31,21 +31,21 @@ type RendererSystem () =
             vao <- Renderer.R.CreateVao ()
             defaultShader <- Renderer.R.LoadShaders ("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader")
 
-            World.componentAdded<Render> world
+            Entity.componentAdded<Render> world
             |> Observable.add (function
                 | (entity, comp) ->
                     comp.PreviousPosition.Assign (world.Time.Current |> Observable.map (fun _ -> comp.Position.Value))
                     comp.PreviousRotation.Assign (world.Time.Current |> Observable.map (fun _ -> comp.Rotation.Value))
             )
 
-            World.componentAdded<Camera> world
+            Entity.componentAdded<Camera> world
             |> Observable.add (function
                 | (entity, camera) ->
                     camera.PreviousProjection.Assign (world.Time.Current |> Observable.map (fun _ -> camera.Projection))
                     camera.PreviousPosition.Assign (world.Time.Current |> Observable.map (fun _ -> camera.Position.Value))
             )
 
-            World.componentAdded<Position> world
+            Entity.componentAdded<Position> world
             |> Observable.add (function
                 | (entity, position) ->
                     match world.ComponentQuery.TryGet<Render> entity with
@@ -54,7 +54,7 @@ type RendererSystem () =
                     | _ -> ()
             )
 
-            World.componentAdded<Rotation> world
+            Entity.componentAdded<Rotation> world
             |> Observable.add (function
                 | (entity, rotation) ->
                     match world.ComponentQuery.TryGet<Render> entity with

@@ -42,20 +42,23 @@ type World =
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module World =
 
-    val entitySpawned : IWorld -> IObservable<Entity>
+    val event : IWorld -> IObservable<#IEvent>
 
-    val entityDestroyed : IWorld -> IObservable<Entity>
+[<RequireQualifiedAccess>]
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module Entity =
+
+    val spawned : IWorld -> IObservable<Entity>
+
+    val destroyed : IWorld -> IObservable<Entity>
 
     val componentAdded<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
     val componentRemoved<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
-    [<RequireQualifiedAccess>]
-    module Entity =
+    val addComponent<'T when 'T :> IComponent> : Entity -> 'T -> IWorld -> unit
 
-        val addComponent<'T when 'T :> IComponent> : Entity -> 'T -> IWorld -> unit
-
-        val removeComponent<'T when 'T :> IComponent> : Entity -> IWorld -> unit
+    val removeComponent<'T when 'T :> IComponent> : Entity -> IWorld -> unit
 
 [<Sealed>]
 type EntityBlueprint

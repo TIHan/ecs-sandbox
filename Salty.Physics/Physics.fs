@@ -39,34 +39,34 @@ type PhysicsSystem () =
     interface ISystem with
         
         member __.Init world =
-            World.componentAdded<Physics> world
+            Entity.componentAdded<Physics> world
             |> Observable.add (function
-                | (entity, physicsPolygon) ->      
+                | (entity, physics) ->      
 
                     let data = 
-                        physicsPolygon.Data.Value
+                        physics.Data.Value
 
-                    physicsPolygon.Internal.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
+                    physics.Internal.Body <- new FarseerPhysics.Dynamics.Body (physicsWorld)
 
-                    physicsPolygon.Position
+                    physics.Position
                     |> Observable.add (fun position ->
-                        physicsPolygon.Internal.Body.Position <- position
+                        physics.Internal.Body.Position <- position
                     )
 
-                    physicsPolygon.Rotation
+                    physics.Rotation
                     |> Observable.add (fun rotation ->
-                        physicsPolygon.Internal.Body.Rotation <- rotation
+                        physics.Internal.Body.Rotation <- rotation
                     )
 
-                    physicsPolygon.Internal.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physicsPolygon.Density.Value)
-                    physicsPolygon.Internal.Fixture <- physicsPolygon.Internal.Body.CreateFixture (physicsPolygon.Internal.PolygonShape)
-                    physicsPolygon.Internal.Fixture.UserData <- (entity, physicsPolygon)
-                    physicsPolygon.Internal.Body.BodyType <- if physicsPolygon.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
-                    physicsPolygon.Internal.Body.Restitution <- physicsPolygon.Restitution.Value
-                    physicsPolygon.Internal.Body.Friction <- physicsPolygon.Friction.Value
-                    physicsPolygon.Internal.Body.Mass <- physicsPolygon.Mass.Value
+                    physics.Internal.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physics.Density.Value)
+                    physics.Internal.Fixture <- physics.Internal.Body.CreateFixture (physics.Internal.PolygonShape)
+                    physics.Internal.Fixture.UserData <- (entity, physics)
+                    physics.Internal.Body.BodyType <- if physics.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
+                    physics.Internal.Body.Restitution <- physics.Restitution.Value
+                    physics.Internal.Body.Friction <- physics.Friction.Value
+                    physics.Internal.Body.Mass <- physics.Mass.Value
 
-                    physicsPolygon.Internal.Fixture.OnCollision <-
+                    physics.Internal.Fixture.OnCollision <-
                         new FarseerPhysics.Dynamics.OnCollisionEventHandler (
                             fun fixture1 fixture2 _ -> 
                                 let phys1 = fixture1.UserData :?> (Entity * Physics)
@@ -76,7 +76,7 @@ type PhysicsSystem () =
                         )
             )
 
-            World.componentAdded<Physics> world
+            Entity.componentAdded<Physics> world
             |> Observable.add (fun (entity, physics) ->
                 match world.ComponentQuery.TryGet<Position> entity with
                 | Some position -> physics.Position.Assign (position.Var)
@@ -87,21 +87,21 @@ type PhysicsSystem () =
                 | _ -> ()
             )
 
-            World.componentAdded<Position> world
+            Entity.componentAdded<Position> world
             |> Observable.add (fun (entity, position) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Position.Assign (position.Var)
                 | _ -> ()
             )
 
-            World.componentAdded<Rotation> world
+            Entity.componentAdded<Rotation> world
             |> Observable.add (fun (entity, rotation) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Rotation.Assign (rotation.Var)
                 | _ -> ()
             )
 
-            world.EventAggregator.GetEvent<ApplyForceRequested> ()
+            World.event<ApplyForceRequested> world
             |> Observable.add (function
                 | ApplyForceRequested (entity, force) ->
                     match world.ComponentQuery.TryGet<Physics> entity with
@@ -110,7 +110,7 @@ type PhysicsSystem () =
                     | _ -> ()
             )
 
-            World.componentRemoved<Physics> world
+            Entity.componentRemoved<Physics> world
             |> Observable.add (fun (_, physics) ->
                 physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
                 physics.Internal.Body.Dispose ()
