@@ -2,6 +2,7 @@ NUGET
   remote: https://www.nuget.org/api/v2
   specs:
     Ferop (1.0.0-beta90001) - framework: >= net45
+    FSharp.Core (4.0.0.1)
     NuGet.CommandLine (2.8.6)
     Rx-Core (2.2.5)
       Rx-Interfaces (>= 2.2.5)
