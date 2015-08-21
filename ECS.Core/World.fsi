@@ -52,6 +52,10 @@ module Entity =
 
     val destroyed : IWorld -> IObservable<Entity>
 
+    val anyComponentAdded : IWorld -> IObservable<Entity * obj * Type>
+
+    val anyComponentRemoved : IWorld -> IObservable<Entity * obj * Type>
+
     val componentAdded<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
     val componentRemoved<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
