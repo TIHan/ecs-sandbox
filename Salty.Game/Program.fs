@@ -170,6 +170,11 @@ let benchmark f =
     s.Stop()
     printfn "MS: %A" s.ElapsedMilliseconds
 
+
+type Yopac = Yopac of int with
+
+    interface IEvent
+
 [<EntryPoint>]
 let main argv = 
 

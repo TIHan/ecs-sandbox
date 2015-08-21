@@ -63,14 +63,6 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <ProjectReference Include="..\ECS.Core\ECS.Core.fsproj">
-      <Name>ECS.Core</Name>
-      <Project>{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Salty.Core\Salty.Core.fsproj">
-      <Name>Salty.Core</Name>
-      <Project>{2610244A-1000-479E-BAD0-1E42770754CC}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\Salty.Game.Core\Salty.Game.Core.fsproj">
       <Name>Salty.Game.Core</Name>
       <Project>{FF5C3A84-1C72-4907-8143-506248EB0DFD}</Project>
@@ -78,6 +70,14 @@
     <ProjectReference Include="..\Salty.Input\Salty.Input.fsproj">
       <Name>Salty.Input</Name>
       <Project>{CE1F8C45-C665-4F36-A2C2-1FA973F9DA47}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\src\libs\ECS\ECS.fsproj">
+      <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
+      <Name>ECS</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
+      <Project>{71D32E38-195A-4166-ADD7-DA4BA880AEE0}</Project>
+      <Name>Salty.Core</Name>
     </ProjectReference>
   </ItemGroup>
   <Choose>

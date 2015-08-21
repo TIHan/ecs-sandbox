@@ -64,21 +64,21 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="gdk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f" />
     <Reference Include="glib-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f" />
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
+    <Reference Include="FSharp.Core" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ECS.Core\ECS.Core.fsproj">
-      <Name>ECS.Core</Name>
-      <Project>{A9D90EB8-A3F2-4D4F-A159-DF4A54311785}</Project>
+    <ProjectReference Include="..\src\libs\ECS\ECS.fsproj">
+      <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
+      <Name>ECS</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Salty.Core\Salty.Core.fsproj">
-      <Project>{2610244A-1000-479E-BAD0-1E42770754CC}</Project>
+    <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
+      <Project>{71D32E38-195A-4166-ADD7-DA4BA880AEE0}</Project>
       <Name>Salty.Core</Name>
     </ProjectReference>
   </ItemGroup>
