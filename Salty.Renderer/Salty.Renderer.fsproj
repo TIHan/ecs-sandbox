@@ -9,8 +9,6 @@
     <RootNamespace>Salty.Renderer</RootNamespace>
     <AssemblyName>Salty.Renderer</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Name>Salty.Renderer</Name>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
