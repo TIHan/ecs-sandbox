@@ -184,6 +184,7 @@ let main argv =
                 CommandSystem ()
                 MovementSystem ()
                 PhysicsSystem ()
+                SerializationSystem ()
             ]
         )
 

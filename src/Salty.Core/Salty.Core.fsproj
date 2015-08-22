@@ -31,20 +31,7 @@
     <DefineConstants>
     </DefineConstants>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.1\Framework\v4.0\Microsoft.FSharp.Targets" />
-  <ItemGroup>
-    <Compile Include="Components.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="paket.references" />
-  </ItemGroup>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETCore'">
       <ItemGroup>
@@ -347,9 +334,20 @@
     </When>
   </Choose>
   <ItemGroup>
+    <Compile Include="Components.fs" />
+    <Content Include="paket.references" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
     <ProjectReference Include="..\libs\ECS\ECS.fsproj">
       <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
       <Name>ECS</Name>
     </ProjectReference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Serialization" />
   </ItemGroup>
 </Project>
