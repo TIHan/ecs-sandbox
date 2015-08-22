@@ -76,4 +76,4 @@ module EntityBlueprint =
 
     val remove<'T when 'T :> IComponent> : EntityBlueprint -> EntityBlueprint
 
-    val build : IWorld -> EntityBlueprint -> unit
+    val build : int -> IWorld -> EntityBlueprint -> unit

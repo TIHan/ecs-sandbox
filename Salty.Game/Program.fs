@@ -197,19 +197,19 @@ let main argv =
 
     EntityBlueprint.create ()
     |> EntityBlueprint.player Vector2.Zero
-    |> EntityBlueprint.build world
+    |> EntityBlueprint.build 0 world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.player (Vector2.One * 2.f)
-    |> EntityBlueprint.build world
+    |> EntityBlueprint.build 1 world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.staticBox
-    |> EntityBlueprint.build world
+    |> EntityBlueprint.build 2 world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.camera
-    |> EntityBlueprint.build world
+    |> EntityBlueprint.build 3 world
 
     GameLoop.start
         world

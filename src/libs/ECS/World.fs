@@ -156,8 +156,8 @@ module EntityBlueprint =
             componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: blueprint.componentF
         }
 
-    let build (world: IWorld) (blueprint: EntityBlueprint) =
-        let createdEntity = world.EntityService.Create ()
+    let build id (world: IWorld) (blueprint: EntityBlueprint) =
+        let createdEntity = world.EntityService.Create id
         
         blueprint.componentF
         |> List.iter (fun f -> f createdEntity world.ComponentService)
