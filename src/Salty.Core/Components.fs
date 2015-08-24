@@ -6,6 +6,7 @@ open System.Numerics
 open System.Collections.Generic
 open System.Xml
 open System.Xml.Serialization
+open System.Reflection
 open System.Globalization
 
 open ECS.Core
@@ -17,6 +18,19 @@ type ISerializableComponent =
 type SerializationSystem () =
 
     let entities : (ResizeArray<ISerializableComponent> []) = Array.init 65536 (fun _ -> ResizeArray ())
+    let interfaceSerializableComponentType = typeof<ISerializableComponent>
+
+    let componentTypes =
+        AppDomain.CurrentDomain.GetAssemblies ()
+        |> Array.map (fun x -> 
+            x.GetTypes () 
+            |> Array.filter (fun x -> 
+                x <> interfaceSerializableComponentType &&
+                interfaceSerializableComponentType.IsAssignableFrom (x)
+            )
+        )
+        |> Array.reduce Array.append
+        |> Array.sortBy (fun x -> x.Name.ToLower ())
 
     interface ISystem with
 
@@ -77,15 +91,21 @@ type SerializationSystem () =
             use inputStream = File.Open ("game.xml", FileMode.OpenOrCreate)
             use reader = XmlReader.Create (inputStream, settings)
 
+            let mutable currentEntity = Entity ()
             while reader.Read () do
-                let mutable currentEntity = Entity ()
                 if reader.IsStartElement () then
                     match reader.Name with
                     | "Game" -> ()
                     | "Entity" ->
                         currentEntity <- Entity (Int32.Parse (reader.GetAttribute("Id")))
-                    | "Position" -> ()
-                    | _ -> ()
+                    | name ->
+                        let compType = componentTypes |> Array.find (fun x -> x.Name.Equals name)
+                        match world.ComponentQuery.TryGet (currentEntity, compType) with
+                        | Some comp ->
+                            let comp = comp :?> ISerializableComponent
+                            comp.ReadXml reader
+                        | _ -> ()
+                            
 
 
 
@@ -111,8 +131,8 @@ type Position () =
 
         member this.WriteXml writer =
             let position = this.Var.Value
-            writer.WriteAttributeString ("X", position.X.ToString ())
-            writer.WriteAttributeString ("Y", position.Y.ToString ())
+            writer.WriteAttributeString ("X", position.X.ToString ("F"))
+            writer.WriteAttributeString ("Y", position.Y.ToString ("F"))
 
         member this.ReadXml reader =
             let mutable position = Vector2 ()
@@ -120,7 +140,7 @@ type Position () =
             position.X <- Single.Parse (reader.GetAttribute ("X"), NumberStyles.Number, CultureInfo.InvariantCulture)
             position.Y <- Single.Parse (reader.GetAttribute ("Y"), NumberStyles.Number, CultureInfo.InvariantCulture)
 
-            this.Var.Value <- position
+            //this.Var.Value <- position
 
 type Rotation () =
 

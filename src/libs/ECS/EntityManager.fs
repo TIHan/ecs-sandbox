@@ -28,6 +28,8 @@ type IComponentQuery =
 
     abstract Has<'T when 'T :> IComponent> : Entity -> bool
 
+    abstract TryGet : Entity * Type -> IComponent option
+
     abstract TryGet<'T when 'T :> IComponent> : Entity -> 'T option
 
     abstract TryFind<'T when 'T :> IComponent> : (Entity * 'T -> bool) -> (Entity * 'T) option
@@ -190,7 +192,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             this.TryRemoveComponent (entity, key) |> ignore
         )
 
-    member this.IterateInternal<'T> (f: Entity * 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member inline this.IterateInternal<'T> (f: Entity * 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T> with
         | (false,_) -> ()
         | (_,data) ->
@@ -213,7 +215,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member this.IterateInternal<'T1, 'T2> (f: Entity * 'T1 * 'T2 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member inline this.IterateInternal<'T1, 'T2> (f: Entity * 'T1 * 'T2 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2> with
         | (false,_),_
         | _,(false,_) -> ()
@@ -237,7 +239,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     then
                     f (entity, (com1 :?> 'T1), (com2 :?> 'T2))
 
-    member this.IterateInternal<'T1, 'T2, 'T3> (f: Entity * 'T1 * 'T2 * 'T3 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member inline this.IterateInternal<'T1, 'T2, 'T3> (f: Entity * 'T1 * 'T2 * 'T3 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3> with
         | (false,_),_,_
         | _,(false,_),_
@@ -264,7 +266,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     then
                     f (entity, (com1 :?> 'T1), (com2 :?> 'T2), (com3 :?> 'T3))
 
-    member this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f: Entity * 'T1 * 'T2 * 'T3 * 'T4 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
+    member inline this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f: Entity * 'T1 * 'T2 * 'T3 * 'T4 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3>, lookup.TryGetValue typeof<'T4> with
         | (false,_),_,_,_
         | _,(false,_),_,_
@@ -353,6 +355,18 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 if not (entity.Id >= 0 && entity.Id < data.components.Length)
                 then false
                 else not <| obj.ReferenceEquals (data.components.[entity.Id], null)
+
+        member this.TryGet (entity: Entity, t: Type) : IComponent option =
+            match lookup.TryGetValue t with
+            | false, _ -> None
+            | _, data ->
+                if not (entity.Id >= 0 && entity.Id < data.components.Length)
+                then None
+                else 
+                    let comp = data.components.[entity.Id]
+                    match obj.ReferenceEquals (comp, null) with
+                    | true -> None
+                    | _ -> Some (comp :?> IComponent)
 
         member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
             match lookup.TryGetValue typeof<'T> with

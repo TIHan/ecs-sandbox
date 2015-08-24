@@ -25,6 +25,8 @@ type IComponentQuery =
 
     abstract Has<'T when 'T :> IComponent> : Entity -> bool
 
+    abstract TryGet : Entity * Type -> IComponent option
+
     abstract TryGet<'T when 'T :> IComponent> : Entity -> 'T option
 
     abstract TryFind<'T when 'T :> IComponent> : (Entity * 'T -> bool) -> (Entity * 'T) option

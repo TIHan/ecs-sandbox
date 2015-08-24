@@ -5,17 +5,19 @@ open System.Reactive.Linq
 open System.Reactive.Subjects
 
 [<Sealed>]
-type Var<'T> (initialValue) =
+type Var<'T when 'T : equality> (initialValue) =
     let subject = new BehaviorSubject<'T> (initialValue)
 
     member this.Value
         with get () = subject.Value
-        and set value = subject.OnNext value
+        and set value = 
+            if not <| subject.Value.Equals value then
+                subject.OnNext value
 
     interface IObservable<'T> with
 
         member __.Subscribe observer =
-            subject.DistinctUntilChanged().Subscribe observer
+            subject.Subscribe observer
 
     interface IDisposable with
 
@@ -33,7 +35,7 @@ module Var =
         reactVar.Value <- value
 
 [<Sealed>]
-type Val<'T> (initialValue, source: IObservable<'T>) =
+type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
     let subject = new BehaviorSubject<'T> (initialValue)
     let mutable subscription = source.Subscribe subject.OnNext
 

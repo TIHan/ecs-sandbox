@@ -50,7 +50,7 @@ type Physics () =
 
         member this.WriteXml writer =
             writer.WriteAttributeString ("IsStatic", this.IsStatic.Value.ToString ())
-            writer.WriteAttributeString ("Density", this.IsStatic.Value.ToString ())
+            writer.WriteAttributeString ("Density", this.Density.Value.ToString ())
             writer.WriteAttributeString ("Restitution", this.Restitution.Value.ToString ())
             writer.WriteAttributeString ("Friction", this.Friction.Value.ToString ())
             writer.WriteAttributeString ("Mass", this.Mass.Value.ToString ())
