@@ -140,12 +140,16 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         else
             this.DeferPreEntityEvent (Created entity)
             this.DeferEntityEvent (Spawned entity)
+            entitySet.Add entity |> ignore
 
     member this.Destroy (entity: Entity) =
         this.RemoveAllComponents (entity)
         entitySet.Remove entity |> ignore     
 
     member this.AddComponent (entity: Entity, comp: obj, t: Type) =
+        if not <| entitySet.Contains entity then
+            failwith "Entity #%i has not been spawned."
+
         this.LoadComponent (t)
 
         let data = lookup.[t]
@@ -154,6 +158,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             data.entities.Add entity
             this.DeferComponentEvent <| fun () -> publishComponentAdded entity comp t
             data.components.[entity.Id] <- comp
+        else
+            failwith "Component %s already added to Entity #%i" t.Name entity.Id
         
     member this.TryRemoveComponent (entity: Entity, t: Type) : obj option =
         match lookup.TryGetValue t with
