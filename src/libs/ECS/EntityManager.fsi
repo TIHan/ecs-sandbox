@@ -55,7 +55,7 @@ type IComponentService =
 
 type IEntityService =
 
-    abstract Create : int -> Entity
+    abstract Spawn : Entity -> unit
 
     abstract Destroy : Entity -> unit
 

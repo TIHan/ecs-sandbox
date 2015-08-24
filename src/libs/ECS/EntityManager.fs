@@ -58,7 +58,7 @@ type IComponentService =
 
 type IEntityService =
 
-    abstract Create : int -> Entity
+    abstract Spawn : Entity -> unit
 
     abstract Destroy : Entity -> unit
 
@@ -71,14 +71,12 @@ type EntityLookupData =
 
 [<Sealed>]
 type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
+    let entitySet = HashSet<Entity> ()
     let lookup = Dictionary<Type, EntityLookupData> ()
-    let lockObj = obj ()
     let deferQueue = MessageQueue<unit -> unit> ()
     let deferPreEntityEventQueue = MessageQueue<EntityEvent> ()
     let deferComponentEventQueue = MessageQueue<unit -> unit> ()
     let deferEntityEventQueue = MessageQueue<EntityEvent> ()
-    let deferDispose = MessageQueue<obj> ()
-    let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
     let eventAggregatorType = typeof<IEventAggregator>
     let publishMethod = eventAggregatorType.GetRuntimeMethods () |> Seq.find (fun x -> x.Name = "Publish")
@@ -86,6 +84,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let componentEventType = Type.GetType ("ECS.Core.ComponentEvent`1")
     let componentAddedType = Type.GetType ("ECS.Core.ComponentEvent`1+Added")
     let componentRemovedType = Type.GetType ("ECS.Core.ComponentEvent`1+Removed")
+
+    let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
+    let deferDispose = MessageQueue<obj> ()
 
     let publishComponentAdded entity comp (t: Type) =
         let ctor = componentAddedType.MakeGenericType(t).GetTypeInfo().DeclaredConstructors |> Seq.head
@@ -118,30 +119,31 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         deferDispose.Push x
 
     member this.LoadComponent (t: Type) =
-        lock lockObj <| fun () ->
-            match lookup.TryGetValue t with
-            | false, _ ->
-                let entities = ResizeArray ()
-                let entitySet = HashSet ()
-                let components = Array.init entityAmount (fun _ -> null)
-                let data =
-                    {
-                        entities = entities
-                        entitySet = entitySet
-                        components = components
-                    }
+        match lookup.TryGetValue t with
+        | false, _ ->
+            let entities = ResizeArray ()
+            let entitySet = HashSet ()
+            let components = Array.init entityAmount (fun _ -> null)
+            let data =
+                {
+                    entities = entities
+                    entitySet = entitySet
+                    components = components
+                }
 
-                lookup.[t] <- data
-            | _ -> ()  
+            lookup.[t] <- data
+        | _ -> ()  
 
-    member this.Create id : Entity =
-        let entity = Entity id
-        this.DeferPreEntityEvent (Created entity)
-        this.DeferEntityEvent (Spawned entity)
-        entity
+    member this.Spawn entity =
+        if entitySet.Contains entity then
+            failwith "Entity #%i already spawned." entity.Id
+        else
+            this.DeferPreEntityEvent (Created entity)
+            this.DeferEntityEvent (Spawned entity)
 
     member this.Destroy (entity: Entity) =
-        this.RemoveAllComponents (entity)     
+        this.RemoveAllComponents (entity)
+        entitySet.Remove entity |> ignore     
 
     member this.AddComponent (entity: Entity, comp: obj, t: Type) =
         this.LoadComponent (t)
@@ -151,8 +153,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         if data.entitySet.Add entity then
             data.entities.Add entity
             this.DeferComponentEvent <| fun () -> publishComponentAdded entity comp t
-
-        data.components.[entity.Id] <- comp
+            data.components.[entity.Id] <- comp
         
     member this.TryRemoveComponent (entity: Entity, t: Type) : obj option =
         match lookup.TryGetValue t with
@@ -325,7 +326,11 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     interface IEntityService with
 
-        member this.Create id = this.Create id
+        member this.Spawn entity =             
+            let inline f () =
+                this.Spawn entity
+
+            this.Defer f
 
         member this.Destroy entity =
             let inline f () =

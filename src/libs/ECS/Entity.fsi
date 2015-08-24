@@ -5,5 +5,5 @@ type Entity =
 
     val Id : int
 
-    internal new : int -> Entity
+    new : int -> Entity
 
