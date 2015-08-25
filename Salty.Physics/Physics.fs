@@ -13,24 +13,22 @@ open System.Xml
 open System.Xml.Serialization
 open System.Globalization
 
-type ApplyForceRequested = ApplyForceRequested of (Entity * Vector2) with
-
-    interface IEvent
-
 type Collided = Collided of ((Entity * Physics) * (Entity * Physics)) with
 
     interface IEvent
 
-module Physics =
+module World =
 
-    let collided (world: IWorld) =
+    let physicsCollided (world: IWorld) =
         world.EventAggregator.GetEvent<Collided> ()
         |> Observable.map (function
             | Collided x -> x
         )
+
+module Physics =
     
-    let applyForce force entity (world: IWorld) =
-        world.EventAggregator.Publish (ApplyForceRequested (entity, force))
+    let applyForce (force: Vector2) (physics: Physics) =
+        physics.Internal.Body.ApplyForce (force)
 
 type PhysicsSystem () =
 
@@ -39,7 +37,7 @@ type PhysicsSystem () =
     interface ISystem with
         
         member __.Init world =
-            Entity.componentAdded<Physics> world
+            World.componentAdded<Physics> world
             |> Observable.add (function
                 | (entity, physics) ->      
 
@@ -76,7 +74,7 @@ type PhysicsSystem () =
                         )
             )
 
-            Entity.componentAdded<Physics> world
+            World.componentAdded<Physics> world
             |> Observable.add (fun (entity, physics) ->
                 match world.ComponentQuery.TryGet<Position> entity with
                 | Some position -> physics.Position.Assign (position.Var)
@@ -87,30 +85,21 @@ type PhysicsSystem () =
                 | _ -> ()
             )
 
-            Entity.componentAdded<Position> world
+            World.componentAdded<Position> world
             |> Observable.add (fun (entity, position) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Position.Assign (position.Var)
                 | _ -> ()
             )
 
-            Entity.componentAdded<Rotation> world
+            World.componentAdded<Rotation> world
             |> Observable.add (fun (entity, rotation) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Rotation.Assign (rotation.Var)
                 | _ -> ()
             )
 
-            World.event<ApplyForceRequested> world
-            |> Observable.add (function
-                | ApplyForceRequested (entity, force) ->
-                    match world.ComponentQuery.TryGet<Physics> entity with
-                    | Some physics ->
-                        physics.Internal.Body.ApplyForce (force)
-                    | _ -> ()
-            )
-
-            Entity.componentRemoved<Physics> world
+            World.componentRemoved<Physics> world
             |> Observable.add (fun (_, physics) ->
                 physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
             )

@@ -31,7 +31,7 @@ type RendererSystem () =
             vao <- Renderer.R.CreateVao ()
             defaultShader <- Renderer.R.LoadShaders ("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader")
 
-            Entity.componentAdded<Position> world
+            World.componentAdded<Position> world
             |> Observable.add (function
                 | (entity, position) ->
                     match world.ComponentQuery.TryGet<Render> entity with
@@ -40,7 +40,7 @@ type RendererSystem () =
                     | _ -> ()
             )
 
-            Entity.componentAdded<Rotation> world
+            World.componentAdded<Rotation> world
             |> Observable.add (function
                 | (entity, rotation) ->
                     match world.ComponentQuery.TryGet<Render> entity with

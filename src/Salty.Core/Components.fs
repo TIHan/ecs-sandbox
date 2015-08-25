@@ -36,7 +36,7 @@ type SerializationSystem () =
 
         member this.Init world =
             world
-            |> Entity.anyComponentAdded
+            |> World.anyComponentAdded
             |> Observable.add (fun (entity, o, t) ->
                 if typeof<ISerializableComponent>.IsAssignableFrom t then
                     let id = entity.Id
@@ -44,7 +44,7 @@ type SerializationSystem () =
             )
 
             world
-            |> Entity.anyComponentRemoved
+            |> World.anyComponentRemoved
             |> Observable.add (fun (entity, o, t) ->
                 if typeof<ISerializableComponent>.IsAssignableFrom t then
                     let id = entity.Id

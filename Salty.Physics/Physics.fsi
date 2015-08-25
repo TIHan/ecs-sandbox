@@ -10,11 +10,13 @@ open System
 open System.Numerics
 open System.Xml.Serialization
 
+module World =
+
+    val physicsCollided : IWorld -> IObservable<(Entity * Physics) * (Entity * Physics)>
+
 module Physics =
 
-    val collided : IWorld -> IObservable<(Entity * Physics) * (Entity * Physics)>
-
-    val applyForce : Vector2 -> Entity -> IWorld -> unit
+    val applyForce : Vector2 -> Physics -> unit
 
 type PhysicsSystem =
 

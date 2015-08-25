@@ -39,7 +39,7 @@ type MovementSystem () =
     interface ISystem with
         
         member __.Init world =
-            Physics.collided world
+            World.physicsCollided world
             |> Observable.add (fun ((ent1, phys1), (ent2, phys2)) ->
                 match world.ComponentQuery.TryGet<Health> ent1 with
                 | None -> ()
@@ -105,13 +105,13 @@ type MovementSystem () =
         member __.Update world =
             world.ComponentQuery.ForEach<Player, Physics> (fun (entity, player, physics) ->
                 if player.IsMovingUp.Value then
-                    Physics.applyForce (Vector2.UnitY * 15.f) entity world
+                    Physics.applyForce (Vector2.UnitY * 15.f) physics
 
                 if player.IsMovingLeft.Value then
-                    Physics.applyForce (Vector2.UnitX * -20.f) entity world
+                    Physics.applyForce (Vector2.UnitX * -20.f) physics
 
                 if player.IsMovingRight.Value then
-                    Physics.applyForce (Vector2.UnitX * 20.f) entity world
+                    Physics.applyForce (Vector2.UnitX * 20.f) physics
             )
 
             match world.ComponentQuery.TryFind<Camera> (fun _ -> true) with

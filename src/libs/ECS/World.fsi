@@ -44,13 +44,9 @@ module World =
 
     val event : IWorld -> IObservable<#IEvent>
 
-[<RequireQualifiedAccess>]
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module Entity =
+    val entitySpawned : IWorld -> IObservable<Entity>
 
-    val spawned : IWorld -> IObservable<Entity>
-
-    val destroyed : IWorld -> IObservable<Entity>
+    val entityDestroyed : IWorld -> IObservable<Entity>
 
     val anyComponentAdded : IWorld -> IObservable<Entity * obj * Type>
 
