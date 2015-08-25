@@ -49,17 +49,32 @@ type RendererSystem () =
                     | _ -> ()
             )
 
+            world.Time.Current
+            |> Observable.add (fun _ ->
+                world.ComponentQuery.ForEach<Camera> (fun (_, camera) ->
+                    camera.PreviousPosition <- camera.Position.Value
+                    camera.PreviousProjection <- camera.Projection
+                )
+
+                world.ComponentQuery.ForEach<Render> (fun (_, render) ->
+                    render.PreviousPosition <- render.Position.Value
+                    render.PreviousRotation <- render.Rotation.Value
+                )
+            )
+
         member __.Update world =
+            let delta = world.Time.Delta.Value
+
             Renderer.R.Clear ()
 
             match world.ComponentQuery.TryFind<Camera> (fun _ -> true) with
             | None -> ()
             | Some (_,camera) ->
 
-                let projection = Matrix4x4.Lerp (camera.PreviousProjection, camera.Projection, world.Time.Delta.Value)
+                let projection = Matrix4x4.Lerp (camera.PreviousProjection, camera.Projection, delta)
                 let view = ref camera.View
 
-                let value = Vector2.Lerp (camera.PreviousPosition, camera.Position.Value, world.Time.Delta.Value)
+                let value = Vector2.Lerp (camera.PreviousPosition, camera.Position.Value, delta)
                 view := Matrix4x4.CreateTranslation (Vector3 (value, 0.f) * -1.f)
 
                 camera.View <- !view
@@ -68,12 +83,15 @@ type RendererSystem () =
                 Renderer.R.SetProjection defaultShader projection
                 Renderer.R.SetView defaultShader !view
 
-                world.ComponentQuery.ForEach<Render, Position> (fun (entity, render, position) ->
+                world.ComponentQuery.ForEach<Render> (fun (entity, render) ->
                     let position = render.Position.Value
+                    let previousPosition = render.PreviousPosition
                     let rotation = render.Rotation.Value
+                    let previousRotation = render.PreviousRotation
+                    let delta = world.Time.Delta.Value
 
-                    let positionValue = Vector2.Lerp (render.PreviousPosition, render.Position.Value, world.Time.Delta.Value)
-                    let rotationValue = Vector2.Lerp(Vector2 (render.PreviousRotation, 0.f), Vector2 (render.Rotation.Value, 0.f), world.Time.Delta.Value).X
+                    let positionValue = Vector2.Lerp (previousPosition, position, delta)
+                    let rotationValue = Vector2.Lerp(Vector2 (previousRotation, 0.f), Vector2 (rotation, 0.f), delta).X
 
                     let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
                     let model = rotationMatrix * Matrix4x4.CreateTranslation (Vector3 (positionValue, 0.f))
@@ -81,12 +99,6 @@ type RendererSystem () =
                     Renderer.R.SetModel defaultShader model
 
                     Renderer.R.DrawLineLoop defaultShader render.VBO
-
-                    render.PreviousPosition <- render.Position.Value
-                    render.PreviousRotation <- render.Rotation.Value
                 )
 
                 Renderer.R.Draw (context)
-
-                camera.PreviousProjection <- camera.Projection
-                camera.PreviousPosition <- camera.Position.Value
