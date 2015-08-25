@@ -184,7 +184,7 @@ let main argv =
                 CommandSystem ()
                 MovementSystem ()
                 PhysicsSystem ()
-                SerializationSystem ()
+                //SerializationSystem ()
             ]
         )
 
@@ -207,9 +207,10 @@ let main argv =
     |> EntityBlueprint.staticBox
     |> EntityBlueprint.build 2 world
 
-    EntityBlueprint.create ()
-    |> EntityBlueprint.camera
-    |> EntityBlueprint.build 3 world
+    for i = 5 to 60000 do
+        EntityBlueprint.create ()
+        |> EntityBlueprint.camera
+        |> EntityBlueprint.build i world
 
     GameLoop.start
         world

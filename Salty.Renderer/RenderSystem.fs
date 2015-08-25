@@ -51,7 +51,7 @@ type RendererSystem () =
 
             world.Time.Current
             |> Observable.add (fun _ ->
-                world.ComponentQuery.ForEach<Camera> (fun (_, camera) ->
+                world.ComponentQuery.ParallelForEach<Camera> (fun (_, camera) ->
                     camera.PreviousPosition <- camera.Position.Value
                     camera.PreviousProjection <- camera.Projection
                 )
