@@ -113,8 +113,6 @@ type PhysicsSystem () =
             Entity.componentRemoved<Physics> world
             |> Observable.add (fun (_, physics) ->
                 physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
-                physics.Internal.Body.Dispose ()
-                physics.Internal.Fixture.Dispose ()
             )
 
         member __.Update world =

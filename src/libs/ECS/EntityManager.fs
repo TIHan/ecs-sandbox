@@ -73,37 +73,17 @@ type EntityLookupData =
 
 [<Sealed>]
 type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
+    let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
+
     let entitySet = HashSet<Entity> ()
+    let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
     let lookup = Dictionary<Type, EntityLookupData> ()
+
     let deferQueue = MessageQueue<unit -> unit> ()
     let deferPreEntityEventQueue = MessageQueue<EntityEvent> ()
     let deferComponentEventQueue = MessageQueue<unit -> unit> ()
     let deferEntityEventQueue = MessageQueue<EntityEvent> ()
-
-    let eventAggregatorType = typeof<IEventAggregator>
-    let publishMethod = eventAggregatorType.GetRuntimeMethods () |> Seq.find (fun x -> x.Name = "Publish")
-
-    let componentEventType = Type.GetType ("ECS.Core.ComponentEvent`1")
-    let componentAddedType = Type.GetType ("ECS.Core.ComponentEvent`1+Added")
-    let componentRemovedType = Type.GetType ("ECS.Core.ComponentEvent`1+Removed")
-
-    let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
     let deferDispose = MessageQueue<obj> ()
-
-    let publishComponentAdded entity comp (t: Type) =
-        let ctor = componentAddedType.MakeGenericType(t).GetTypeInfo().DeclaredConstructors |> Seq.head
-        let m = publishMethod.MakeGenericMethod (componentEventType.MakeGenericType (t))
-        let e = ctor.Invoke(parameters = [|entity;comp|])
-        m.Invoke (eventAggregator, [|e|]) |> ignore
-        eventAggregator.Publish (AnyAdded (entity, comp, t))
-
-    let publishComponentRemoved entity comp (t: Type) =
-        let eventType = componentRemovedType.MakeGenericType(t)
-        let ctor = eventType.GetTypeInfo().DeclaredConstructors |> Seq.head
-        let m = publishMethod.MakeGenericMethod (eventType)
-        let e = ctor.Invoke(parameters = [|entity;comp|])
-        m.Invoke (eventAggregator, [|e|]) |> ignore
-        eventAggregator.Publish (AnyRemoved (entity, comp, t))
 
     member inline this.Defer f =
         deferQueue.Push f
@@ -120,7 +100,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     member inline this.DeferDispose x =
         deferDispose.Push x
 
-    member this.LoadComponent (t: Type) =
+    member this.LoadData (t: Type) =
         match lookup.TryGetValue t with
         | false, _ ->
             let entities = ResizeArray ()
@@ -134,7 +114,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 }
 
             lookup.[t] <- data
-        | _ -> ()  
+            data
+        | _, data -> data  
 
     member this.Spawn entity =
         if entitySet.Contains entity then
@@ -148,49 +129,47 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         this.RemoveAllComponents (entity)
         entitySet.Remove entity |> ignore     
 
-    member this.AddComponent (entity: Entity, comp: obj, t: Type) =
+    member this.AddComponent<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
         if not <| entitySet.Contains entity then
             failwith "Entity #%i has not been spawned."
 
-        this.LoadComponent (t)
-
-        let data = lookup.[t]
+        let t = typeof<'T>
+        let data = this.LoadData (t)
 
         if data.entitySet.Add entity then
+            entityRemovals.[entity.Id].Add (fun () -> this.TryRemoveComponent<'T> entity |> ignore)
             data.entities.Add entity
-            this.DeferComponentEvent <| fun () -> publishComponentAdded entity comp t
-            data.components.[entity.Id] <- comp
+            this.DeferComponentEvent <| fun () -> 
+                eventAggregator.Publish (AnyAdded (entity, comp, t))
+                eventAggregator.Publish (Added (entity, comp))
+            data.components.[entity.Id] <- comp :> obj
         else
             failwith "Component %s already added to Entity #%i" t.Name entity.Id
         
-    member this.TryRemoveComponent (entity: Entity, t: Type) : obj option =
+    member this.TryRemoveComponent<'T when 'T :> IComponent> (entity: Entity) : 'T option =
+        let t = typeof<'T>
         match lookup.TryGetValue t with
         | false, _ -> None
         | _, data ->
             data.entitySet.Remove entity |> ignore
             data.entities.Remove entity |> ignore
             if entity.Id >= 0 && entity.Id < data.components.Length then
-                let comp = data.components.[entity.Id]
+                let comp = data.components.[entity.Id] :?> 'T
                 if not <| obj.ReferenceEquals (comp, null) then
                     data.components.[entity.Id] <- null
-                    this.DeferComponentEvent <| fun () -> publishComponentRemoved entity comp t
+                    this.DeferComponentEvent <| fun () -> 
+                        eventAggregator.Publish (AnyRemoved (entity, comp, t))
+                        eventAggregator.Publish (Removed (entity, comp))
                     this.DeferDispose comp
                     Some comp  
                 else None  
             else
                 None
 
-    member this.AddComponents (entity: Entity) (comps: obj list) =
-        comps
-        |> List.iter (fun comp ->
-            this.AddComponent (entity, comp, comp.GetType ())
-        )
-
     member this.RemoveAllComponents (entity: Entity) =
-        lookup.Keys
-        |> Seq.iter (fun key ->
-            this.TryRemoveComponent (entity, key) |> ignore
-        )
+        let removals = entityRemovals.[entity.Id]
+        removals.ForEach (fun f -> f ())
+        removals.Clear ()
 
     member inline this.IterateInternal<'T> (f: Entity * 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T> with
@@ -311,7 +290,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 deferEntityEventQueue.Process eventAggregator.Publish
                 deferDispose.Process (fun x ->
                     x.GetType().GetRuntimeProperties()
-                    |> Seq.filter (fun p -> disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo()))
+                    |> Seq.filter (fun p ->
+                        disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo())
+                    )
                     |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
                 )
                 p ()
@@ -322,13 +303,13 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
         member this.Add<'T when 'T :> IComponent> entity (comp: 'T) =
             let inline f () =
-                this.AddComponent (entity, comp, typeof<'T>)
+                this.AddComponent<'T> (entity, comp)
 
             this.Defer f
 
         member this.Remove<'T when 'T :> IComponent> entity =
             let inline f () =
-                this.TryRemoveComponent (entity, typeof<'T>) |> ignore
+                this.TryRemoveComponent<'T> (entity) |> ignore
 
             this.Defer f
 
