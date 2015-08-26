@@ -105,7 +105,7 @@ type PhysicsSystem () =
             )
 
         member __.Update world =
-            world.ComponentQuery.ForEach<Physics> (fun (entity, physics) ->
+            world.ComponentQuery.ForEach<Physics> (fun entity physics ->
                 if not physics.IsStatic.Value then
                     let mutable v = physics.Internal.Body.LinearVelocity
                     if v.X > 25.f then
@@ -125,7 +125,7 @@ type PhysicsSystem () =
 
             physicsWorld.Step (single world.Time.Interval.Value.TotalSeconds)
 
-            world.ComponentQuery.ForEach<Physics, Position, Rotation> (fun (entity, physicsPolygon, position, rotation) ->
+            world.ComponentQuery.ForEach<Physics, Position, Rotation> (fun entity physicsPolygon position rotation ->
                 if not physicsPolygon.IsStatic.Value then
                     position.Var.Value <- physicsPolygon.Internal.Body.Position
                     rotation.Var.Value <- physicsPolygon.Internal.Body.Rotation

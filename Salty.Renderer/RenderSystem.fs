@@ -51,12 +51,12 @@ type RendererSystem () =
 
             world.Time.Current
             |> Observable.add (fun _ ->
-                world.ComponentQuery.ForEach<Camera> (fun (_, camera) ->
+                world.ComponentQuery.ForEach<Camera> (fun _ camera ->
                     camera.PreviousPosition <- camera.Position.Value
                     camera.PreviousProjection <- camera.Projection
                 )
 
-                world.ComponentQuery.ForEach<Render> (fun (_, render) ->
+                world.ComponentQuery.ForEach<Render> (fun _ render ->
                     render.PreviousPosition <- render.Position.Value
                     render.PreviousRotation <- render.Rotation.Value
                 )
@@ -83,7 +83,7 @@ type RendererSystem () =
                 Renderer.R.SetProjection defaultShader projection
                 Renderer.R.SetView defaultShader !view
 
-                world.ComponentQuery.ForEach<Render> (fun (entity, render) ->
+                world.ComponentQuery.ForEach<Render> (fun entity render ->
                     let position = render.Position.Value
                     let previousPosition = render.PreviousPosition
                     let rotation = render.Rotation.Value

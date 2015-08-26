@@ -103,7 +103,7 @@ type MovementSystem () =
 //            )
 
         member __.Update world =
-            world.ComponentQuery.ForEach<Player, Physics> (fun (entity, player, physics) ->
+            world.ComponentQuery.ForEach<Player, Physics> (fun entity player physics ->
                 if player.IsMovingUp.Value then
                     Physics.applyForce (Vector2.UnitY * 15.f) physics
 
