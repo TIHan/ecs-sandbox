@@ -142,9 +142,9 @@ module EntityBlueprint =
             componentF = []
         }
      
-    let add<'T when 'T :> IComponent> (comp: 'T) (blueprint: EntityBlueprint) : EntityBlueprint =
+    let add<'T when 'T :> IComponent> (compf: unit -> 'T) (blueprint: EntityBlueprint) : EntityBlueprint =
         { blueprint with
-            componentF = (fun entity (service: IComponentService) -> service.Add<'T> entity comp) :: blueprint.componentF
+            componentF = (fun entity (service: IComponentService) -> service.Add<'T> entity (compf ())) :: blueprint.componentF
         }
 
     let remove<'T when 'T :> IComponent> (blueprint: EntityBlueprint) : EntityBlueprint =
@@ -152,7 +152,7 @@ module EntityBlueprint =
             componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: blueprint.componentF
         }
 
-    let build id (world: IWorld) (blueprint: EntityBlueprint) =
+    let spawn id (world: IWorld) (blueprint: EntityBlueprint) =
         let entity = Entity id
 
         world.EntityService.Spawn entity

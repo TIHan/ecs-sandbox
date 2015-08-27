@@ -68,8 +68,8 @@ module EntityBlueprint =
 
     val create : unit -> EntityBlueprint
 
-    val add<'T when 'T :> IComponent> : 'T -> EntityBlueprint -> EntityBlueprint
+    val add<'T when 'T :> IComponent> : (unit -> 'T) -> EntityBlueprint -> EntityBlueprint
 
     val remove<'T when 'T :> IComponent> : EntityBlueprint -> EntityBlueprint
 
-    val build : int -> IWorld -> EntityBlueprint -> unit
+    val spawn : int -> IWorld -> EntityBlueprint -> unit

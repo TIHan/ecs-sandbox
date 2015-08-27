@@ -76,6 +76,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
     let entitySet = HashSet<Entity> ()
+    let componentSet = HashSet<IComponent> ()
     let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
     let lookup = Dictionary<Type, EntityLookupData> ()
 
@@ -119,7 +120,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     member this.Spawn entity =
         if entitySet.Contains entity then
-            failwith "Entity #%i already spawned." entity.Id
+            failwithf "Entity #%i already spawned." entity.Id
         else
             this.DeferPreEntityEvent (Created entity)
             this.DeferEntityEvent (Spawned entity)
@@ -130,10 +131,14 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         entitySet.Remove entity |> ignore     
 
     member this.AddComponent<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
-        if not <| entitySet.Contains entity then
-            failwith "Entity #%i has not been spawned."
-
         let t = typeof<'T>
+
+        if not <| entitySet.Contains entity then
+            failwithf "Entity #%i has not been spawned." entity.Id
+
+        if not <| componentSet.Add (comp) then
+            failwithf "Component %s has already been used." t.Name
+
         let data = this.LoadData (t)
 
         if data.entitySet.Add entity then
@@ -144,7 +149,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 eventAggregator.Publish (Added (entity, comp))
             data.components.[entity.Id] <- comp :> obj
         else
-            failwith "Component %s already added to Entity #%i" t.Name entity.Id
+            failwithf "Component %s already added to Entity #%i." t.Name entity.Id
         
     member this.TryRemoveComponent<'T when 'T :> IComponent> (entity: Entity) : 'T option =
         let t = typeof<'T>
@@ -153,9 +158,11 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         | _, data ->
             data.entitySet.Remove entity |> ignore
             data.entities.Remove entity |> ignore
+
             if entity.Id >= 0 && entity.Id < data.components.Length then
                 let comp = data.components.[entity.Id] :?> 'T
                 if not <| obj.ReferenceEquals (comp, null) then
+                    componentSet.Remove comp |> ignore
                     data.components.[entity.Id] <- null
                     this.DeferComponentEvent <| fun () -> 
                         eventAggregator.Publish (AnyRemoved (entity, comp, t))

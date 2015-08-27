@@ -45,7 +45,7 @@ type MovementSystem () =
                 | None -> ()
                 | Some health ->
                     health.Var.Value <- health.Var.Value - 10.f
-                    printfn "%A: %A" ent1.Id health.Var.Value
+                    //printfn "%A: %A" ent1.Id health.Var.Value
                     if health.Var.Value <= 0.f then
                         world.EntityService.Destroy ent1
             )
@@ -109,8 +109,7 @@ type MovementSystem () =
                     | Shoot ->
                         EntityBlueprint.create ()
                         |> EntityBlueprint.box physics.Position.Value
-                        |> EntityBlueprint.build (!count) world
-
+                        |> EntityBlueprint.spawn (!count) world
                         count := !count + 1
                 )
                 player.Commands.Clear ()
@@ -190,7 +189,7 @@ let main argv =
                 CommandSystem ()
                 MovementSystem ()
                 PhysicsSystem ()
-                SerializationSystem ()
+                //SerializationSystem ()
             ]
         )
 
@@ -203,19 +202,19 @@ let main argv =
 
     EntityBlueprint.create ()
     |> EntityBlueprint.player Vector2.Zero
-    |> EntityBlueprint.build 0 world
+    |> EntityBlueprint.spawn 0 world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.player (Vector2.One * 2.f)
-    |> EntityBlueprint.build 1 world
+    |> EntityBlueprint.spawn 1 world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.staticBox
-    |> EntityBlueprint.build 2 world
+    |> EntityBlueprint.spawn 2 world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.camera
-    |> EntityBlueprint.build 3 world
+    |> EntityBlueprint.spawn 3 world
 
     GameLoop.start
         world

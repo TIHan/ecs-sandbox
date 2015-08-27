@@ -51,18 +51,18 @@ type RendererSystem () =
                     | _ -> ()
             )
 
-            world.Time.Current
-            |> Observable.add (fun _ ->
-                world.ComponentQuery.ForEach<Camera> (fun _ camera ->
-                    camera.PreviousPosition <- camera.Position.Value
-                    camera.PreviousProjection <- camera.Projection
-                )
-
-                world.ComponentQuery.ForEach<Render> (fun _ render ->
-                    render.PreviousPosition <- render.Position.Value
-                    render.PreviousRotation <- render.Rotation.Value
-                )
-            )
+//            world.Time.Current
+//            |> Observable.add (fun _ ->
+//                world.ComponentQuery.ForEach<Camera> (fun _ camera ->
+//                    camera.PreviousPosition <- camera.Position.Value
+//                    camera.PreviousProjection <- camera.Projection
+//                )
+//
+//                world.ComponentQuery.ForEach<Render> (fun _ render ->
+//                    render.PreviousPosition <- render.Position.Value
+//                    render.PreviousRotation <- render.Rotation.Value
+//                )
+//            )
 
         member __.Update world =
             let delta = world.Time.Delta.Value
