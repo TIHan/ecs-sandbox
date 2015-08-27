@@ -37,6 +37,7 @@ type RendererSystem () =
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Position.Assign position.Var
+                        render.PreviousPosition <- position.Var.Value
                     | _ -> ()
             )
 
@@ -46,6 +47,7 @@ type RendererSystem () =
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Rotation.Assign rotation.Var
+                        render.PreviousRotation <- rotation.Var.Value
                     | _ -> ()
             )
 

@@ -104,6 +104,17 @@ type MovementSystem () =
 
         member __.Update world =
             world.ComponentQuery.ForEach<Player, Physics> (fun entity player physics ->
+                player.Commands
+                |> Seq.iter (function
+                    | Shoot ->
+                        EntityBlueprint.create ()
+                        |> EntityBlueprint.box physics.Position.Value
+                        |> EntityBlueprint.build (!count) world
+
+                        count := !count + 1
+                )
+                player.Commands.Clear ()
+
                 if player.IsMovingUp.Value then
                     Physics.applyForce (Vector2.UnitY * 15.f) physics
 
@@ -169,11 +180,6 @@ let benchmark f =
     f ()
     s.Stop()
     printfn "MS: %A" s.ElapsedMilliseconds
-
-
-type Yopac = Yopac of int with
-
-    interface IEvent
 
 [<EntryPoint>]
 let main argv = 
