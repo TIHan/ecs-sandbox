@@ -72,4 +72,4 @@ module EntityBlueprint =
 
     val remove<'T when 'T :> IComponent> : EntityBlueprint -> EntityBlueprint
 
-    val spawn : int -> IWorld -> EntityBlueprint -> unit
+    val spawn : int -> IWorld -> EntityBlueprint -> IEvent<Entity>

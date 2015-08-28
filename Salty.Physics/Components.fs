@@ -34,6 +34,8 @@ type Physics () =
 
     member val Mass = Var.create 0.f
 
+    member val Velocity = Var.create Vector2.Zero
+
     member val Position = Val.create Vector2.Zero
 
     member val Rotation = Val.create 0.f

@@ -159,3 +159,14 @@ module EntityBlueprint =
         
         blueprint.componentF
         |> List.iter (fun f -> f entity world.ComponentService)
+
+        let e = Event<Entity> ()
+        let sub = ref Unchecked.defaultof<IDisposable>
+        sub := 
+            World.entitySpawned world
+            |> Observable.filter((=)entity)
+            |> Observable.subscribe (fun entity ->
+                (!sub).Dispose ()
+                e.Trigger entity
+            )
+        e.Publish

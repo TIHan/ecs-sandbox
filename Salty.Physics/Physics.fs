@@ -27,8 +27,9 @@ module World =
 
 module Physics =
     
-    let applyForce (force: Vector2) (physics: Physics) =
-        physics.Internal.Body.ApplyForce (force)
+    let applyImpulse (force: Vector2) (physics: Physics) =
+        physics.Internal.Body.ApplyLinearImpulse (force)
+        physics.Velocity.Value <- physics.Internal.Body.LinearVelocity
 
 type PhysicsSystem () =
 
@@ -106,21 +107,22 @@ type PhysicsSystem () =
 
         member __.Update world =
             world.ComponentQuery.ForEach<Physics> (fun entity physics ->
-                if not physics.IsStatic.Value then
-                    let mutable v = physics.Internal.Body.LinearVelocity
-                    if v.X > 25.f then
-                        v.X <- 25.f
-
-                    if v.X < -25.f then
-                        v.X <- -25.f
-
-                    if v.Y > 25.f then
-                        v.Y <- 25.f
-
-                    if v.Y < -25.f then
-                        v.Y <- -25.f
-
-                    physics.Internal.Body.LinearVelocity <- v
+                ()
+//                if not physics.IsStatic.Value then
+//                    let mutable v = physics.Internal.Body.LinearVelocity
+//                    if v.X > 25.f then
+//                        v.X <- 25.f
+//
+//                    if v.X < -25.f then
+//                        v.X <- -25.f
+//
+//                    if v.Y > 25.f then
+//                        v.Y <- 25.f
+//
+//                    if v.Y < -25.f then
+//                        v.Y <- -25.f
+//
+//                    physics.Internal.Body.LinearVelocity <- v
             )
 
             physicsWorld.Step (single world.Time.Interval.Value.TotalSeconds)
@@ -129,6 +131,7 @@ type PhysicsSystem () =
                 if not physicsPolygon.IsStatic.Value then
                     position.Var.Value <- physicsPolygon.Internal.Body.Position
                     rotation.Var.Value <- physicsPolygon.Internal.Body.Rotation
+                    physicsPolygon.Velocity.Value <- physicsPolygon.Internal.Body.LinearVelocity
 
                     match world.ComponentQuery.TryGet<Centroid> entity with
                     | Some centroid ->

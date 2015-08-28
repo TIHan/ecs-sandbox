@@ -110,18 +110,24 @@ type MovementSystem () =
                         EntityBlueprint.create ()
                         |> EntityBlueprint.box physics.Position.Value
                         |> EntityBlueprint.spawn (!count) world
+                        |> Observable.add (fun entity ->
+                            match world.ComponentQuery.TryGet<Physics> entity with
+                            | Some physics ->
+                                Physics.applyImpulse (Vector2.UnitY * 2.f) physics
+                            | _ -> ()
+                        )
                         count := !count + 1
                 )
                 player.Commands.Clear ()
 
                 if player.IsMovingUp.Value then
-                    Physics.applyForce (Vector2.UnitY * 15.f) physics
+                    Physics.applyImpulse (Vector2.UnitY) physics
 
                 if player.IsMovingLeft.Value then
-                    Physics.applyForce (Vector2.UnitX * -20.f) physics
+                    Physics.applyImpulse (Vector2.UnitX * -2.f) physics
 
                 if player.IsMovingRight.Value then
-                    Physics.applyForce (Vector2.UnitX * 20.f) physics
+                    Physics.applyImpulse (Vector2.UnitX * 2.f) physics
             )
 
             match world.ComponentQuery.TryFind<Camera> (fun _ -> true) with
@@ -189,7 +195,7 @@ let main argv =
                 CommandSystem ()
                 MovementSystem ()
                 PhysicsSystem ()
-                //SerializationSystem ()
+                SerializationSystem ()
             ]
         )
 

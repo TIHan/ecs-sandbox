@@ -16,7 +16,7 @@ module World =
 
 module Physics =
 
-    val applyForce : Vector2 -> Physics -> unit
+    val applyImpulse : Vector2 -> Physics -> unit
 
 type PhysicsSystem =
 
