@@ -23,12 +23,15 @@ type Texture (filePath: string, uvData: Vector2 []) =
 
     member val internal Id = 0 with get, set
 
+    member val internal VBO = None with get, set
+
     member internal this.UV = uvData
 
     member internal this.LoadTexture () =
         match System.IO.File.Exists (filePath) with
         | true ->
             this.Id <- Renderer.R.CreateTexture (filePath)
+            this.VBO <- Some <| Renderer.R.CreateVBO (uvData)
             this.HasLoaded <- true
         | _ -> ()
 

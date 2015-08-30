@@ -42,6 +42,20 @@ module EntityBlueprint =
                 Vector2 (-1.f, -1.f)
             |]
 
+        let uvData =
+            [|
+                Vector2 (0.f, 0.f)
+                Vector2 (0.f, 1.f)
+                Vector2 (1.f, 1.f)
+
+                Vector2 (1.f, 1.f)
+                Vector2 (1.f, 0.f)
+                Vector2 (0.f, 0.f)
+            |]
+            |> Array.map (fun v -> 
+                Vector2 (v.X, 1.f - v.Y)
+            )
+
         blueprint
         |> EntityBlueprint.add (fun () ->
             let position = Position ()
@@ -72,7 +86,7 @@ module EntityBlueprint =
             let render = Render ()
             let obs = Observable.StartWith (Observable.Never (), [|data|])
             render.Shader <- Some <| Shader ("boxTexture.vsh", "boxTexture.fsh")
-            render.Texture <- Some <| Texture ("red.png", [||])
+            render.Texture <- Some <| Texture ("crate.jpg", uvData)
             render.DrawKind <- DrawKind.Triangles
             render.Data.Assign obs
             render.G <- 255uy

@@ -9,5 +9,5 @@ out vec4 out_color;
 
 void main()
 {
-	out_color = texture(uni_texture, vec2(0));
+	out_color = texture(uni_texture, uv);
 }

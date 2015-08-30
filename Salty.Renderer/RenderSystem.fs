@@ -9,6 +9,8 @@ open System
 open System.Numerics
 open System.Reactive.Linq
 
+open Renderer
+
 type RendererSystem () =
     let mutable context = Renderer.RendererContext ()
     let mutable vao = Renderer.VAO (0)
@@ -104,33 +106,49 @@ type RendererSystem () =
                     | Some shader ->
                         if not shader.HasLoaded then shader.LoadShader ()
 
-                        Renderer.R.UseProgram shader.Id
-                        Renderer.R.SetProjection shader.Id projection
-                        Renderer.R.SetView shader.Id !view
+                        R.UseProgram shader.Id
+                        R.SetProjection shader.Id projection
+                        R.SetView shader.Id !view
 
-                        Renderer.R.SetModel shader.Id model
-                        Renderer.R.SetColor shader.Id (single render.R / 255.f) (single render.G / 255.f) (single render.B / 255.f)
+                        R.SetModel shader.Id model
+                        R.SetColor shader.Id (single render.R / 255.f) (single render.G / 255.f) (single render.B / 255.f)
 
                         match render.Texture with
                         | Some texture ->
                             if not texture.HasLoaded then texture.LoadTexture ()
 
-                            Renderer.R.SetTexture shader.Id texture.Id
+                            R.SetTexture shader.Id texture.Id
                         | _ -> ()
 
                         match render.DrawKind with
                         | Lines -> Renderer.R.DrawLines shader.Id render.VBO
                         | LineLoop -> Renderer.R.DrawLineLoop shader.Id render.VBO
                         | Triangles ->
-                            Renderer.R.BindArrayBuffer render.VBO
-                            let positionAttrib = Renderer.R.BindAttribute shader.Id "position"
 
-                            Renderer.R.DrawTriangles render.VBO
+                            R.BindArrayBuffer render.VBO
+                            let positionAttrib = R.BindAttribute shader.Id "position"
 
-                            Renderer.R.UnbindAttribute positionAttrib
-                            Renderer.R.UnbindArrayBuffer ()
+                            let uvAttrib =
+                                match render.Texture with
+                                | Some texture ->
+                                    match texture.VBO with
+                                    | Some vbo ->
+                                        R.BindArrayBuffer vbo
+                                        Some <| R.BindAttribute shader.Id "in_uv"
+                                    | _ -> None
+                                | _ -> None
 
-                            //Renderer.R.DrawTriangles shader.Id render.VBO
+                            ///
+                            R.DrawTriangles render.VBO
+                            ///
+
+                            R.UnbindAttribute positionAttrib
+
+                            match uvAttrib with
+                            | Some uvAttrib -> R.UnbindAttribute uvAttrib
+                            | _ -> ()
+
+                            R.UnbindArrayBuffer ()
                     | _ -> ()
                 )
 
