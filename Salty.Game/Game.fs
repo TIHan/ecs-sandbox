@@ -24,10 +24,10 @@ module EntityBlueprint =
     let box p (blueprint: EntityBlueprint) =
         let data =
             [|
-                Vector2 (1.f, 1.5f)
-                Vector2 (0.f, 1.5f)
-                Vector2 (0.f, 0.f)
-                Vector2 (1.f, 0.f)
+                Vector2 (-1.f, -1.f)
+                Vector2 (-1.f, 1.f)
+                Vector2 (1.f, 1.f)
+                Vector2 (1.f, -1.f)
             |]
 
         blueprint
@@ -43,7 +43,7 @@ module EntityBlueprint =
         )
         |> EntityBlueprint.add (fun () ->
             let health = Health ()
-            health.Var.Value <- 1000000.f
+            health.Var.Value <- 100.f
             health
         )
         |> EntityBlueprint.add (fun () ->
@@ -59,6 +59,7 @@ module EntityBlueprint =
         |> EntityBlueprint.add (fun () ->
             let render = Render ()
             render.VBO <- Renderer.R.CreateVBO (data)
+            render.G <- 255uy
             render
         )
 
@@ -111,5 +112,8 @@ module EntityBlueprint =
         |> EntityBlueprint.add (fun () ->
             let render = Render ()
             render.VBO <- Renderer.R.CreateVBO (data)
+            render.R <- 120uy
+            render.G <- 120uy
+            render.B <- 120uy
             render
         )

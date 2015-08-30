@@ -274,7 +274,7 @@ type R private () =
     static member SetColor (shaderProgram: int) (r: single) (g: single) (b: single) : unit = 
         C """
         GLint uni_color = glGetUniformLocation (shaderProgram, "uni_color");
-        glUniform4f (uni_color, r, g, b, 0.0f);
+        glUniform4f (uni_color, r, g, b, 1.0f);
         """
 
     [<Import; MI (MIO.NoInlining)>]

@@ -99,7 +99,7 @@ type RendererSystem () =
                     let model = rotationMatrix * Matrix4x4.CreateTranslation (Vector3 (positionValue, 0.f))
 
                     Renderer.R.SetModel defaultShader model
-
+                    Renderer.R.SetColor defaultShader (single render.R / 255.f) (single render.G / 255.f) (single render.B / 255.f)
                     Renderer.R.DrawLineLoop defaultShader render.VBO
                 )
 

@@ -44,10 +44,21 @@ type MovementSystem () =
                 match world.ComponentQuery.TryGet<Health> ent1 with
                 | None -> ()
                 | Some health ->
-                    health.Var.Value <- health.Var.Value - 10.f
-                    //printfn "%A: %A" ent1.Id health.Var.Value
+                    health.Var.Value <- health.Var.Value - 1.f
                     if health.Var.Value <= 0.f then
                         world.EntityService.Destroy ent1
+            )
+
+            World.componentAdded<Render> world
+            |> Observable.add (fun (ent, render) ->
+                match world.ComponentQuery.TryGet<Player> ent, world.ComponentQuery.TryGet<Health> ent with
+                | Some player, Some health ->
+                    health.Var
+                    |> Observable.add (fun x ->
+                        render.R <- 255uy - byte ((single x / 100.f) * 255.f)
+                        render.G <- byte ((single x / 100.f) * 255.f)
+                    )
+                | _ -> ()
             )
             ()
 //            world.EventAggregator.GetEvent<InputEvent> ()
@@ -195,7 +206,7 @@ let main argv =
                 CommandSystem ()
                 MovementSystem ()
                 PhysicsSystem ()
-                SerializationSystem ()
+                //SerializationSystem ()
             ]
         )
 

@@ -67,7 +67,7 @@ type PhysicsSystem () =
 
                     physics.Internal.Fixture.OnCollision <-
                         new FarseerPhysics.Dynamics.OnCollisionEventHandler (
-                            fun fixture1 fixture2 _ -> 
+                            fun fixture1 fixture2 contact ->
                                 let phys1 = fixture1.UserData :?> (Entity * Physics)
                                 let phys2 = fixture2.UserData :?> (Entity * Physics)
                                 world.EventAggregator.Publish (Collided (phys1, phys2))
