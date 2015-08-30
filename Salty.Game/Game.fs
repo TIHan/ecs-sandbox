@@ -23,12 +23,23 @@ type Health () =
 module EntityBlueprint =
 
     let box p (blueprint: EntityBlueprint) =
+//        let data =
+//            [|
+//                Vector2 (-1.f, -1.f)
+//                Vector2 (-1.f, 1.f)
+//                Vector2 (1.f, 1.f)
+//                Vector2 (1.f, -1.f)
+//            |]
+
         let data =
             [|
                 Vector2 (-1.f, -1.f)
                 Vector2 (-1.f, 1.f)
                 Vector2 (1.f, 1.f)
+
+                Vector2 (1.f, 1.f)
                 Vector2 (1.f, -1.f)
+                Vector2 (-1.f, -1.f)
             |]
 
         blueprint
@@ -60,6 +71,9 @@ module EntityBlueprint =
         |> EntityBlueprint.add (fun () ->
             let render = Render ()
             let obs = Observable.StartWith (Observable.Never (), [|data|])
+            render.Shader <- Some <| Shader ("boxTexture.vsh", "boxTexture.fsh")
+            render.Texture <- Some <| Texture ("create.jpg")
+            render.DrawKind <- DrawKind.Triangles
             render.Data.Assign obs
             render.G <- 255uy
             render
@@ -114,6 +128,7 @@ module EntityBlueprint =
         |> EntityBlueprint.add (fun () ->
             let render = Render ()
             let obs = Observable.StartWith (Observable.Never (), [|data|])
+            render.Shader <- Some <| Shader ("boxLines.vsh", "boxLines.fsh")
             render.Data.Assign obs
             render.R <- 120uy
             render.G <- 120uy

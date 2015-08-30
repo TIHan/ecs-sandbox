@@ -12,7 +12,6 @@ open System.Reactive.Linq
 type RendererSystem () =
     let mutable context = Renderer.RendererContext ()
     let mutable vao = Renderer.VAO (0)
-    let mutable defaultShader = 0
 
     let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
         let _,m = Matrix4x4.Invert (model * view * projection)
@@ -29,7 +28,6 @@ type RendererSystem () =
             let window = Renderer.R.CreateWindow ()
             context <- Renderer.R.Init (window)
             vao <- Renderer.R.CreateVao ()
-            defaultShader <- Renderer.R.LoadShaders ("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader")
 
             World.componentAdded<Position> world
             |> Observable.add (function
@@ -89,10 +87,6 @@ type RendererSystem () =
 
                 camera.View <- !view
 
-                Renderer.R.UseProgram defaultShader
-                Renderer.R.SetProjection defaultShader projection
-                Renderer.R.SetView defaultShader !view
-
                 world.ComponentQuery.ForEach<Render> (fun entity render ->
                     let position = render.Position.Value
                     let previousPosition = render.PreviousPosition
@@ -106,9 +100,29 @@ type RendererSystem () =
                     let rotationMatrix = Matrix4x4.CreateRotationZ (rotationValue)
                     let model = rotationMatrix * Matrix4x4.CreateTranslation (Vector3 (positionValue, 0.f))
 
-                    Renderer.R.SetModel defaultShader model
-                    Renderer.R.SetColor defaultShader (single render.R / 255.f) (single render.G / 255.f) (single render.B / 255.f)
-                    Renderer.R.DrawLineLoop defaultShader render.VBO
+                    match render.Shader with
+                    | Some shader ->
+                        if not shader.HasLoaded then shader.LoadShader ()
+
+                        Renderer.R.UseProgram shader.Id
+                        Renderer.R.SetProjection shader.Id projection
+                        Renderer.R.SetView shader.Id !view
+
+                        Renderer.R.SetModel shader.Id model
+                        Renderer.R.SetColor shader.Id (single render.R / 255.f) (single render.G / 255.f) (single render.B / 255.f)
+
+                        match render.Texture with
+                        | Some texture ->
+                            if not texture.HasLoaded then texture.LoadTexture ()
+
+                            Renderer.R.SetTexture shader.Id texture.Id
+                        | _ -> ()
+
+                        match render.DrawKind with
+                        | Lines -> Renderer.R.DrawLines shader.Id render.VBO
+                        | LineLoop -> Renderer.R.DrawLineLoop shader.Id render.VBO
+                        | Triangles -> Renderer.R.DrawTriangles shader.Id render.VBO
+                    | _ -> ()
                 )
 
                 Renderer.R.Draw (context)

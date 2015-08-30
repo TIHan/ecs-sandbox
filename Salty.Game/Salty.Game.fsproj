@@ -52,43 +52,6 @@
     </Otherwise>
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
-  <ItemGroup>
-    <Compile Include="Game.fs" />
-    <Compile Include="Program.fs" />
-    <Content Include="paket.references" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Salty.Game.Command\Salty.Game.Command.fsproj">
-      <Name>Salty.Game.Command</Name>
-      <Project>{04D8D3CA-7F63-4B67-B66D-7707E8395BA8}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Salty.Game.Core\Salty.Game.Core.fsproj">
-      <Name>Salty.Game.Core</Name>
-      <Project>{FF5C3A84-1C72-4907-8143-506248EB0DFD}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Salty.Renderer\Salty.Renderer.fsproj">
-      <Name>Salty.Renderer</Name>
-      <Project>{42AE588D-1C77-4778-A806-F49EAF7C2B5A}</Project>
-    </ProjectReference>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-    <ProjectReference Include="..\Salty.Physics\Salty.Physics.fsproj">
-      <Project>{BC928CFE-3FD1-4497-9553-EAC8E90D9372}</Project>
-      <Name>Salty.Physics</Name>
-    </ProjectReference>
-    <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.Serialization" />
-    <ProjectReference Include="..\src\libs\ECS\ECS.fsproj">
-      <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
-      <Name>ECS</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
-      <Project>{71D32E38-195A-4166-ADD7-DA4BA880AEE0}</Project>
-      <Name>Salty.Core</Name>
-    </ProjectReference>
-  </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
@@ -454,4 +417,54 @@
       </ItemGroup>
     </When>
   </Choose>
+  <ItemGroup>
+    <Compile Include="Game.fs" />
+    <Compile Include="Program.fs" />
+    <Content Include="paket.references" />
+    <Content Include="boxTexture.fsh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="boxTexture.vsh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="crate.jpg" />
+    <Content Include="boxLines.fsh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="boxLines.vsh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Salty.Game.Command\Salty.Game.Command.fsproj">
+      <Name>Salty.Game.Command</Name>
+      <Project>{04D8D3CA-7F63-4B67-B66D-7707E8395BA8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Salty.Game.Core\Salty.Game.Core.fsproj">
+      <Name>Salty.Game.Core</Name>
+      <Project>{FF5C3A84-1C72-4907-8143-506248EB0DFD}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Salty.Renderer\Salty.Renderer.fsproj">
+      <Name>Salty.Renderer</Name>
+      <Project>{42AE588D-1C77-4778-A806-F49EAF7C2B5A}</Project>
+    </ProjectReference>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <ProjectReference Include="..\Salty.Physics\Salty.Physics.fsproj">
+      <Project>{BC928CFE-3FD1-4497-9553-EAC8E90D9372}</Project>
+      <Name>Salty.Physics</Name>
+    </ProjectReference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Serialization" />
+    <ProjectReference Include="..\src\libs\ECS\ECS.fsproj">
+      <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
+      <Name>ECS</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
+      <Project>{71D32E38-195A-4166-ADD7-DA4BA880AEE0}</Project>
+      <Name>Salty.Core</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

@@ -320,6 +320,22 @@ type R private () =
         """
 
     [<Import; MI (MIO.NoInlining)>]
+    static member private _DrawLines (programId: int, vboId: int, size : int) : unit =
+        C """
+        glBindBuffer (GL_ARRAY_BUFFER, vboId);
+
+        GLint posAttrib = glGetAttribLocation (programId, "position");
+        glVertexAttribPointer (posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray (posAttrib);
+
+        glDrawArrays (GL_LINES, 0, size);
+
+        glDisableVertexAttribArray (posAttrib);
+
+        glBindBuffer (GL_ARRAY_BUFFER, 0);
+        """
+
+    [<Import; MI (MIO.NoInlining)>]
     static member private _DrawLineLoop (programId: int, vboId: int, size : int) : unit =
         C """
         glBindBuffer (GL_ARRAY_BUFFER, vboId);
@@ -335,8 +351,30 @@ type R private () =
         glBindBuffer (GL_ARRAY_BUFFER, 0);
         """
 
+    [<Import; MI (MIO.NoInlining)>]
+    static member private _DrawTriangles (programId: int, vboId: int, size : int) : unit =
+        C """
+        glBindBuffer (GL_ARRAY_BUFFER, vboId);
+
+        GLint posAttrib = glGetAttribLocation (programId, "position");
+        glVertexAttribPointer (posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray (posAttrib);
+
+        glDrawArrays (GL_TRIANGLES, 0, size);
+
+        glDisableVertexAttribArray (posAttrib);
+
+        glBindBuffer (GL_ARRAY_BUFFER, 0);
+        """
+
+    static member DrawLines programId (VBO (id, size): VBO) : unit =
+        R._DrawLines (programId, id, size)
+
     static member DrawLineLoop programId (VBO (id, size): VBO) : unit =
         R._DrawLineLoop (programId, id, size)
+
+    static member DrawTriangles programId (VBO (id, size): VBO) : unit =
+        R._DrawTriangles (programId, id, size)
 
     static member CreateTexture (fileName: string) : int =
         match TextureCache.Cache.ContainsKey fileName with
