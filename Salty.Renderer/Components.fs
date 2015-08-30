@@ -32,7 +32,9 @@ type Render () =
 
     member val B = 0uy with get, set
 
-    member val VBO = Unchecked.defaultof<Renderer.VBO> with get, set
+    member val Data : Val<Vector2 []> = Val.create [||] with get
+
+    member val internal VBO = Unchecked.defaultof<Renderer.VBO> with get, set
 
     member val Position = Val.create Vector2.Zero
 

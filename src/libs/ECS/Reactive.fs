@@ -45,8 +45,6 @@ type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
         subscription.Dispose ()
         subscription <- newSource.Subscribe subject.OnNext
 
-    member this.Dispose () = (this :> IDisposable).Dispose ()
-
     interface IObservable<'T> with 
              
         member __.Subscribe observer = 

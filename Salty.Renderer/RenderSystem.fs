@@ -51,6 +51,14 @@ type RendererSystem () =
                     | _ -> ()
             )
 
+            World.componentAdded<Render> world
+            |> Observable.add (fun (entity, render) ->
+                render.Data
+                |> Observable.add (fun data ->
+                    render.VBO <- Renderer.R.CreateVBO (data)
+                )
+            )
+
             world.Time.Current
             |> Observable.add (fun _ ->
                 world.ComponentQuery.ForEach<Camera> (fun _ camera ->

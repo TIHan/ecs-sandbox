@@ -3,6 +3,7 @@
 open ECS.Core
 
 open System.Numerics
+open System.Reactive.Linq
 
 open Salty.Core.Components
 open Salty.Physics
@@ -58,7 +59,8 @@ module EntityBlueprint =
         )
         |> EntityBlueprint.add (fun () ->
             let render = Render ()
-            render.VBO <- Renderer.R.CreateVBO (data)
+            let obs = Observable.StartWith (Observable.Never (), [|data|])
+            render.Data.Assign obs
             render.G <- 255uy
             render
         )
@@ -111,7 +113,8 @@ module EntityBlueprint =
         )
         |> EntityBlueprint.add (fun () ->
             let render = Render ()
-            render.VBO <- Renderer.R.CreateVBO (data)
+            let obs = Observable.StartWith (Observable.Never (), [|data|])
+            render.Data.Assign obs
             render.R <- 120uy
             render.G <- 120uy
             render.B <- 120uy
