@@ -4,6 +4,7 @@ open System
 open System.IO
 open System.Numerics
 open System.Collections.Generic
+open System.Runtime.InteropServices
 
 open Ferop
 
@@ -15,6 +16,8 @@ type RendererContext =
 type VBO = VBO of id: int * size: int
 
 type VAO = VAO of id: int
+
+type Attribute = Attribute of id: int
 
 type Window = Window of nativeint
 
@@ -352,19 +355,46 @@ type R private () =
         """
 
     [<Import; MI (MIO.NoInlining)>]
-    static member private _DrawTriangles (programId: int, vboId: int, size : int) : unit =
+    static member private _DrawTriangles (size : int) : unit =
         C """
-        glBindBuffer (GL_ARRAY_BUFFER, vboId);
+        //glBindBuffer (GL_ARRAY_BUFFER, vboId);
 
-        GLint posAttrib = glGetAttribLocation (programId, "position");
-        glVertexAttribPointer (posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        glEnableVertexAttribArray (posAttrib);
+        //GLint posAttrib = glGetAttribLocation (programId, "position");
+        //glVertexAttribPointer (posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        //glEnableVertexAttribArray (posAttrib);
 
         glDrawArrays (GL_TRIANGLES, 0, size);
 
-        glDisableVertexAttribArray (posAttrib);
+        //glDisableVertexAttribArray (posAttrib);
 
+        //glBindBuffer (GL_ARRAY_BUFFER, 0);
+        """
+
+    [<Import; MI (MIO.NoInlining)>]
+    static member private _BindArrayBuffer (vboId: int) : unit =
+        C """
+        glBindBuffer (GL_ARRAY_BUFFER, vboId);
+        """
+
+    [<Import; MI (MIO.NoInlining)>]
+    static member private _UnbindArrayBuffer () : unit =
+        C """
         glBindBuffer (GL_ARRAY_BUFFER, 0);
+        """
+
+    [<Import; MI (MIO.NoInlining)>]
+    static member private _BindAttribute (programId: int, name: nativeint) : int =
+        C """
+        GLint attrib = glGetAttribLocation (programId, name);
+        glVertexAttribPointer (attrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray (attrib);
+        return attrib;
+        """
+
+    [<Import; MI (MIO.NoInlining)>]
+    static member private _UnbindAttribute (attribId: int) : unit =
+        C """
+        glDisableVertexAttribArray (attribId);
         """
 
     static member DrawLines programId (VBO (id, size): VBO) : unit =
@@ -373,8 +403,29 @@ type R private () =
     static member DrawLineLoop programId (VBO (id, size): VBO) : unit =
         R._DrawLineLoop (programId, id, size)
 
-    static member DrawTriangles programId (VBO (id, size): VBO) : unit =
-        R._DrawTriangles (programId, id, size)
+    static member DrawTriangles (VBO (id, size): VBO) : unit =
+        R._DrawTriangles (size)
+
+    static member BindArrayBuffer (VBO (id, size): VBO) : unit =
+        R._BindArrayBuffer (id)
+
+    static member UnbindArrayBuffer () : unit =
+        R._UnbindArrayBuffer ()
+
+    static member BindAttribute programId (name: string) : Attribute =
+        let encoding = System.Text.Encoding.UTF8
+
+        let bytes = encoding.GetBytes (name)
+        let alloc = GCHandle.Alloc (bytes, GCHandleType.Pinned)
+        let addr = alloc.AddrOfPinnedObject ()
+
+        let result = R._BindAttribute (programId, addr) |> Attribute
+
+        alloc.Free ()
+        result
+
+    static member UnbindAttribute (Attribute (id)) =
+        R._UnbindAttribute (id)
 
     static member CreateTexture (fileName: string) : int =
         match TextureCache.Cache.ContainsKey fileName with

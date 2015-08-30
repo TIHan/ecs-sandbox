@@ -72,7 +72,7 @@ module EntityBlueprint =
             let render = Render ()
             let obs = Observable.StartWith (Observable.Never (), [|data|])
             render.Shader <- Some <| Shader ("boxTexture.vsh", "boxTexture.fsh")
-            render.Texture <- Some <| Texture ("create.jpg")
+            render.Texture <- Some <| Texture ("red.png", [||])
             render.DrawKind <- DrawKind.Triangles
             render.Data.Assign obs
             render.G <- 255uy

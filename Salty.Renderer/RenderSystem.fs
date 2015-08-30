@@ -121,7 +121,16 @@ type RendererSystem () =
                         match render.DrawKind with
                         | Lines -> Renderer.R.DrawLines shader.Id render.VBO
                         | LineLoop -> Renderer.R.DrawLineLoop shader.Id render.VBO
-                        | Triangles -> Renderer.R.DrawTriangles shader.Id render.VBO
+                        | Triangles ->
+                            Renderer.R.BindArrayBuffer render.VBO
+                            let positionAttrib = Renderer.R.BindAttribute shader.Id "position"
+
+                            Renderer.R.DrawTriangles render.VBO
+
+                            Renderer.R.UnbindAttribute positionAttrib
+                            Renderer.R.UnbindArrayBuffer ()
+
+                            //Renderer.R.DrawTriangles shader.Id render.VBO
                     | _ -> ()
                 )
 

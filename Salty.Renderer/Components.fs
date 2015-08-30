@@ -17,11 +17,13 @@ type Shader (vertexFilePath: string, fragmentFilePath: string) =
             this.HasLoaded <- true
         | _ -> ()
 
-type Texture (filePath: string) =
+type Texture (filePath: string, uvData: Vector2 []) =
 
     member val HasLoaded = false with get, set
 
     member val internal Id = 0 with get, set
+
+    member internal this.UV = uvData
 
     member internal this.LoadTexture () =
         match System.IO.File.Exists (filePath) with
