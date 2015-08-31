@@ -132,7 +132,7 @@ type MovementSystem () =
                 player.Commands.Clear ()
 
                 if player.IsMovingUp.Value then
-                    Physics.applyImpulse (Vector2.UnitY) physics
+                    Physics.applyImpulse (Vector2.UnitY * 2.f) physics
 
                 if player.IsMovingLeft.Value then
                     Physics.applyImpulse (Vector2.UnitX * -2.f) physics
@@ -165,20 +165,20 @@ type MovementSystem () =
                     let distY = maxY - minY
 
                     let distX =
-                        if distX < 64.f then
-                            64.f
+                        if distX < 32.f then
+                            32.f
                         else
                             distX
 
                     let distY =
-                        if distY < 24.f then
-                            24.f
+                        if distY < 12.f then
+                            12.f
                         else
                             distY
 
-                    let scaleX = (1280.f - 64.f) / distX
+                    let scaleX = (1280.f - 128.f) / distX
                     let c = 720.f / 1280.f
-                    let scaleY = c * (1280.f - 64.f) / distY
+                    let scaleY = c * (1280.f - 128.f) / distY
 
                     let scale =
                         if scaleX > scaleY then

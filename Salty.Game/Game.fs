@@ -33,13 +33,13 @@ module EntityBlueprint =
 
         let data =
             [|
-                Vector2 (-1.f, -1.f)
-                Vector2 (-1.f, 1.f)
-                Vector2 (1.f, 1.f)
+                Vector2 (-0.5f, -0.5f)
+                Vector2 (-0.5f, 0.5f)
+                Vector2 (0.5f, 0.5f)
 
-                Vector2 (1.f, 1.f)
-                Vector2 (1.f, -1.f)
-                Vector2 (-1.f, -1.f)
+                Vector2 (0.5f, 0.5f)
+                Vector2 (0.5f, -0.5f)
+                Vector2 (-0.5f, -0.5f)
             |]
 
         let uvData =
