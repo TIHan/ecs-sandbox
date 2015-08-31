@@ -117,7 +117,7 @@ module Wad =
                         |> Array.map (fun x ->
                             x |> Array.map (fun y -> palette.Pixels.[int y])
                         )
-                        |> Array.map (fun pixels ->
+                        |> Array.mapi (fun i pixels ->
 
                             // Create pixbuf based on pixeldata
                             let pixbuf = new Gdk.Pixbuf (Gdk.Colorspace.Rgb, false, 8, 64, 64)
@@ -127,7 +127,7 @@ module Wad =
                                 for j = 0 to 64 - 1 do
                                     NativePtr.set p (i + (j * 64)) pixels.[(i + (j * 64))]
 
-                            { pixbuf = pixbuf; name = "" }
+                            { pixbuf = pixbuf; name = lumpFlatHeaders.[i].Name }
                         )
 
                     return { wad with flats = flats }

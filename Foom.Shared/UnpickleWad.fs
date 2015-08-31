@@ -272,7 +272,7 @@ module UnpickleWad =
 
     let u_pixels count = u_array count u_pixel
 
-    let u_palette = (u_pixels (768 / 3)) |>> fun pixels -> { Pixels = pixels }
+    let u_palette = (u_pixels (768 / sizeof<PixelData>)) |>> fun pixels -> { Pixels = pixels }
 
     let u_palettes count offset : Unpickle<PaletteData []> =
         u_skipBytes offset >>. u_array count (u_palette)
