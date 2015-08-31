@@ -8,3 +8,4 @@ nuget Rx-Core 2.2.5
 nuget Rx-Interfaces 2.2.5
 nuget Rx-Linq 2.2.5
 nuget System.Numerics.Vectors 4.0.0
+nuget System.Collections.Immutable

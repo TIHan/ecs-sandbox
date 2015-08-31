@@ -197,8 +197,14 @@ let benchmark f =
     s.Stop()
     printfn "MS: %A" s.ElapsedMilliseconds
 
+open Foom.Shared.ResourceManager
+open Foom.Shared.Wad
+
 [<EntryPoint>]
 let main argv = 
+    let wad = 
+        Wad.create "DOOM2.WAD"
+        |> Async.RunSynchronously
 
     let world = 
         World (65536,
