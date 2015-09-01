@@ -150,6 +150,7 @@
   <ItemGroup>
     <Compile Include="LitePicklerCore.fs" />
     <Compile Include="LitePicklerUnpickle.fs" />
+    <Compile Include="LitePicklerPickle.fs" />
     <Compile Include="Vec2.fs" />
     <Compile Include="Polygon.fsi" />
     <Compile Include="Polygon.fs" />

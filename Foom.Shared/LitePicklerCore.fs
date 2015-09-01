@@ -1,5 +1,5 @@
 ﻿[<AutoOpen>]
-module FSharp.LitePickler.Core
+module LitePickler.Core
 
 type StringKind =
     | Default

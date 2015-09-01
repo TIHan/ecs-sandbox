@@ -2,8 +2,8 @@
 
 open System
 open System.Numerics
-open FSharp.LitePickler.Core
-open FSharp.LitePickler.Unpickle
+open LitePickler.Core
+open LitePickler.Unpickle
 
 type Header = { IsPwad: bool; LumpCount: int; LumpOffset: int }
  

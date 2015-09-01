@@ -1,4 +1,4 @@
-﻿module FSharp.LitePickler.Unpickle
+﻿module LitePickler.Unpickle
 
 open System
 open System.IO

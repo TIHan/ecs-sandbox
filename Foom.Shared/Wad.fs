@@ -11,8 +11,8 @@ open Foom.Shared.Wad.Pickler
 open Foom.Shared.Level
 open Foom.Shared.Level.Structures
 
-open FSharp.LitePickler.Core
-open FSharp.LitePickler.Unpickle
+open LitePickler.Core
+open LitePickler.Unpickle
 open Microsoft.FSharp.NativeInterop
 
 #nowarn "9"
