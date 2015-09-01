@@ -67,6 +67,11 @@
     <Reference Include="System.Xml.Serialization" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\LitePickler\LitePickler.fsproj">
+      <Name>LitePickler</Name>
+      <Project>{fa18ae53-83f9-45bb-8683-d13477121c03}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\src\libs\ECS\ECS.fsproj">
       <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
       <Name>ECS</Name>

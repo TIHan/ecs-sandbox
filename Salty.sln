@@ -25,6 +25,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Salty.Core", "src\Salty.Cor
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Foom.Shared", "Foom.Shared\Foom.Shared.fsproj", "{1A20B0A8-ABC0-4A73-AA70-E12D669E6818}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LitePickler", "LitePickler\LitePickler.fsproj", "{FA18AE53-83F9-45BB-8683-D13477121C03}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +73,10 @@ Global
 		{1A20B0A8-ABC0-4A73-AA70-E12D669E6818}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A20B0A8-ABC0-4A73-AA70-E12D669E6818}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A20B0A8-ABC0-4A73-AA70-E12D669E6818}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA18AE53-83F9-45BB-8683-D13477121C03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA18AE53-83F9-45BB-8683-D13477121C03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA18AE53-83F9-45BB-8683-D13477121C03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA18AE53-83F9-45BB-8683-D13477121C03}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -79,5 +85,6 @@ Global
 		{A4610E4C-DD34-428B-BABB-779CA0B5993A} = {54C210F2-3168-4FDA-A396-0ED5DEEB3B1D}
 		{5CFBAD2F-6E20-48C5-960A-8A98D726EA03} = {54C210F2-3168-4FDA-A396-0ED5DEEB3B1D}
 		{1A20B0A8-ABC0-4A73-AA70-E12D669E6818} = {54C210F2-3168-4FDA-A396-0ED5DEEB3B1D}
+		{FA18AE53-83F9-45BB-8683-D13477121C03} = {54C210F2-3168-4FDA-A396-0ED5DEEB3B1D}
 	EndGlobalSection
 EndGlobal

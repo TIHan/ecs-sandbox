@@ -117,6 +117,13 @@ type Centroid () =
 
     interface IComponent
 
+open LitePickler.Unpickle
+
+type IClientServerComponent =
+    inherit IComponent
+
+    abstract Deserialize : Unpickle<unit>
+
 type Position () =
 
     member val Var = Var.create Vector2.Zero with get
@@ -140,7 +147,11 @@ type Position () =
             position.X <- Single.Parse (reader.GetAttribute ("X"), NumberStyles.Number, CultureInfo.InvariantCulture)
             position.Y <- Single.Parse (reader.GetAttribute ("Y"), NumberStyles.Number, CultureInfo.InvariantCulture)
 
-            //this.Var.Value <- position
+            this.Var.Value <- position
+
+    interface IClientServerComponent with
+
+        member this.Deserialize = Unchecked.defaultof<Unpickle<unit>>
 
 type Rotation () =
 
