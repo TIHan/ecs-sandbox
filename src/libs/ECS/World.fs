@@ -67,43 +67,6 @@ type World (entityAmount, systems: ISystem list) as this =
 
         member __.EntityService = entityService
 
-type World<'T> = World of (IWorld -> 'T) with
-
-    static member (>>=) (World f: World<IObservable<Entity * 'a>>, g: Entity -> 'a -> World<unit>) : World<unit> =
-        World (
-            fun world ->
-                (f world)
-                |> Observable.add (fun (ent, t) ->
-                    match g ent t with
-                    | World f2 -> f2 world
-                )
-        )
-
-    static member (>>=) (World (f): World<IObservable<'a>>, g: 'a -> World<unit>) : World<unit> =
-        World (
-            fun world ->
-                (f world)
-                |> Observable.add (fun t ->
-                    match g t with
-                    | World f2 -> f2 world
-                )
-        )
-
-    static member (>>=) (World (f): World<Entity * 'a>, g: Entity -> 'a -> World<'b>) : World<'b> =
-        World (
-            fun world ->
-                let ent, com = f world
-                match g ent com with
-                | World f2 -> f2 world
-        )
-
-    static member (>>=) (World (f): World<'a>, g: 'a -> World<'b>) : World<'b> =
-        World (
-            fun world ->
-                match g (f world) with
-                | World f2 -> f2 world
-        )
-
 [<RequireQualifiedAccess>]
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module World =
@@ -165,61 +128,6 @@ module World =
 
     let removeComponent<'T when 'T :> IComponent> entity (world: IWorld) =
         world.ComponentService.Remove<'T> entity
-
-module SafeWorld =
-
-    let endWorld = World (fun _ -> ())
-
-    let event<'T when 'T :> IEvent> : World<IObservable<'T>> =
-        World World.event<'T>
-
-    let forEvery<'T when 'T :> IComponent> f =
-        World (fun world -> world.ComponentQuery.ForEach<'T> f)
-
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module Entity =
-
-    let spawned = World World.entitySpawned
-
-    let destroyed = World World.entityDestroyed
-
-    let anyComponentAdded = World World.anyComponentAdded
-
-    let anyComponentRemoved = World World.anyComponentRemoved
-
-    let componentAdded = World World.componentAdded
-
-    let componentRemoved = World World.componentRemoved
-
-    let addComponent com ent = 
-        World.addComponent ent com
-        |> World
-
-    let removeComponent ent =
-        World.removeComponent ent
-        |> World
-
-type ISafeSystem =
-
-    abstract Init : World<unit> list
-
-type EmptyComponent = class end with
-
-    interface IComponent
-
-open SafeWorld
-
-type EmptySafeSystem () =
-
-    interface ISafeSystem with
-
-        member __.Init = [
-
-            Entity.componentAdded >>= fun ent (com: EmptyComponent) -> 
-                forEvery<EmptyComponent> (fun _ _ -> ()) >>= fun () ->
-                    endWorld
-
-        ]
 
 type EntityBlueprint =
     {

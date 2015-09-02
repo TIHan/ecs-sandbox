@@ -25,6 +25,70 @@ open Salty.Game.Command
 open System.Numerics
 open System.Threading
 
+type World<'T> = IWorld -> 'T
+
+[<AutoOpen>]
+module WorldOperators =
+
+    let unitWorld : World<unit> = fun _ -> ()
+
+    let inline (>>=) (f: World<'a>) (g: 'a -> World<'b>) : World<'b> =
+        fun world ->
+            (g (f world)) world
+
+    let inline ignoreWorld (x: World<_>) : World<unit> =
+        fun world -> x world |> ignore
+
+    let inline (?>>=) (f: World<'a option>) (g: 'a -> World<'b>) : World<'b option> =
+        fun world ->
+            match f world with
+            | Some a -> (g a) world |> Some
+            | _ -> None
+
+    let inline (<~) (f: World<IObservable<'a>>) (g: 'a -> World<unit>) : World<unit> =
+        fun world ->
+            (f world)
+            |> Observable.add (fun t ->
+                (g t) world
+            )
+
+[<AutoOpen>]
+module DSL =
+
+    let inline onEvent<'T when 'T :> IEvent> : World<IObservable<'T>> =
+        World.event<'T>
+
+    let inline forEvery<'T when 'T :> IComponent> f : World<unit> =
+        fun world -> world.ComponentQuery.ForEach<'T> f
+
+    [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+    module Entity =
+
+        let spawned : World<IObservable<Entity>> = World.entitySpawned
+
+        let destroyed : World<IObservable<Entity>> = World.entityDestroyed
+
+        let anyComponentAdded : World<IObservable<Entity * obj * Type>> = World.anyComponentAdded
+
+        let anyComponentRemoved : World<IObservable<Entity * obj * Type>> = World.anyComponentRemoved
+
+        let componentAdded : World<IObservable<Entity * #IComponent>> = World.componentAdded
+
+        let componentRemoved : World<IObservable<Entity * #IComponent>> = World.componentRemoved
+
+        let inline destroy ent : World<unit> =
+            fun world ->
+                world.EntityService.Destroy ent
+
+        let inline addComponent com ent = 
+            World.addComponent ent com
+
+        let inline removeComponent ent =
+            World.removeComponent ent
+
+        let inline tryGetComponent<'T when 'T :> IComponent> ent : World<'T option> =
+            fun world -> world.ComponentQuery.TryGet<'T> ent
+
 let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
     let _,m = Matrix4x4.Invert (model * view * projection)
     let x = (((source.X - viewportPosition.X) / (viewportDimensions.X)) * 2.f) - 1.f
@@ -36,9 +100,26 @@ let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: M
 type MovementSystem () =
     let count = ref 10
 
+    let healthSubrule ent =
+        Entity.tryGetComponent<Health> ent ?>>= fun health ->
+                health.Var.Value <- health.Var.Value - 1.f
+                if health.Var.Value <= 0.f then
+                    Entity.destroy ent
+                else
+                    unitWorld
+
     interface ISystem with
         
         member __.Init world =
+
+            let f =
+                World.physicsCollided <~ fun ((ent1, phys1), (ent2, phys2)) ->
+                    healthSubrule ent1
+                    |> ignoreWorld
+
+
+            //f world
+
             World.physicsCollided world
             |> Observable.add (fun ((ent1, phys1), (ent2, phys2)) ->
                 match world.ComponentQuery.TryGet<Health> ent1 with
