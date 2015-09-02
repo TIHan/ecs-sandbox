@@ -67,16 +67,19 @@ type World (entityAmount, systems: ISystem list) as this =
 
         member __.EntityService = entityService
 
-type World<'T> = World of (World -> 'T) with
+type World<'T> = World of (IWorld -> 'T) with
 
-    static member (<*>) (World (f): World<'T -> 'U>, World (g): World<'T>) : World<'U> =
+    static member (>>=) (World f: World<IObservable<Entity * 'a>>, g: Entity -> 'a -> World<unit>) : World<unit> =
         World (
             fun world ->
-                let f = f world
-                f (g world)
+                (f world)
+                |> Observable.add (fun (ent, t) ->
+                    match g ent t with
+                    | World f2 -> f2 world
+                )
         )
 
-    static member testMe (World (f): World<IObservable<'T>>, g: 'T -> World<unit>) : World<unit> =
+    static member (>>=) (World (f): World<IObservable<'a>>, g: 'a -> World<unit>) : World<unit> =
         World (
             fun world ->
                 (f world)
@@ -86,32 +89,20 @@ type World<'T> = World of (World -> 'T) with
                 )
         )
 
-    static member (>>=) (World (f): World<IObservable<'T>>, g: 'T -> World<unit>) : World<unit> =
+    static member (>>=) (World (f): World<Entity * 'a>, g: Entity -> 'a -> World<'b>) : World<'b> =
         World (
             fun world ->
-                (f world)
-                |> Observable.add (fun t ->
-                    match g t with
-                    | World f2 -> f2 world
-                )
+                let ent, com = f world
+                match g ent com with
+                | World f2 -> f2 world
         )
 
-//    static member (>>=) (World (f): World<IObservable<Entity * 'T>>, g: Entity -> 'T -> World<unit>) : World<unit> =
-//        World (
-//            fun world ->
-//                (f world)
-//                |> Observable.add (fun (ent, t) ->
-//                    match g ent t with
-//                    | World f2 -> f2 world
-//                )
-//        )
-
-//    static member (>>=) (World (f): World<'T>, g: 'T -> World<'U>) : World<'U> =
-//        World (
-//            fun world ->
-//                match g (f world) with
-//                | World f2 -> f2 world
-//        )
+    static member (>>=) (World (f): World<'a>, g: 'a -> World<'b>) : World<'b> =
+        World (
+            fun world ->
+                match g (f world) with
+                | World f2 -> f2 world
+        )
 
 [<RequireQualifiedAccess>]
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -182,6 +173,9 @@ module SafeWorld =
     let event<'T when 'T :> IEvent> : World<IObservable<'T>> =
         World World.event<'T>
 
+    let forEvery<'T when 'T :> IComponent> f =
+        World (fun world -> world.ComponentQuery.ForEach<'T> f)
+
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Entity =
 
@@ -193,7 +187,7 @@ module Entity =
 
     let anyComponentRemoved = World World.anyComponentRemoved
 
-    let componentAdded<'T when 'T :> IComponent> = World World.componentAdded<'T>
+    let componentAdded = World World.componentAdded
 
     let componentRemoved = World World.componentRemoved
 
@@ -213,13 +207,18 @@ type EmptyComponent = class end with
 
     interface IComponent
 
+open SafeWorld
+
 type EmptySafeSystem () =
 
     interface ISafeSystem with
 
         member __.Init = [
-            //World.testMe (Entity.componentAdded, fun c -> SafeWorld.endWorld)
-            (Entity.componentAdded<EmptyComponent> >>= fun c -> SafeWorld.endWorld)
+
+            Entity.componentAdded >>= fun ent (com: EmptyComponent) -> 
+                forEvery<EmptyComponent> (fun _ _ -> ()) >>= fun () ->
+                    endWorld
+
         ]
 
 type EntityBlueprint =
