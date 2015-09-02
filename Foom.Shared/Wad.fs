@@ -3,7 +3,6 @@
 open System
 open System.IO
 open System.Numerics
-open System.Drawing
 open System.Runtime.InteropServices
 
 open Foom.Shared.Wad.Pickler

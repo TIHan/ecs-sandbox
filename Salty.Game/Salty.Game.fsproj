@@ -86,8 +86,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Foom.Shared\Foom.Shared.fsproj">
       <Name>Foom.Shared</Name>
-      <Project>{1a20b0a8-abc0-4a73-aa70-e12d669e6818}</Project>
-      <Private>True</Private>
+      <Project>{1A20B0A8-ABC0-4A73-AA70-E12D669E6818}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Salty.Game.Command\Salty.Game.Command.fsproj">
       <Name>Salty.Game.Command</Name>
@@ -118,6 +117,10 @@
     <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
       <Project>{71D32E38-195A-4166-ADD7-DA4BA880AEE0}</Project>
       <Name>Salty.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\LitePickler\LitePickler.fsproj">
+      <Project>{FA18AE53-83F9-45BB-8683-D13477121C03}</Project>
+      <Name>LitePickler</Name>
     </ProjectReference>
   </ItemGroup>
   <Choose>

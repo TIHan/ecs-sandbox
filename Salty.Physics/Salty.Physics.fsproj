@@ -53,6 +53,10 @@
       <Project>{71D32E38-195A-4166-ADD7-DA4BA880AEE0}</Project>
       <Name>Salty.Core</Name>
     </ProjectReference>
+    <ProjectReference Include="..\LitePickler\LitePickler.fsproj">
+      <Project>{FA18AE53-83F9-45BB-8683-D13477121C03}</Project>
+      <Name>LitePickler</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
