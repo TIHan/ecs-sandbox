@@ -67,6 +67,52 @@ type World (entityAmount, systems: ISystem list) as this =
 
         member __.EntityService = entityService
 
+type World<'T> = World of (World -> 'T) with
+
+    static member (<*>) (World (f): World<'T -> 'U>, World (g): World<'T>) : World<'U> =
+        World (
+            fun world ->
+                let f = f world
+                f (g world)
+        )
+
+    static member testMe (World (f): World<IObservable<'T>>, g: 'T -> World<unit>) : World<unit> =
+        World (
+            fun world ->
+                (f world)
+                |> Observable.add (fun t ->
+                    match g t with
+                    | World f2 -> f2 world
+                )
+        )
+
+    static member (>>=) (World (f): World<IObservable<'T>>, g: 'T -> World<unit>) : World<unit> =
+        World (
+            fun world ->
+                (f world)
+                |> Observable.add (fun t ->
+                    match g t with
+                    | World f2 -> f2 world
+                )
+        )
+
+//    static member (>>=) (World (f): World<IObservable<Entity * 'T>>, g: Entity -> 'T -> World<unit>) : World<unit> =
+//        World (
+//            fun world ->
+//                (f world)
+//                |> Observable.add (fun (ent, t) ->
+//                    match g ent t with
+//                    | World f2 -> f2 world
+//                )
+//        )
+
+//    static member (>>=) (World (f): World<'T>, g: 'T -> World<'U>) : World<'U> =
+//        World (
+//            fun world ->
+//                match g (f world) with
+//                | World f2 -> f2 world
+//        )
+
 [<RequireQualifiedAccess>]
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module World =
@@ -129,7 +175,54 @@ module World =
     let removeComponent<'T when 'T :> IComponent> entity (world: IWorld) =
         world.ComponentService.Remove<'T> entity
 
- type EntityBlueprint =
+module SafeWorld =
+
+    let endWorld = World (fun _ -> ())
+
+    let event<'T when 'T :> IEvent> : World<IObservable<'T>> =
+        World World.event<'T>
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module Entity =
+
+    let spawned = World World.entitySpawned
+
+    let destroyed = World World.entityDestroyed
+
+    let anyComponentAdded = World World.anyComponentAdded
+
+    let anyComponentRemoved = World World.anyComponentRemoved
+
+    let componentAdded<'T when 'T :> IComponent> = World World.componentAdded<'T>
+
+    let componentRemoved = World World.componentRemoved
+
+    let addComponent com ent = 
+        World.addComponent ent com
+        |> World
+
+    let removeComponent ent =
+        World.removeComponent ent
+        |> World
+
+type ISafeSystem =
+
+    abstract Init : World<unit> list
+
+type EmptyComponent = class end with
+
+    interface IComponent
+
+type EmptySafeSystem () =
+
+    interface ISafeSystem with
+
+        member __.Init = [
+            //World.testMe (Entity.componentAdded, fun c -> SafeWorld.endWorld)
+            (Entity.componentAdded<EmptyComponent> >>= fun c -> SafeWorld.endWorld)
+        ]
+
+type EntityBlueprint =
     {
         componentF: (Entity -> IComponentService -> unit) list
     }
