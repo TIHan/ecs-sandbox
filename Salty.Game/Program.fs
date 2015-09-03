@@ -27,30 +27,40 @@ open System.Threading
 
 type World<'T> = IWorld -> 'T
 
+open System.Reactive.Linq
 [<AutoOpen>]
 module WorldOperators =
 
-    let unitWorld : World<unit> = fun _ -> ()
+    let DoNothing : World<unit> = fun _ -> ()
 
-    let inline (>>=) (f: World<'a>) (g: 'a -> World<'b>) : World<'b> =
+    let inline worldReturn (a: 'a) : World<'a> = fun _ -> a
+
+    let inline (>>=) (w: World<'a>) (f: 'a -> World<'b>) : World<'b> =
+        fun world -> (f (w world)) world
+
+    let inline (>>.) (w1: World<'a>) (w2: World<'b>) =
         fun world ->
-            (g (f world)) world
+            w1 world |> ignore
+            w2 world
 
-    let inline ignoreWorld (x: World<_>) : World<unit> =
+    let inline skip (x: World<_>) : World<unit> =
         fun world -> x world |> ignore
 
-    let inline (?>>=) (f: World<'a option>) (g: 'a -> World<'b>) : World<'b option> =
+    let inline when' (w: World<IObservable<'a>>) (f: 'a -> World<unit>) : World<IDisposable> =
         fun world ->
-            match f world with
-            | Some a -> (g a) world |> Some
-            | _ -> None
-
-    let inline (<~) (f: World<IObservable<'a>>) (g: 'a -> World<unit>) : World<unit> =
-        fun world ->
-            (f world)
-            |> Observable.add (fun t ->
-                (g t) world
+            (w world) 
+            |> Observable.subscribe (fun a ->
+                (f a) world
             )
+
+    let inline (<~) (obs: IObservable<'a>) (f: 'a -> World<unit>) : World<unit> =
+        fun world -> obs |> Observable.add (fun x -> (f x) world)
+
+    let inline (==>) (obs: IObservable<'a>) (v: Val<'a>) : World<unit> =
+        fun world -> v.Assign obs
+            
+    let inline update (v: Var<'a>) (f: 'a -> 'a) : World<unit> =
+        fun world -> v.Value <- f v.Value 
 
 [<AutoOpen>]
 module DSL =
@@ -58,8 +68,8 @@ module DSL =
     let inline onEvent<'T when 'T :> IEvent> : World<IObservable<'T>> =
         World.event<'T>
 
-    let inline forEvery<'T when 'T :> IComponent> f : World<unit> =
-        fun world -> world.ComponentQuery.ForEach<'T> f
+    let inline forEvery<'T when 'T :> IComponent> (f: Entity -> 'T -> World<unit>) : World<unit> =
+        fun world -> world.ComponentQuery.ForEach<'T> (fun entity x -> (f entity x) world)
 
     [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
     module Entity =
@@ -100,47 +110,36 @@ let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: M
 type MovementSystem () =
     let count = ref 10
 
-    let healthSubrule ent =
-        Entity.tryGetComponent<Health> ent ?>>= fun health ->
-                health.Var.Value <- health.Var.Value - 1.f
-                if health.Var.Value <= 0.f then
-                    Entity.destroy ent
-                else
-                    unitWorld
-
     interface ISystem with
         
         member __.Init world =
 
-            let f =
-                World.physicsCollided <~ fun ((ent1, phys1), (ent2, phys2)) ->
-                    healthSubrule ent1
-                    |> ignoreWorld
+            [
+                when' Entity.componentAdded <| fun (entity, health: Health) -> 
+                    health.Var <~ fun value ->
+                        if value <= 0.f then Entity.destroy entity
+                        else DoNothing
 
+                when' World.physicsCollided <| fun ((ent1, _), _) ->
+                    Entity.tryGetComponent<Health> ent1 >>= function
+                        | Some health ->
+                            update health.Var <| fun value -> value - 1.f
+                        | _ -> DoNothing
 
-            //f world
+                when' Entity.componentAdded <| fun (ent, render: Render) ->
+                    Entity.tryGetComponent<Player> ent >>= function
+                        | Some player ->
+                            Entity.tryGetComponent<Health> ent >>= function
+                                | Some health ->
+                                    health.Var <~ fun value ->
+                                        render.R <- 255uy - byte ((single value / 100.f) * 255.f)
+                                        render.G <- byte ((single value / 100.f) * 255.f)
+                                        DoNothing
+                                | _ -> DoNothing
+                        | _ -> DoNothing
+            ]
+            |> List.iter (fun f -> f world |> ignore)
 
-            World.physicsCollided world
-            |> Observable.add (fun ((ent1, phys1), (ent2, phys2)) ->
-                match world.ComponentQuery.TryGet<Health> ent1 with
-                | None -> ()
-                | Some health ->
-                    health.Var.Value <- health.Var.Value - 1.f
-                    if health.Var.Value <= 0.f then
-                        world.EntityService.Destroy ent1
-            )
-
-            World.componentAdded<Render> world
-            |> Observable.add (fun (ent, render) ->
-                match world.ComponentQuery.TryGet<Player> ent, world.ComponentQuery.TryGet<Health> ent with
-                | Some player, Some health ->
-                    health.Var
-                    |> Observable.add (fun x ->
-                        render.R <- 255uy - byte ((single x / 100.f) * 255.f)
-                        render.G <- byte ((single x / 100.f) * 255.f)
-                    )
-                | _ -> ()
-            )
             ()
 //            world.EventAggregator.GetEvent<InputEvent> ()
 //            |> Observable.add (fun (InputEvents (events)) ->
