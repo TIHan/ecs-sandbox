@@ -78,9 +78,9 @@ module DSL =
 
         let destroyed : World<IObservable<Entity>> = World.entityDestroyed
 
-        let anyComponentAdded : World<IObservable<Entity * obj * Type>> = World.anyComponentAdded
+        let anyComponentAdded : World<IObservable<Entity * IComponent * Type>> = World.anyComponentAdded
 
-        let anyComponentRemoved : World<IObservable<Entity * obj * Type>> = World.anyComponentRemoved
+        let anyComponentRemoved : World<IObservable<Entity * IComponent * Type>> = World.anyComponentRemoved
 
         let componentAdded : World<IObservable<Entity * #IComponent>> = World.componentAdded
 
@@ -201,7 +201,7 @@ type MovementSystem () =
                         let blueprint =
                             EntityBlueprint.create ()
                             |> EntityBlueprint.test physics.Position.Value
-                        for i = 0 to 5000 - 1 do
+                        for i = 0 to 50000 - 1 do
                             blueprint
                             |> EntityBlueprint.spawn (!count) world
                             count := !count + 1

@@ -48,9 +48,9 @@ module World =
 
     val entityDestroyed : IWorld -> IObservable<Entity>
 
-    val anyComponentAdded : IWorld -> IObservable<Entity * obj * Type>
+    val anyComponentAdded : IWorld -> IObservable<Entity * IComponent * Type>
 
-    val anyComponentRemoved : IWorld -> IObservable<Entity * obj * Type>
+    val anyComponentRemoved : IWorld -> IObservable<Entity * IComponent * Type>
 
     val componentAdded<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 

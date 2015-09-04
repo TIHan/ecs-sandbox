@@ -9,15 +9,19 @@ type internal EntityEvent =
 
     interface IEvent
 
-type ComponentEvent =
-    | AnyAdded of Entity * obj * Type
-    | AnyRemoved of Entity * obj * Type
+type internal AnyComponentAdded = AnyComponentAdded of (Entity * IComponent * Type) with
 
     interface IEvent
 
-type internal ComponentEvent<'T> =
-    | Added of Entity * 'T
-    | Removed of Entity * 'T
+type internal AnyComponentRemoved = AnyComponentRemoved of (Entity * IComponent * Type) with
+
+    interface IEvent
+
+type internal ComponentAdded<'T> = ComponentAdded of (Entity * 'T) with
+
+    interface IEvent
+
+type internal ComponentRemoved<'T> = ComponentRemoved of (Entity * 'T) with
 
     interface IEvent
 

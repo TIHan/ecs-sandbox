@@ -12,15 +12,19 @@ type EntityEvent =
 
     interface IEvent
 
-type ComponentEvent =
-    | AnyAdded of Entity * obj * Type
-    | AnyRemoved of Entity * obj * Type
+type AnyComponentAdded = AnyComponentAdded of (Entity * IComponent * Type) with
 
     interface IEvent
 
-type ComponentEvent<'T> =
-    | Added of Entity * 'T
-    | Removed of Entity * 'T
+type AnyComponentRemoved = AnyComponentRemoved of (Entity * IComponent * Type) with
+
+    interface IEvent
+
+type ComponentAdded<'T> = ComponentAdded of (Entity * 'T) with
+
+    interface IEvent
+
+type ComponentRemoved<'T> = ComponentRemoved of (Entity * 'T) with
 
     interface IEvent
 
@@ -102,12 +106,13 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         deferDispose.Push x
 
     member this.LoadData (t: Type) =
-        match lookup.TryGetValue t with
-        | false, _ ->
+        let mutable data = Unchecked.defaultof<EntityLookupData>
+        if not <| lookup.TryGetValue (t, &data) then
             let entities = ResizeArray ()
             let entitySet = HashSet ()
             let components = Array.init entityAmount (fun _ -> null)
-            let data =
+            
+            data <-
                 {
                     entities = entities
                     entitySet = entitySet
@@ -115,8 +120,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 }
 
             lookup.[t] <- data
-            data
-        | _, data -> data  
+        data  
 
     member this.Spawn entity =
         if entitySet.Contains entity then
@@ -145,8 +149,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             entityRemovals.[entity.Id].Add (fun () -> this.TryRemoveComponent<'T> entity |> ignore)
             data.entities.Add entity
             this.DeferComponentEvent <| fun () -> 
-                eventAggregator.Publish (AnyAdded (entity, comp, t))
-                eventAggregator.Publish (Added (entity, comp))
+                eventAggregator.Publish (AnyComponentAdded (entity, comp :> IComponent, t))
+                eventAggregator.Publish (ComponentAdded (entity, comp))
             data.components.[entity.Id] <- comp :> obj
         else
             failwithf "Component %s already added to Entity #%i." t.Name entity.Id
@@ -165,8 +169,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     componentSet.Remove comp |> ignore
                     data.components.[entity.Id] <- null
                     this.DeferComponentEvent <| fun () -> 
-                        eventAggregator.Publish (AnyRemoved (entity, comp, t))
-                        eventAggregator.Publish (Removed (entity, comp))
+                        eventAggregator.Publish (AnyComponentRemoved (entity, comp :> IComponent, t))
+                        eventAggregator.Publish (ComponentRemoved (entity, comp))
                     this.DeferDispose comp
                     Some comp  
                 else None  

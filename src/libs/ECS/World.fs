@@ -96,32 +96,20 @@ module World =
         )
 
     let anyComponentAdded (world: IWorld) =
-        event<ComponentEvent> world
-        |> Observable.choose (function
-            | AnyAdded (entity, comp, t) -> Some (entity, comp, t)
-            | _ -> None
-        )
+        event<AnyComponentAdded> world
+        |> Observable.map (fun (AnyComponentAdded x) -> x)
 
     let anyComponentRemoved (world: IWorld) =
-        event<ComponentEvent> world
-        |> Observable.choose (function
-            | AnyRemoved (entity, comp, t) -> Some (entity, comp, t)
-            | _ -> None
-        )
+        event<AnyComponentRemoved> world
+        |> Observable.map (fun (AnyComponentRemoved x) -> x)
 
     let componentAdded<'T when 'T :> IComponent> (world: IWorld) =
-        event<ComponentEvent<'T>> world
-        |> Observable.choose (function
-            | Added (entity, comp) -> Some (entity, comp)
-            | _ -> None
-        )
+        event<ComponentAdded<'T>> world
+        |> Observable.map (fun (ComponentAdded x) -> x)
 
     let componentRemoved<'T when 'T :> IComponent> (world: IWorld) =
-        event<ComponentEvent<'T>> world
-        |> Observable.choose (function
-            | Removed (entity, comp) -> Some (entity, comp)
-            | _ -> None
-        )
+        event<ComponentRemoved<'T>> world
+        |> Observable.map (fun (ComponentRemoved x) -> x)
 
     let addComponent<'T when 'T :> IComponent> entity comp (world: IWorld) =
         world.ComponentService.Add<'T> entity comp
