@@ -157,9 +157,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         
     member this.TryRemoveComponent<'T when 'T :> IComponent> (entity: Entity) : 'T option =
         let t = typeof<'T>
-        match lookup.TryGetValue t with
-        | false, _ -> None
-        | _, data ->
+        let mutable data = Unchecked.defaultof<EntityLookupData>
+        if lookup.TryGetValue (t, &data) then
             data.entitySet.Remove entity |> ignore
             data.entities.Remove entity |> ignore
 
@@ -176,6 +175,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 else None  
             else
                 None
+        else
+            None
 
     member this.RemoveAllComponents (entity: Entity) =
         let removals = entityRemovals.[entity.Id]
