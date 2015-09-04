@@ -22,6 +22,24 @@ type Health () =
 [<RequireQualifiedAccess>]
 module EntityBlueprint =
 
+    let test p (blueprint: EntityBlueprint) =
+        blueprint
+        |> EntityBlueprint.add (fun () ->
+            let position = Position ()
+            position.Var.Value <- p
+            position
+        )
+        |> EntityBlueprint.add (fun () ->
+            let rotation = Rotation ()
+            rotation.Var.Value <- 0.f
+            rotation
+        )
+        |> EntityBlueprint.add (fun () ->
+            let health = Health ()
+            health.Var.Value <- 100.f
+            health
+        )
+
     let box p (blueprint: EntityBlueprint) =
 //        let data =
 //            [|

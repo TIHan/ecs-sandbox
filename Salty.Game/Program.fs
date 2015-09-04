@@ -198,16 +198,13 @@ type MovementSystem () =
                 player.Commands
                 |> Seq.iter (function
                     | Shoot ->
-                        EntityBlueprint.create ()
-                        |> EntityBlueprint.box physics.Position.Value
-                        |> EntityBlueprint.spawn (!count) world
-                        |> Observable.add (fun entity ->
-                            match world.ComponentQuery.TryGet<Physics> entity with
-                            | Some physics ->
-                                Physics.applyImpulse (Vector2.UnitY * 2.f) physics
-                            | _ -> ()
-                        )
-                        count := !count + 1
+                        let blueprint =
+                            EntityBlueprint.create ()
+                            |> EntityBlueprint.test physics.Position.Value
+                        for i = 0 to 5000 - 1 do
+                            blueprint
+                            |> EntityBlueprint.spawn (!count) world
+                            count := !count + 1
                 )
                 player.Commands.Clear ()
 
