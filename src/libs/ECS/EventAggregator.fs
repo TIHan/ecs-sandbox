@@ -22,6 +22,6 @@ type EventAggregator () =
             (event :?> Event<'T>).Publish :> IObservable<'T>
 
         member __.Publish<'T when 'T :> IEvent> eventValue =
-            match lookup.TryGetValue typeof<'T> with
-            | true, event -> (event :?> Event<'T>).Trigger eventValue
-            | _ -> ()
+            let mutable value = Unchecked.defaultof<obj>
+            if lookup.TryGetValue (typeof<'T>, &value) then
+                (value :?> Event<'T>).Trigger eventValue
