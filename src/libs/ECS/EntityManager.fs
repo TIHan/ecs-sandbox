@@ -68,12 +68,24 @@ type IEntityService =
 
     abstract Destroy : Entity -> unit
 
-type EntityLookupData =
+[<AllowNullLiteral>]
+type IEntityLookupData =
+
+    abstract TryGetComponent : Entity -> IComponent option
+
+type EntityLookupData<'T> =
     {
         entities: Entity ResizeArray
         entitySet: Entity HashSet
-        components: obj []
+        components: 'T []
     }
+
+    interface IEntityLookupData with
+
+        member this.TryGetComponent entity =
+            let id = entity.Id
+            if obj.ReferenceEquals (this.components.[id], null) then None
+            else Some (this.components.[id] :> obj :?> IComponent)
 
 [<Sealed>]
 type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
@@ -82,7 +94,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let entitySet = HashSet<Entity> ()
     let componentSet = HashSet<IComponent> ()
     let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
-    let lookup = Dictionary<Type, EntityLookupData> ()
+    let lookup = Dictionary<Type, IEntityLookupData> ()
 
     let deferQueue = MessageQueue<unit -> unit> ()
     let deferPreEntityEventQueue = MessageQueue<EntityEvent> ()
@@ -105,14 +117,15 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     member inline this.DeferDispose x =
         deferDispose.Push x
 
-    member this.LoadData (t: Type) =
-        let mutable data = Unchecked.defaultof<EntityLookupData>
+    member this.GetEntityLookupData<'T> () : EntityLookupData<'T> =
+        let t = typeof<'T>
+        let mutable data = null
         if not <| lookup.TryGetValue (t, &data) then
-            let entities = ResizeArray ()
+            let entities = ResizeArray (entityAmount)
             let entitySet = HashSet ()
-            let components = Array.init entityAmount (fun _ -> null)
+            let components = Array.init<'T> entityAmount (fun _ -> Unchecked.defaultof<'T>)
             
-            data <-
+            let data =
                 {
                     entities = entities
                     entitySet = entitySet
@@ -120,7 +133,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 }
 
             lookup.[t] <- data
-        data  
+            data
+        else
+            data :?> EntityLookupData<'T>
 
     member this.Spawn entity =
         if entitySet.Contains entity then
@@ -131,7 +146,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             entitySet.Add entity |> ignore
 
     member this.Destroy (entity: Entity) =
-        this.RemoveAllComponents (entity)
+        let removals = entityRemovals.[entity.Id]
+        removals.ForEach (fun f -> f ())
+        removals.Clear ()
         entitySet.Remove entity |> ignore     
 
     member this.AddComponent<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
@@ -143,7 +160,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         if not <| componentSet.Add (comp) then
             failwithf "Component %s has already been used." t.Name
 
-        let data = this.LoadData (t)
+        let data = this.GetEntityLookupData<'T> ()
 
         if data.entitySet.Add entity then
             entityRemovals.[entity.Id].Add (fun () -> this.TryRemoveComponent<'T> entity |> ignore)
@@ -151,22 +168,24 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             this.DeferComponentEvent <| fun () -> 
                 eventAggregator.Publish (AnyComponentAdded (entity, comp :> IComponent, t))
                 eventAggregator.Publish (ComponentAdded (entity, comp))
-            data.components.[entity.Id] <- comp :> obj
+            data.components.[entity.Id] <- comp
         else
             failwithf "Component %s already added to Entity #%i." t.Name entity.Id
         
     member this.TryRemoveComponent<'T when 'T :> IComponent> (entity: Entity) : 'T option =
         let t = typeof<'T>
-        let mutable data = Unchecked.defaultof<EntityLookupData>
+        let mutable data = null
         if lookup.TryGetValue (t, &data) then
+            let data = data :?> EntityLookupData<'T>
+
             data.entitySet.Remove entity |> ignore
             data.entities.Remove entity |> ignore
 
             if entity.Id >= 0 && entity.Id < data.components.Length then
-                let comp = data.components.[entity.Id] :?> 'T
+                let comp = data.components.[entity.Id]
                 if not <| obj.ReferenceEquals (comp, null) then
                     componentSet.Remove comp |> ignore
-                    data.components.[entity.Id] <- null
+                    data.components.[entity.Id] <- Unchecked.defaultof<'T>
                     this.DeferComponentEvent <| fun () -> 
                         eventAggregator.Publish (AnyComponentRemoved (entity, comp :> IComponent, t))
                         eventAggregator.Publish (ComponentRemoved (entity, comp))
@@ -178,15 +197,11 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         else
             None
 
-    member this.RemoveAllComponents (entity: Entity) =
-        let removals = entityRemovals.[entity.Id]
-        removals.ForEach (fun f -> f ())
-        removals.Clear ()
-
     member inline this.IterateInternal<'T> (f: Entity -> 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T> with
         | (false,_) -> ()
         | (_,data) ->
+            let data = data :?> EntityLookupData<'T>
 
             let count = data.entities.Count
 
@@ -198,7 +213,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     not <| obj.ReferenceEquals (com, null) &&
                     predicate entity.Id
                     then
-                    f entity (com :?> 'T)
+                    f entity com
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -211,15 +226,14 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         | (false,_),_
         | _,(false,_) -> ()
         | (_,data1),(_,data2) ->
+            let data1 = data1 :?> EntityLookupData<'T1>
+            let data2 = data2 :?> EntityLookupData<'T2>
 
-            let count =
-                [|data1.entities.Count;data2.entities.Count|] |> Array.minBy id
+            let entities =
+                [|data1.entities;data2.entities|] |> Array.minBy (fun x -> x.Count)
 
-            let data =
-                [|data1;data2|] |> Array.minBy (fun x -> x.entities.Count)
-
-            for i = 0 to count - 1 do
-                let entity = data.entities.[i]
+            for i = 0 to entities.Count - 1 do
+                let entity = entities.[i]
                 let com1 = data1.components.[entity.Id]
                 let com2 = data2.components.[entity.Id]
 
@@ -228,7 +242,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     not <| obj.ReferenceEquals (com2, null) &&
                     predicate entity.Id
                     then
-                    f entity (com1 :?> 'T1) (com2 :?> 'T2)
+                    f entity com1 com2
 
     member inline this.IterateInternal<'T1, 'T2, 'T3> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3> with
@@ -236,15 +250,15 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         | _,(false,_),_
         | _,_,(false,_) -> ()
         | (_,data1),(_,data2),(_,data3) ->
+            let data1 = data1 :?> EntityLookupData<'T1>
+            let data2 = data2 :?> EntityLookupData<'T2>
+            let data3 = data3 :?> EntityLookupData<'T3>
 
-            let count =
-                [|data1.entities.Count;data2.entities.Count;data3.entities.Count|] |> Array.minBy id
+            let entities =
+                [|data1.entities;data2.entities;data3.entities|] |> Array.minBy (fun x -> x.Count)
 
-            let data =
-                [|data1;data2;data3|] |> Array.minBy (fun x -> x.entities.Count)
-
-            for i = 0 to count - 1 do
-                let entity = data.entities.[i]
+            for i = 0 to entities.Count - 1 do
+                let entity = entities.[i]
                 let com1 = data1.components.[entity.Id]
                 let com2 = data2.components.[entity.Id]
                 let com3 = data3.components.[entity.Id]
@@ -255,7 +269,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     not <| obj.ReferenceEquals (com3, null) &&
                     predicate entity.Id
                     then
-                    f entity (com1 :?> 'T1) (com2 :?> 'T2) (com3 :?> 'T3)
+                    f entity com1 com2 com3
 
     member inline this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3>, lookup.TryGetValue typeof<'T4> with
@@ -264,15 +278,16 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         | _,_,(false,_),_
         | _,_,_,(false,_) -> ()
         | (_,data1),(_,data2),(_,data3),(_,data4) ->
+            let data1 = data1 :?> EntityLookupData<'T1>
+            let data2 = data2 :?> EntityLookupData<'T2>
+            let data3 = data3 :?> EntityLookupData<'T3>
+            let data4 = data4 :?> EntityLookupData<'T4>
 
-            let count =
-                [|data1.entities.Count;data2.entities.Count;data3.entities.Count;data4.entities.Count|] |> Array.minBy id
+            let entities =
+                [|data1.entities;data2.entities;data3.entities;data4.entities|] |> Array.minBy (fun x -> x.Count)
 
-            let data =
-                [|data1;data2;data3;data4|] |> Array.minBy (fun x -> x.entities.Count)
-
-            for i = 0 to count - 1 do
-                let entity = data.entities.[i]
+            for i = 0 to entities.Count - 1 do
+                let entity = entities.[i]
                 let com1 = data1.components.[entity.Id]
                 let com2 = data2.components.[entity.Id]
                 let com3 = data3.components.[entity.Id]
@@ -285,7 +300,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     not <| obj.ReferenceEquals (com4, null) &&
                     predicate entity.Id
                     then
-                    f entity (com1 :?> 'T1) (com2 :?> 'T2) (com3 :?> 'T3) (com4 :?> 'T4)
+                    f entity com1 com2 com3 com4
 
     member this.Process () =
         let rec p () =
@@ -342,44 +357,38 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     interface IComponentQuery with
 
         member this.Has<'T when 'T :> IComponent> (entity: Entity) : bool =
-            let mutable data = Unchecked.defaultof<EntityLookupData>
+            let mutable data = null
             if lookup.TryGetValue (typeof<'T>, &data) then
+                let data = data :?> EntityLookupData<'T>
                 if not (entity.Id >= 0 && entity.Id < data.components.Length)
                 then false
-                else not <| obj.ReferenceEquals (data.components.[entity.Id], null)
+                else obj.ReferenceEquals (data.components.[entity.Id], null)
             else
                 false
 
         member this.TryGet (entity: Entity, t: Type) : IComponent option =
-            let mutable data = Unchecked.defaultof<EntityLookupData>
-            if lookup.TryGetValue (t, &data) then
-                if not (entity.Id >= 0 && entity.Id < data.components.Length)
-                then None
-                else 
-                    let comp = data.components.[entity.Id]
-                    match obj.ReferenceEquals (comp, null) with
-                    | true -> None
-                    | _ -> Some (comp :?> IComponent)
-            else
-                None
+            let mutable data = null
+            if lookup.TryGetValue (t, &data) then data.TryGetComponent entity
+            else None
 
         member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
-            let mutable data = Unchecked.defaultof<EntityLookupData>
+            let mutable data = null
             if lookup.TryGetValue (typeof<'T>, &data) then
+                let data = data :?> EntityLookupData<'T>
                 if not (entity.Id >= 0 && entity.Id < data.components.Length)
                 then None
                 else 
                     let comp = data.components.[entity.Id]
                     match obj.ReferenceEquals (comp, null) with
                     | true -> None
-                    | _ -> Some (comp :?> 'T)
+                    | _ -> Some comp
             else
                 None
 
         member this.TryFind<'T when 'T :> IComponent> (f: (Entity * 'T) -> bool) : (Entity * 'T) option =
-            let mutable data = Unchecked.defaultof<EntityLookupData>
+            let mutable data = null
             if lookup.TryGetValue (typeof<'T>, &data) then
-                let data = data
+                let data = data :?> EntityLookupData<'T>
                 let count = data.entities.Count
 
                 let rec loop = function
@@ -387,7 +396,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                     | n ->
                         let entity = data.entities.[n]
                         let comp = data.components.[entity.Id]
-                        let x = (entity, comp :?> 'T)
+                        let x = (entity, comp)
 
                         if f x 
                         then Some x
