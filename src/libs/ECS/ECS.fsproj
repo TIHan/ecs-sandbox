@@ -41,6 +41,7 @@
     <Compile Include="MessageQueue.fs" />
     <Compile Include="EventAggregator.fsi" />
     <Compile Include="EventAggregator.fs" />
+    <Compile Include="Interfaces.fs" />
     <Compile Include="EntityManager.fsi" />
     <Compile Include="EntityManager.fs" />
     <Compile Include="Reactive.fs" />

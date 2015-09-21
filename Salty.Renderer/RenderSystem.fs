@@ -77,7 +77,7 @@ type RendererSystem () =
 
             Renderer.R.Clear ()
 
-            match world.ComponentQuery.TryFind<Camera> (fun _ -> true) with
+            match world.ComponentQuery.TryFind<Camera> (fun _ _ -> true) with
             | None -> ()
             | Some (_,camera) ->
 

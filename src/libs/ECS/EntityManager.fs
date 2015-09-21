@@ -28,46 +28,6 @@ type ComponentRemoved<'T> = ComponentRemoved of (Entity * 'T) with
 
     interface IEvent
 
-type IComponentQuery =
-
-    abstract Has<'T when 'T :> IComponent> : Entity -> bool
-
-    abstract TryGet : Entity * Type -> IComponent option
-
-    abstract TryGet<'T when 'T :> IComponent> : Entity -> 'T option
-
-    abstract TryFind<'T when 'T :> IComponent> : (Entity * 'T -> bool) -> (Entity * 'T) option
-
-    abstract Get<'T when 'T :> IComponent> : unit -> (Entity * 'T) []
-
-    abstract Get<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : unit -> (Entity * 'T1 * 'T2) []
-
-    abstract ForEach<'T when 'T :> IComponent> : (Entity -> 'T -> unit) -> unit
-
-    abstract ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : (Entity -> 'T1 -> 'T2 -> unit) -> unit
-
-    abstract ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : (Entity -> 'T1 -> 'T2 -> 'T3 -> unit) -> unit
-
-    abstract ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> : (Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit) -> unit
-
-    abstract ParallelForEach<'T when 'T :> IComponent> : (Entity -> 'T -> unit) -> unit
-
-    abstract ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : (Entity -> 'T1 -> 'T2 -> unit) -> unit
-
-    abstract ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : (Entity -> 'T1 -> 'T2 -> 'T3 -> unit) -> unit
-
-type IComponentService =
-
-    abstract Add<'T when 'T :> IComponent> : Entity -> 'T -> unit
-
-    abstract Remove<'T when 'T :> IComponent> : Entity -> unit
-
-type IEntityService =
-
-    abstract Spawn : Entity -> unit
-
-    abstract Destroy : Entity -> unit
-
 [<AllowNullLiteral>]
 type IEntityLookupData =
 
@@ -146,10 +106,10 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             entitySet.Add entity |> ignore
 
     member this.Destroy (entity: Entity) =
-        let removals = entityRemovals.[entity.Id]
-        removals.ForEach (fun f -> f ())
-        removals.Clear ()
-        entitySet.Remove entity |> ignore     
+        if entitySet.Remove entity then
+            let removals = entityRemovals.[entity.Id]
+            removals.ForEach (fun f -> f ())
+            removals.Clear ()            
 
     member this.AddComponent<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
         let t = typeof<'T>
@@ -196,6 +156,27 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 None
         else
             None
+
+    member this.TryGet<'T> (entity: Entity, c: byref<'T>) = 
+        let mutable data = null
+        if lookup.TryGetValue (typeof<'T>, &data) then
+            let data = data :?> EntityLookupData<'T>
+            if (entity.Id >= 0 && entity.Id < data.components.Length) then
+                c <- data.components.[entity.Id]
+
+    member this.TryFind<'T> (f: Entity -> 'T -> bool, result: byref<Entity * 'T>) =
+        let mutable data = null
+        if lookup.TryGetValue (typeof<'T>, &data) then
+            let data = data :?> EntityLookupData<'T>
+            let count = data.entities.Count
+
+            let mutable n = 0
+            while not (n.Equals count) do    
+                let entity = data.entities.[n]
+                let comp = data.components.[entity.Id]
+
+                if f entity comp then result <- (entity, comp)
+                n <- n + 1  
 
     member inline this.IterateInternal<'T> (f: Entity -> 'T -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T> with
@@ -357,14 +338,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     interface IComponentQuery with
 
         member this.Has<'T when 'T :> IComponent> (entity: Entity) : bool =
-            let mutable data = null
-            if lookup.TryGetValue (typeof<'T>, &data) then
-                let data = data :?> EntityLookupData<'T>
-                if not (entity.Id >= 0 && entity.Id < data.components.Length)
-                then false
-                else obj.ReferenceEquals (data.components.[entity.Id], null)
-            else
-                false
+            let mutable c = Unchecked.defaultof<'T>
+            this.TryGet<'T> (entity, &c)
+            obj.ReferenceEquals (c, null)
 
         member this.TryGet (entity: Entity, t: Type) : IComponent option =
             let mutable data = null
@@ -372,39 +348,18 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             else None
 
         member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
-            let mutable data = null
-            if lookup.TryGetValue (typeof<'T>, &data) then
-                let data = data :?> EntityLookupData<'T>
-                if not (entity.Id >= 0 && entity.Id < data.components.Length)
-                then None
-                else 
-                    let comp = data.components.[entity.Id]
-                    match obj.ReferenceEquals (comp, null) with
-                    | true -> None
-                    | _ -> Some comp
-            else
-                None
+            let mutable c = Unchecked.defaultof<'T>
+            this.TryGet<'T> (entity, &c)
 
-        member this.TryFind<'T when 'T :> IComponent> (f: (Entity * 'T) -> bool) : (Entity * 'T) option =
-            let mutable data = null
-            if lookup.TryGetValue (typeof<'T>, &data) then
-                let data = data :?> EntityLookupData<'T>
-                let count = data.entities.Count
+            if obj.ReferenceEquals (c, null) then None
+            else Some c
 
-                let rec loop = function
-                    | n when n.Equals count -> None
-                    | n ->
-                        let entity = data.entities.[n]
-                        let comp = data.components.[entity.Id]
-                        let x = (entity, comp)
-
-                        if f x 
-                        then Some x
-                        else loop (n + 1)
-               
-                loop 0
-            else
-                None
+        member this.TryFind<'T when 'T :> IComponent> (f: Entity -> 'T -> bool) : (Entity * 'T) option =
+            let mutable result = Unchecked.defaultof<Entity * 'T>
+            this.TryFind (f, &result)
+            
+            if obj.ReferenceEquals (result, null) then None
+            else Some result
 
         member this.Get<'T when 'T :> IComponent> () : (Entity * 'T) [] =
             let result = ResizeArray<Entity * 'T> ()

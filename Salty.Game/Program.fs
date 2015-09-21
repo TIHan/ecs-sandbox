@@ -71,6 +71,11 @@ module DSL =
     let inline forEvery<'T when 'T :> IComponent> (f: Entity -> 'T -> World<unit>) : World<unit> =
         fun world -> world.ComponentQuery.ForEach<'T> (fun entity x -> (f entity x) world)
 
+    let inline rule<'T when 'T :> IComponent> (f: Entity -> 'T -> World<unit>) : World<unit> =
+        fun world ->
+            World.componentAdded<'T> world
+            |> Observable.add (fun (entity, c1) -> f entity c1 world)
+
     [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
     module Entity =
 
@@ -218,7 +223,7 @@ type MovementSystem () =
                     Physics.applyImpulse (Vector2.UnitX * 2.f) physics
             )
 
-            match world.ComponentQuery.TryFind<Camera> (fun _ -> true) with
+            match world.ComponentQuery.TryFind<Camera> (fun _ _ -> true) with
             | Some (_, camera) ->
                 let players = world.ComponentQuery.Get<Player, Position> ()
                 let positions =
