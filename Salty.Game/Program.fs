@@ -128,7 +128,7 @@ type MovementSystem () =
                 when' World.physicsCollided <| fun ((ent1, _), _) ->
                     Entity.tryGetComponent<Health> ent1 >>= function
                         | Some health ->
-                            update health.Var <| fun value -> value - 1.f
+                            update health.Var <| fun value -> value - 25.f
                         | _ -> DoNothing
 
                 when' Entity.componentAdded <| fun (ent, render: Render) ->
