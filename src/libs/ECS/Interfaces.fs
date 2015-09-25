@@ -2,6 +2,16 @@
 
 open System
 
+type IEventData = interface end
+
+type IEventAggregator =
+
+    abstract GetEvent : unit -> IObservable<#IEventData>
+
+    abstract Publish : #IEventData -> unit
+
+type IComponent = interface end
+
 type IComponentQuery =
 
     abstract Has<'T when 'T :> IComponent> : Entity -> bool
@@ -41,3 +51,19 @@ type IEntityService =
     abstract Spawn : Entity -> unit
 
     abstract Destroy : Entity -> unit
+
+type ISystem =
+
+    abstract Init : IWorld -> unit
+
+    abstract Update : IWorld -> unit
+
+and IWorld =
+
+    abstract EventAggregator : IEventAggregator
+
+    abstract ComponentQuery : IComponentQuery
+
+    abstract ComponentService : IComponentService
+
+    abstract EntityService : IEntityService

@@ -52,11 +52,16 @@
   <ItemGroup>
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
-    <Compile Include="Components.fs" />
+    <Compile Include="InputSystem.fsi" />
     <Compile Include="InputSystem.fs" />
     <Content Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
+      <Name>Salty.Core</Name>
+      <Project>{71d32e38-195a-4166-add7-da4ba880aee0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />

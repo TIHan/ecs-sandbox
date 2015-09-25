@@ -1,64 +1,37 @@
-﻿namespace ECS.Core
+﻿namespace ECS.Core.World
 
 open System
 
-[<Sealed>]
-type WorldTime =
-
-    member Current : Var<TimeSpan>
-
-    member Interval : Var<TimeSpan>
-
-    member Delta : Var<single>
-
-type ISystem =
-
-    abstract Init : IWorld -> unit
-
-    abstract Update : IWorld -> unit
-
-and IWorld =
-
-    abstract Time : WorldTime
-
-    abstract EventAggregator : IEventAggregator
-
-    abstract ComponentQuery : IComponentQuery
-
-    abstract ComponentService : IComponentService
-
-    abstract EntityService : IEntityService
+open ECS.Core
 
 [<Sealed>]
-type World =
+type ECSWorld =
 
-    new : int * ISystem list -> World
+    new : int * ISystem list -> ECSWorld
    
     member Run : unit -> unit
 
     interface IWorld
 
-[<RequireQualifiedAccess>]
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module World =
 
-    val event : IWorld -> IObservable<#IEvent>
+    val event : IWorld -> IObservable<#IEventData>
 
-    val entitySpawned : IWorld -> IObservable<Entity>
+module Entity =
 
-    val entityDestroyed : IWorld -> IObservable<Entity>
+    val spawned : IWorld -> IObservable<Entity>
 
-    val anyComponentAdded : IWorld -> IObservable<Entity * IComponent * Type>
+    val destroyed : IWorld -> IObservable<Entity>
 
-    val anyComponentRemoved : IWorld -> IObservable<Entity * IComponent * Type>
+module Component =
 
-    val componentAdded<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
+    val anyAdded : IWorld -> IObservable<Entity * IComponent * Type>
 
-    val componentRemoved<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
+    val anyRemoved : IWorld -> IObservable<Entity * IComponent * Type>
 
-    val addComponent<'T when 'T :> IComponent> : Entity -> 'T -> IWorld -> unit
+    val added<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
-    val removeComponent<'T when 'T :> IComponent> : Entity -> IWorld -> unit
+    val removed<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
 [<Sealed>]
 type EntityBlueprint
@@ -69,7 +42,5 @@ module EntityBlueprint =
     val create : unit -> EntityBlueprint
 
     val add<'T when 'T :> IComponent> : (unit -> 'T) -> EntityBlueprint -> EntityBlueprint
-
-    val remove<'T when 'T :> IComponent> : EntityBlueprint -> EntityBlueprint
 
     val spawn : int -> IWorld -> EntityBlueprint -> unit

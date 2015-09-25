@@ -10,23 +10,23 @@ type EntityEvent =
     | Spawned of Entity
     | Destroyed of Entity
 
-    interface IEvent
+    interface IEventData
 
 type AnyComponentAdded = AnyComponentAdded of (Entity * IComponent * Type) with
 
-    interface IEvent
+    interface IEventData
 
 type AnyComponentRemoved = AnyComponentRemoved of (Entity * IComponent * Type) with
 
-    interface IEvent
+    interface IEventData
 
 type ComponentAdded<'T> = ComponentAdded of (Entity * 'T) with
 
-    interface IEvent
+    interface IEventData
 
 type ComponentRemoved<'T> = ComponentRemoved of (Entity * 'T) with
 
-    interface IEvent
+    interface IEventData
 
 [<AllowNullLiteral>]
 type IEntityLookupData =

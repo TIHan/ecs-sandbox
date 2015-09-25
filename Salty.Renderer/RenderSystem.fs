@@ -31,7 +31,7 @@ type RendererSystem () =
             context <- Renderer.R.Init (window)
             vao <- Renderer.R.CreateVao ()
 
-            World.componentAdded<Position> world
+            ComponentAdded<Position> world
             |> Observable.add (function
                 | (entity, position) ->
                     match world.ComponentQuery.TryGet<Render> entity with

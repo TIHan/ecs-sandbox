@@ -4,7 +4,7 @@ open ECS.Core
 
 open Salty.Core
 open Salty.Core.Components
-open Salty.Physics.Components
+open Salty.Core.Physics.Components
 
 open System
 open System.Numerics
@@ -16,7 +16,7 @@ module World =
 
 module Physics =
 
-    val applyImpulse : Vector2 -> Physics -> unit
+    val applyImpulse : Vector2 -> Physics -> IWorld -> unit
 
 type PhysicsSystem =
 

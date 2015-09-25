@@ -1,4 +1,4 @@
-﻿namespace ECS.Core
+﻿namespace Salty.Core
 
 open System
 

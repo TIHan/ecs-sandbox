@@ -1,4 +1,4 @@
-﻿namespace Salty.Physics.Components
+﻿namespace Salty.Core.Physics.Components
 
 open ECS.Core
 

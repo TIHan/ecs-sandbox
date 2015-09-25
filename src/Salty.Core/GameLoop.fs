@@ -3,19 +3,20 @@ module GameLoop
 
     open System.Diagnostics
     open System.Threading
-
-    open ECS.Core
+    open System.Collections.Concurrent
 
     type private GameLoopSynchronizationContext () =
         inherit SynchronizationContext ()
 
-        let queue = MessageQueue<unit -> unit> ()
+        let queue = ConcurrentQueue<unit -> unit> ()
 
         override this.Post (d, state) =
-            queue.Push (fun () -> d.Invoke (state))
+            queue.Enqueue (fun () -> d.Invoke (state))
 
         member this.Process () =
-            queue.Process (fun f -> f ())
+            let mutable msg = Unchecked.defaultof<unit -> unit>
+            while queue.TryDequeue (&msg) do
+                msg ()
 
     type private GameLoop<'T> = { 
         State: 'T

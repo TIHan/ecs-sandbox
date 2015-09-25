@@ -1,47 +1,17 @@
-﻿namespace ECS.Core
+﻿namespace ECS.Core.World
 
 open System
-open System.Diagnostics
-open System.Collections.Generic
-open System.Collections.Concurrent
-open System.Threading.Tasks
+
+open ECS.Core
 
 [<Sealed>]
-type WorldTime () =
-
-    member val Current = Var.create TimeSpan.Zero with get
-
-    member val Interval = Var.create TimeSpan.Zero with get
-
-    member val Delta = Var.create 0.f with get
-
-type ISystem =
-
-    abstract Init : IWorld -> unit
-
-    abstract Update : IWorld -> unit
-
-and IWorld =
-
-    abstract Time : WorldTime
-
-    abstract EventAggregator : IEventAggregator
-
-    abstract ComponentQuery : IComponentQuery
-
-    abstract ComponentService : IComponentService
-
-    abstract EntityService : IEntityService
-
-[<Sealed>]
-type World (entityAmount, systems: ISystem list) as this =
+type ECSWorld (entityAmount, systems: ISystem list) as this =
     let eventAggregator = EventAggregator () :> IEventAggregator
     let entityManager = EntityManager (eventAggregator, entityAmount)
     let componentQuery = entityManager :> IComponentQuery
     let componentService = entityManager :> IComponentService
     let entityService = entityManager :> IEntityService
     let componentQuery = entityManager :> IComponentQuery
-    let time = WorldTime ()
 
     do
         systems
@@ -52,12 +22,9 @@ type World (entityAmount, systems: ISystem list) as this =
 
         systems |> List.iter (fun (sys: ISystem) ->
             sys.Update this
-            entityManager.Process ()
         )
 
     interface IWorld with
-
-        member __.Time = time
 
         member __.EventAggregator = eventAggregator
 
@@ -67,55 +34,52 @@ type World (entityAmount, systems: ISystem list) as this =
 
         member __.EntityService = entityService
 
-[<RequireQualifiedAccess>]
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module World =
 
-    let event<'T when 'T :> IEvent> (world: IWorld) =
-        world.EventAggregator.GetEvent<'T> ()
+    let event (world: IWorld) = world.EventAggregator.GetEvent ()
 
-    let entityCreated (world: IWorld) =
-        event<EntityEvent> world
+module Entity =
+    open World
+
+    let created (world: IWorld) =
+        event world
         |> Observable.choose (function
             | Created entity -> Some entity
             | _ -> None
         )
 
-    let entitySpawned (world: IWorld) =
-        event<EntityEvent> world
+    let spawned (world: IWorld) =
+        event world
         |> Observable.choose (function
             | Spawned entity -> Some entity
             | _ -> None
         )
 
-    let entityDestroyed (world: IWorld) =
-        event<EntityEvent> world
+    let destroyed (world: IWorld) =
+        event world
         |> Observable.choose (function
             | Destroyed entity -> Some entity
             | _ -> None
         )
 
-    let anyComponentAdded (world: IWorld) =
-        event<AnyComponentAdded> world
+module Component =
+    open World
+
+    let anyAdded (world: IWorld) =
+        event world
         |> Observable.map (fun (AnyComponentAdded x) -> x)
 
-    let anyComponentRemoved (world: IWorld) =
-        event<AnyComponentRemoved> world
+    let anyRemoved (world: IWorld) =
+        event world
         |> Observable.map (fun (AnyComponentRemoved x) -> x)
 
-    let componentAdded<'T when 'T :> IComponent> (world: IWorld) =
-        event<ComponentAdded<'T>> world
+    let added<'T when 'T :> IComponent> (world: IWorld) : IObservable<Entity * 'T> =
+        event world
         |> Observable.map (fun (ComponentAdded x) -> x)
 
-    let componentRemoved<'T when 'T :> IComponent> (world: IWorld) =
-        event<ComponentRemoved<'T>> world
+    let removed<'T when 'T :> IComponent> (world: IWorld) : IObservable<Entity * 'T> =
+        event world
         |> Observable.map (fun (ComponentRemoved x) -> x)
-
-    let addComponent<'T when 'T :> IComponent> entity comp (world: IWorld) =
-        world.ComponentService.Add<'T> entity comp
-
-    let removeComponent<'T when 'T :> IComponent> entity (world: IWorld) =
-        world.ComponentService.Remove<'T> entity
 
 type EntityBlueprint =
     {

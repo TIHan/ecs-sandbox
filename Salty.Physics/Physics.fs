@@ -1,10 +1,11 @@
 ﻿namespace Salty.Physics
 
 open ECS.Core
+open ECS.Core.World
 
 open Salty.Core
 open Salty.Core.Components
-open Salty.Physics.Components
+open Salty.Core.Physics.Components
 
 open System
 open System.IO
@@ -15,7 +16,7 @@ open System.Globalization
 
 type Collided = Collided of ((Entity * Physics) * (Entity * Physics)) with
 
-    interface IEvent
+    interface IEventData
 
 module World =
 
@@ -27,7 +28,7 @@ module World =
 
 module Physics =
     
-    let applyImpulse (force: Vector2) (physics: Physics) =
+    let applyImpulse (force: Vector2) (physics: Physics) (_: IWorld) =
         physics.Internal.Body.ApplyLinearImpulse (force)
         physics.Velocity.Value <- physics.Internal.Body.LinearVelocity
 
@@ -38,7 +39,7 @@ type PhysicsSystem () =
     interface ISystem with
         
         member __.Init world =
-            World.componentAdded<Physics> world
+            Component.added<Physics> world
             |> Observable.add (function
                 | (entity, physics) ->      
 
@@ -75,7 +76,7 @@ type PhysicsSystem () =
                         )
             )
 
-            World.componentAdded<Physics> world
+            Component.added<Physics> world
             |> Observable.add (fun (entity, physics) ->
                 match world.ComponentQuery.TryGet<Position> entity with
                 | Some position -> physics.Position.Assign (position.Var)
@@ -86,21 +87,21 @@ type PhysicsSystem () =
                 | _ -> ()
             )
 
-            World.componentAdded<Position> world
+            Component.added<Position> world
             |> Observable.add (fun (entity, position) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Position.Assign (position.Var)
                 | _ -> ()
             )
 
-            World.componentAdded<Rotation> world
+            Component.added<Rotation> world
             |> Observable.add (fun (entity, rotation) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Rotation.Assign (rotation.Var)
                 | _ -> ()
             )
 
-            World.componentRemoved<Physics> world
+            Component.removed<Physics> world
             |> Observable.add (fun (_, physics) ->
                 physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
             )

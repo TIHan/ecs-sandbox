@@ -7,23 +7,23 @@ type internal EntityEvent =
     | Spawned of Entity
     | Destroyed of Entity
 
-    interface IEvent
+    interface IEventData
 
 type internal AnyComponentAdded = AnyComponentAdded of (Entity * IComponent * Type) with
 
-    interface IEvent
+    interface IEventData
 
 type internal AnyComponentRemoved = AnyComponentRemoved of (Entity * IComponent * Type) with
 
-    interface IEvent
+    interface IEventData
 
 type internal ComponentAdded<'T> = ComponentAdded of (Entity * 'T) with
 
-    interface IEvent
+    interface IEventData
 
 type internal ComponentRemoved<'T> = ComponentRemoved of (Entity * 'T) with
 
-    interface IEvent
+    interface IEventData
 
 [<Sealed>]
 type internal EntityManager =

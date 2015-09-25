@@ -1,4 +1,4 @@
-﻿namespace Salty.Input
+﻿namespace Salty.Core.Input
 
 open ECS.Core
 
