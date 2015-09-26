@@ -1,4 +1,4 @@
-﻿namespace ECS.Core.World
+﻿namespace ECS.Core
 
 open System
 
@@ -22,6 +22,7 @@ type ECSWorld (entityAmount, systems: ISystem list) as this =
 
         systems |> List.iter (fun (sys: ISystem) ->
             sys.Update this
+            entityManager.Process ()
         )
 
     interface IWorld with
@@ -38,48 +39,46 @@ module World =
 
     let event (world: IWorld) = world.EventAggregator.GetEvent ()
 
-module Entity =
-    open World
+    module Entity =
 
-    let created (world: IWorld) =
-        event world
-        |> Observable.choose (function
-            | Created entity -> Some entity
-            | _ -> None
-        )
+        let created (world: IWorld) =
+            event world
+            |> Observable.choose (function
+                | Created entity -> Some entity
+                | _ -> None
+            )
 
-    let spawned (world: IWorld) =
-        event world
-        |> Observable.choose (function
-            | Spawned entity -> Some entity
-            | _ -> None
-        )
+        let spawned (world: IWorld) =
+            event world
+            |> Observable.choose (function
+                | Spawned entity -> Some entity
+                | _ -> None
+            )
 
-    let destroyed (world: IWorld) =
-        event world
-        |> Observable.choose (function
-            | Destroyed entity -> Some entity
-            | _ -> None
-        )
+        let destroyed (world: IWorld) =
+            event world
+            |> Observable.choose (function
+                | Destroyed entity -> Some entity
+                | _ -> None
+            )
 
-module Component =
-    open World
+    module Component =
 
-    let anyAdded (world: IWorld) =
-        event world
-        |> Observable.map (fun (AnyComponentAdded x) -> x)
+        let anyAdded (world: IWorld) =
+            event world
+            |> Observable.map (fun (AnyComponentAdded x) -> x)
 
-    let anyRemoved (world: IWorld) =
-        event world
-        |> Observable.map (fun (AnyComponentRemoved x) -> x)
+        let anyRemoved (world: IWorld) =
+            event world
+            |> Observable.map (fun (AnyComponentRemoved x) -> x)
 
-    let added<'T when 'T :> IComponent> (world: IWorld) : IObservable<Entity * 'T> =
-        event world
-        |> Observable.map (fun (ComponentAdded x) -> x)
+        let added<'T when 'T :> IComponent> (world: IWorld) : IObservable<Entity * 'T> =
+            event world
+            |> Observable.map (fun (ComponentAdded x) -> x)
 
-    let removed<'T when 'T :> IComponent> (world: IWorld) : IObservable<Entity * 'T> =
-        event world
-        |> Observable.map (fun (ComponentRemoved x) -> x)
+        let removed<'T when 'T :> IComponent> (world: IWorld) : IObservable<Entity * 'T> =
+            event world
+            |> Observable.map (fun (ComponentRemoved x) -> x)
 
 type EntityBlueprint =
     {

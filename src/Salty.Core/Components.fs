@@ -10,7 +10,6 @@ open System.Reflection
 open System.Globalization
 
 open ECS.Core
-open ECS.Core.World
 
 open Salty.Core
 
@@ -39,7 +38,7 @@ type SerializationSystem () =
 
         member this.Init world =
             world
-            |> Component.anyAdded
+            |> World.Component.anyAdded
             |> Observable.add (fun (entity, o, t) ->
                 if typeof<ISerializableComponent>.IsAssignableFrom t then
                     let id = entity.Id
@@ -47,7 +46,7 @@ type SerializationSystem () =
             )
 
             world
-            |> Component.anyRemoved
+            |> World.Component.anyRemoved
             |> Observable.add (fun (entity, o, t) ->
                 if typeof<ISerializableComponent>.IsAssignableFrom t then
                     let id = entity.Id

@@ -1,4 +1,4 @@
-﻿namespace ECS.Core.World
+﻿namespace ECS.Core
 
 open System
 
@@ -17,21 +17,21 @@ module World =
 
     val event : IWorld -> IObservable<#IEventData>
 
-module Entity =
+    module Entity =
 
-    val spawned : IWorld -> IObservable<Entity>
+        val spawned : IWorld -> IObservable<Entity>
 
-    val destroyed : IWorld -> IObservable<Entity>
+        val destroyed : IWorld -> IObservable<Entity>
 
-module Component =
+    module Component =
 
-    val anyAdded : IWorld -> IObservable<Entity * IComponent * Type>
+        val anyAdded : IWorld -> IObservable<Entity * IComponent * Type>
 
-    val anyRemoved : IWorld -> IObservable<Entity * IComponent * Type>
+        val anyRemoved : IWorld -> IObservable<Entity * IComponent * Type>
 
-    val added<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
+        val added<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
-    val removed<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
+        val removed<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
 
 [<Sealed>]
 type EntityBlueprint
