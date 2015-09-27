@@ -5,33 +5,30 @@ open System
 open ECS.Core
 
 [<Sealed>]
-type ECSWorld =
+type ECSWorld<'U> =
 
-    new : int * ISystem list -> ECSWorld
+    new : 'U * int * ISystem<'U> list -> ECSWorld<'U>
    
     member Run : unit -> unit
 
-    interface IWorld
+    interface IWorld<'U>
 
-module World =
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module Entity =
 
-    val event : IWorld -> IObservable<#IEventData>
+    val spawned : World<_, IObservable<Entity>>
 
-    module Entity =
+    val destroyed : World<_, IObservable<Entity>>
 
-        val spawned : IWorld -> IObservable<Entity>
+module Component =
 
-        val destroyed : IWorld -> IObservable<Entity>
+    val anyAdded : World<_, IObservable<Entity * IComponent * Type>>
 
-    module Component =
+    val anyRemoved : World<_, IObservable<Entity * IComponent * Type>>
 
-        val anyAdded : IWorld -> IObservable<Entity * IComponent * Type>
+    val added : World<_, IObservable<Entity * #IComponent>>
 
-        val anyRemoved : IWorld -> IObservable<Entity * IComponent * Type>
-
-        val added<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
-
-        val removed<'T when 'T :> IComponent> : IWorld -> IObservable<Entity * 'T>
+    val removed : World<_, IObservable<Entity * #IComponent>>
 
 [<Sealed>]
 type EntityBlueprint
@@ -43,4 +40,4 @@ module EntityBlueprint =
 
     val add<'T when 'T :> IComponent> : (unit -> 'T) -> EntityBlueprint -> EntityBlueprint
 
-    val spawn : int -> IWorld -> EntityBlueprint -> unit
+    val spawn : int -> IWorld<_> -> EntityBlueprint -> unit

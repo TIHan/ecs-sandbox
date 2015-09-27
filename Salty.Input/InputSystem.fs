@@ -3,12 +3,15 @@
 open System
 
 open ECS.Core
+open Salty.Core
 
-type MousePositionUpdated = MousePositionUpdated of MousePosition with
+type InputData =
+    {
+        MousePosition: MousePosition
+        Events: InputEvent list
+    }
 
-    interface IEventData
-
-type InputEventsUpdated = InputEventsUpdated of InputEvent list with
+type InputDataUpdated = InputDataUpdated of InputData with
 
     interface IEventData
 
@@ -16,17 +19,16 @@ type InputEventsUpdated = InputEventsUpdated of InputEvent list with
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Input =
     
-    let mousePositionUpdated (world: IWorld) =
-        world.EventAggregator.GetEvent<MousePositionUpdated> ()
-        |> Observable.map (fun (MousePositionUpdated x) -> x)
-
-    let eventsUpdated (world: IWorld) =
-        world.EventAggregator.GetEvent<InputEventsUpdated> ()
-        |> Observable.map (fun (InputEventsUpdated x) -> x)
+    let dataUpdated : SaltyWorld<IObservable<InputData>> =
+        fun world ->
+            world.EventAggregator.GetEvent<InputDataUpdated> ()
+            |> Observable.map (function
+                | InputDataUpdated x -> x
+            )
 
 type InputSystem () =
 
-    interface ISystem with
+    interface ISystem<Salty> with
 
         member __.Init _ =
             ()
@@ -38,5 +40,7 @@ type InputSystem () =
             let mousePosition = Input.getMousePosition ()
             let events = Input.getEvents ()
 
-            world.EventAggregator.Publish (MousePositionUpdated mousePosition)
-            world.EventAggregator.Publish (InputEventsUpdated events)
+            world.EventAggregator.Publish (InputDataUpdated {
+                MousePosition = mousePosition
+                Events = events
+            })

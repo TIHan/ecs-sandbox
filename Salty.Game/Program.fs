@@ -1,4 +1,17 @@
-﻿open System
+﻿open ECS.Core
+open Salty.Core
+open Salty.Core.Components
+open Salty.Core.Input
+open Salty.Core.Physics
+open Salty.Core.Physics.Components
+open Salty.Core.Renderer
+open Salty.Core.Renderer.Components
+
+open Salty.Game
+open Salty.Game.Core.Components
+open Salty.Game.Command
+
+open System
 open System.IO
 open System.Diagnostics
 open System.Collections.Generic
@@ -7,102 +20,46 @@ open Microsoft.FSharp.NativeInterop
 open System.Reactive.Subjects
 open System.Reactive.Linq
 
-open ECS.Core
-
-open Salty.Core.Components
-open Salty.Physics
-open Salty.Physics.Components
-open Salty.Renderer
-open Salty.Renderer.Components
-
-open Salty.Game
-open Salty.Game.Core.Components
-open Salty.Game.Command
-
 #nowarn "9"
 #nowarn "51"
 
 open System.Numerics
 open System.Threading
 
-type World<'T> = IWorld -> 'T
-
 open System.Reactive.Linq
 [<AutoOpen>]
-module WorldOperators =
+module DSL =
 
-    let DoNothing : World<unit> = fun _ -> ()
+    let DoNothing : World<_, unit> = fun _ -> ()
 
-    let inline worldReturn (a: 'a) : World<'a> = fun _ -> a
+    let inline worldReturn (a: 'a) : World<_, 'a> = fun _ -> a
 
-    let inline (>>=) (w: World<'a>) (f: 'a -> World<'b>) : World<'b> =
+    let inline (>>=) (w: World<_, 'a>) (f: 'a -> World<_, 'b>) : World<_, 'b> =
         fun world -> (f (w world)) world
 
-    let inline (>>.) (w1: World<'a>) (w2: World<'b>) =
+    let inline (>>.) (w1: World<_, 'a>) (w2: World<_, 'b>) =
         fun world ->
             w1 world |> ignore
             w2 world
 
-    let inline skip (x: World<_>) : World<unit> =
+    let inline skip (x: World<_, _>) : World<_, unit> =
         fun world -> x world |> ignore
 
-    let inline when' (w: World<IObservable<'a>>) (f: 'a -> World<unit>) : World<IDisposable> =
+    let inline when' (w: World<_, IObservable<'a>>) (f: 'a -> World<_, unit>) : World<_, IDisposable> =
         fun world ->
             (w world) 
             |> Observable.subscribe (fun a ->
                 (f a) world
             )
 
-    let inline (<~) (obs: IObservable<'a>) (f: 'a -> World<unit>) : World<unit> =
+    let inline (<~) (obs: IObservable<'a>) (f: 'a -> World<_, unit>) : World<_, unit> =
         fun world -> obs |> Observable.add (fun x -> (f x) world)
 
-    let inline (==>) (obs: IObservable<'a>) (v: Val<'a>) : World<unit> =
+    let inline (==>) (obs: IObservable<'a>) (v: Val<'a>) : World<_, unit> =
         fun world -> v.Assign obs
             
-    let inline update (v: Var<'a>) (f: 'a -> 'a) : World<unit> =
+    let inline update (v: Var<'a>) (f: 'a -> 'a) : World<_, unit> =
         fun world -> v.Value <- f v.Value 
-
-[<AutoOpen>]
-module DSL =
-
-    let inline onEvent<'T when 'T :> IEvent> : World<IObservable<'T>> =
-        World.event<'T>
-
-    let inline forEvery<'T when 'T :> IComponent> (f: Entity -> 'T -> World<unit>) : World<unit> =
-        fun world -> world.ComponentQuery.ForEach<'T> (fun entity x -> (f entity x) world)
-
-    let inline rule<'T when 'T :> IComponent> (f: Entity -> 'T -> World<unit>) : World<unit> =
-        fun world ->
-            World.componentAdded<'T> world
-            |> Observable.add (fun (entity, c1) -> f entity c1 world)
-
-    [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-    module Entity =
-
-        let spawned : World<IObservable<Entity>> = World.entitySpawned
-
-        let destroyed : World<IObservable<Entity>> = World.entityDestroyed
-
-        let anyComponentAdded : World<IObservable<Entity * IComponent * Type>> = World.anyComponentAdded
-
-        let anyComponentRemoved : World<IObservable<Entity * IComponent * Type>> = World.anyComponentRemoved
-
-        let componentAdded : World<IObservable<Entity * #IComponent>> = World.componentAdded
-
-        let componentRemoved : World<IObservable<Entity * #IComponent>> = World.componentRemoved
-
-        let inline destroy ent : World<unit> =
-            fun world ->
-                world.EntityService.Destroy ent
-
-        let inline addComponent com ent = 
-            World.addComponent ent com
-
-        let inline removeComponent ent =
-            World.removeComponent ent
-
-        let inline tryGetComponent<'T when 'T :> IComponent> ent : World<'T option> =
-            fun world -> world.ComponentQuery.TryGet<'T> ent
 
 let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
     let _,m = Matrix4x4.Invert (model * view * projection)
@@ -112,36 +69,14 @@ let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: M
     let mutable v = Vector3.Transform(Vector3 (x, y, z), m)
     v
 
-type MovementSystem () =
+type GameplaySystem () =
     let count = ref 10
 
-    interface ISystem with
+    interface ISystem<Salty> with
         
         member __.Init world =
 
             [
-                when' Entity.componentAdded <| fun (entity, health: Health) -> 
-                    health.Var <~ fun value ->
-                        if value <= 0.f then Entity.destroy entity
-                        else DoNothing
-
-                when' World.physicsCollided <| fun ((ent1, _), _) ->
-                    Entity.tryGetComponent<Health> ent1 >>= function
-                        | Some health ->
-                            update health.Var <| fun value -> value - 25.f
-                        | _ -> DoNothing
-
-                when' Entity.componentAdded <| fun (ent, render: Render) ->
-                    Entity.tryGetComponent<Player> ent >>= function
-                        | Some player ->
-                            Entity.tryGetComponent<Health> ent >>= function
-                                | Some health ->
-                                    health.Var <~ fun value ->
-                                        render.R <- 255uy - byte ((single value / 100.f) * 255.f)
-                                        render.G <- byte ((single value / 100.f) * 255.f)
-                                        DoNothing
-                                | _ -> DoNothing
-                        | _ -> DoNothing
             ]
             |> List.iter (fun f -> f world |> ignore)
 
@@ -214,13 +149,13 @@ type MovementSystem () =
                 player.Commands.Clear ()
 
                 if player.IsMovingUp.Value then
-                    Physics.applyImpulse (Vector2.UnitY * 2.f) physics
+                    Physics.applyImpulse (Vector2.UnitY * 2.f) physics world
 
                 if player.IsMovingLeft.Value then
-                    Physics.applyImpulse (Vector2.UnitX * -2.f) physics
+                    Physics.applyImpulse (Vector2.UnitX * -2.f) physics world
 
                 if player.IsMovingRight.Value then
-                    Physics.applyImpulse (Vector2.UnitX * 2.f) physics
+                    Physics.applyImpulse (Vector2.UnitX * 2.f) physics world
             )
 
             match world.ComponentQuery.TryFind<Camera> (fun _ _ -> true) with
@@ -285,11 +220,21 @@ open Foom.Shared.Wad
 [<EntryPoint>]
 let main argv = 
 
+    let currentTimeVar = Var.create TimeSpan.Zero
+    let deltaTimeVar = Var.create 0.f
+    let intervalVar = Var.create TimeSpan.Zero
     let world = 
-        World (65536,
+        ECSWorld (
+            {
+                DeltaTime = Val.createWithObservable 0.f deltaTimeVar
+                CurrentTime = Val.createWithObservable TimeSpan.Zero currentTimeVar
+                Interval = Val.createWithObservable TimeSpan.Zero intervalVar
+            }, 
+            65536,
             [
+                InputSystem ()
                 CommandSystem ()
-                MovementSystem ()
+                GameplaySystem ()
                 PhysicsSystem ()
                 //SerializationSystem ()
             ]
@@ -297,18 +242,18 @@ let main argv =
 
     let inline runWorld () = world.Run ()
 
-    let world = world :> IWorld
+    let world = world :> IWorld<Salty>
 
-    let rendererSystem : ISystem = RendererSystem () :> ISystem
+    let rendererSystem = RendererSystem () :> ISystem<Salty>
     rendererSystem.Init world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.player Vector2.Zero
     |> EntityBlueprint.spawn 0 world
 
-    EntityBlueprint.create ()
-    |> EntityBlueprint.player (Vector2.One * 2.f)
-    |> EntityBlueprint.spawn 1 world
+//    EntityBlueprint.create ()
+//    |> EntityBlueprint.player (Vector2.One * 2.f)
+//    |> EntityBlueprint.spawn 1 world
 
     EntityBlueprint.create ()
     |> EntityBlueprint.staticBox
@@ -317,6 +262,8 @@ let main argv =
     EntityBlueprint.create ()
     |> EntityBlueprint.camera
     |> EntityBlueprint.spawn 3 world
+
+    let stopwatch = Stopwatch.StartNew ()
 
     GameLoop.start
         world
@@ -327,17 +274,19 @@ let main argv =
         )
         (
             fun time interval world ->
-                let stopwatch = Stopwatch.StartNew ()
-                world.Time.Interval.Value <- TimeSpan.FromTicks interval
-                world.Time.Current.Value <- TimeSpan.FromTicks time
+                stopwatch.Restart ()
+
+                currentTimeVar.Value <- TimeSpan.FromTicks time
+                intervalVar.Value <- TimeSpan.FromTicks interval
                 runWorld ()
+
                 stopwatch.Stop ()
 
                 printfn "MS: %A" stopwatch.ElapsedMilliseconds
         )
         (
             fun delta world ->
-                world.Time.Delta.Value <- delta
+                deltaTimeVar.Value <- delta
                 rendererSystem.Update world
         )
 

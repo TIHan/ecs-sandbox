@@ -68,6 +68,11 @@
       <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
       <Name>ECS</Name>
     </ProjectReference>
+    <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
+      <Name>Salty.Core</Name>
+      <Project>{71d32e38-195a-4166-add7-da4ba880aee0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v2.0' Or $(TargetFrameworkVersion) == 'v3.0' Or $(TargetFrameworkVersion) == 'v3.5')">

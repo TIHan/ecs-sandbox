@@ -52,13 +52,15 @@ type IEntityService =
 
     abstract Destroy : Entity -> unit
 
-type ISystem =
+type ISystem<'U> =
 
-    abstract Init : IWorld -> unit
+    abstract Init : IWorld<'U> -> unit
 
-    abstract Update : IWorld -> unit
+    abstract Update : IWorld<'U> -> unit
 
-and IWorld =
+and IWorld<'U> =
+
+    abstract Dependency : 'U
 
     abstract EventAggregator : IEventAggregator
 
@@ -67,3 +69,5 @@ and IWorld =
     abstract ComponentService : IComponentService
 
     abstract EntityService : IEntityService
+
+type World<'U, 'T> = IWorld<'U> -> 'T

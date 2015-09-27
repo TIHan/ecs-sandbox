@@ -1,7 +1,6 @@
-﻿namespace Salty.Physics
+﻿namespace Salty.Core.Physics
 
 open ECS.Core
-open ECS.Core.World
 
 open Salty.Core
 open Salty.Core.Components
@@ -18,30 +17,30 @@ type Collided = Collided of ((Entity * Physics) * (Entity * Physics)) with
 
     interface IEventData
 
-module World =
-
-    let physicsCollided (world: IWorld) =
-        world.EventAggregator.GetEvent<Collided> ()
-        |> Observable.map (function
-            | Collided x -> x
-        )
-
 module Physics =
+
+    let collided : SaltyWorld<IObservable<(Entity * Physics) * (Entity * Physics)>> =
+        fun world ->
+            world.EventAggregator.GetEvent<Collided> ()
+            |> Observable.map (function
+                | Collided x -> x
+            )
     
-    let applyImpulse (force: Vector2) (physics: Physics) (_: IWorld) =
-        physics.Internal.Body.ApplyLinearImpulse (force)
-        physics.Velocity.Value <- physics.Internal.Body.LinearVelocity
+    let applyImpulse (force: Vector2) (physics: Physics) : SaltyWorld<unit> =
+        fun world ->
+            physics.Internal.Body.ApplyLinearImpulse (force)
+            physics.Velocity.Value <- physics.Internal.Body.LinearVelocity
 
 type PhysicsSystem () =
 
     let physicsWorld = FarseerPhysics.Dynamics.World (Vector2(0.f, -9.820f))
 
-    interface ISystem with
+    interface ISystem<Salty> with
         
         member __.Init world =
-            Component.added<Physics> world
+            Component.added world
             |> Observable.add (function
-                | (entity, physics) ->      
+                | (entity, physics: Physics) ->      
 
                     let data = 
                         physics.Data.Value
@@ -76,8 +75,8 @@ type PhysicsSystem () =
                         )
             )
 
-            Component.added<Physics> world
-            |> Observable.add (fun (entity, physics) ->
+            Component.added world
+            |> Observable.add (fun (entity, physics: Physics) ->
                 match world.ComponentQuery.TryGet<Position> entity with
                 | Some position -> physics.Position.Assign (position.Var)
                 | _ -> ()
@@ -87,46 +86,27 @@ type PhysicsSystem () =
                 | _ -> ()
             )
 
-            Component.added<Position> world
-            |> Observable.add (fun (entity, position) ->
+            Component.added world
+            |> Observable.add (fun (entity, position: Position) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Position.Assign (position.Var)
                 | _ -> ()
             )
 
-            Component.added<Rotation> world
-            |> Observable.add (fun (entity, rotation) ->
+            Component.added world
+            |> Observable.add (fun (entity, rotation: Rotation) ->
                 match world.ComponentQuery.TryGet<Physics> entity with
                 | Some physics -> physics.Rotation.Assign (rotation.Var)
                 | _ -> ()
             )
 
-            Component.removed<Physics> world
-            |> Observable.add (fun (_, physics) ->
+            Component.removed world
+            |> Observable.add (fun (_, physics: Physics) ->
                 physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
             )
 
         member __.Update world =
-            world.ComponentQuery.ForEach<Physics> (fun entity physics ->
-                ()
-//                if not physics.IsStatic.Value then
-//                    let mutable v = physics.Internal.Body.LinearVelocity
-//                    if v.X > 25.f then
-//                        v.X <- 25.f
-//
-//                    if v.X < -25.f then
-//                        v.X <- -25.f
-//
-//                    if v.Y > 25.f then
-//                        v.Y <- 25.f
-//
-//                    if v.Y < -25.f then
-//                        v.Y <- -25.f
-//
-//                    physics.Internal.Body.LinearVelocity <- v
-            )
-
-            physicsWorld.Step (single world.Time.Interval.Value.TotalSeconds)
+            physicsWorld.Step (single world.Dependency.Interval.Value.TotalSeconds)
 
             world.ComponentQuery.ForEach<Physics, Position, Rotation> (fun entity physicsPolygon position rotation ->
                 if not physicsPolygon.IsStatic.Value then

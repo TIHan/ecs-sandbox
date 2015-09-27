@@ -1,4 +1,4 @@
-﻿namespace Salty.Physics
+﻿namespace Salty.Core.Physics
 
 open ECS.Core
 
@@ -10,16 +10,14 @@ open System
 open System.Numerics
 open System.Xml.Serialization
 
-module World =
-
-    val physicsCollided : IWorld -> IObservable<(Entity * Physics) * (Entity * Physics)>
-
 module Physics =
 
-    val applyImpulse : Vector2 -> Physics -> IWorld -> unit
+    val collided : SaltyWorld<IObservable<(Entity * Physics) * (Entity * Physics)>>
+
+    val applyImpulse : Vector2 -> Physics -> SaltyWorld<unit>
 
 type PhysicsSystem =
 
     new : unit -> PhysicsSystem
 
-    interface ISystem
+    interface ISystem<Salty>

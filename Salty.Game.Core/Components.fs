@@ -1,6 +1,7 @@
 ﻿namespace Salty.Game.Core.Components
 
 open ECS.Core
+open Salty.Core
 
 type PlayerCommand =
     | Shoot

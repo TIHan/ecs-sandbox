@@ -1,15 +1,13 @@
-﻿namespace Salty.Renderer
+﻿namespace Salty.Core.Renderer
 
 open ECS.Core
-
+open Salty.Core
 open Salty.Core.Components
-open Salty.Renderer.Components
+open Salty.Core.Renderer.Components
 
 open System
 open System.Numerics
 open System.Reactive.Linq
-
-open Renderer
 
 type RendererSystem () =
     let mutable context = Renderer.RendererContext ()
@@ -23,7 +21,7 @@ type RendererSystem () =
         let mutable v = Vector3.Transform(Vector3 (x, y, z), m)
         v
 
-    interface ISystem with
+    interface ISystem<Salty> with
 
         member __.Init world =
             Renderer.R.InitSDL ()
@@ -31,9 +29,9 @@ type RendererSystem () =
             context <- Renderer.R.Init (window)
             vao <- Renderer.R.CreateVao ()
 
-            ComponentAdded<Position> world
+            Component.added world
             |> Observable.add (function
-                | (entity, position) ->
+                | (entity, position: Position) ->
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Position.Assign position.Var
@@ -41,9 +39,9 @@ type RendererSystem () =
                     | _ -> ()
             )
 
-            World.componentAdded<Rotation> world
+            Component.added world
             |> Observable.add (function
-                | (entity, rotation) ->
+                | (entity, rotation: Rotation) ->
                     match world.ComponentQuery.TryGet<Render> entity with
                     | Some render ->
                         render.Rotation.Assign rotation.Var
@@ -51,15 +49,15 @@ type RendererSystem () =
                     | _ -> ()
             )
 
-            World.componentAdded<Render> world
-            |> Observable.add (fun (entity, render) ->
+            Component.added world
+            |> Observable.add (fun (entity, render: Render) ->
                 render.Data
                 |> Observable.add (fun data ->
                     render.VBO <- Renderer.R.CreateVBO (data)
                 )
             )
 
-            world.Time.Current
+            world.Dependency.CurrentTime
             |> Observable.add (fun _ ->
                 world.ComponentQuery.ForEach<Camera> (fun _ camera ->
                     camera.PreviousPosition <- camera.Position.Value
@@ -73,7 +71,7 @@ type RendererSystem () =
             )
 
         member __.Update world =
-            let delta = world.Time.Delta.Value
+            let delta = world.Dependency.DeltaTime.Value
 
             Renderer.R.Clear ()
 
@@ -94,7 +92,6 @@ type RendererSystem () =
                     let previousPosition = render.PreviousPosition
                     let rotation = render.Rotation.Value
                     let previousRotation = render.PreviousRotation
-                    let delta = world.Time.Delta.Value
 
                     let positionValue = Vector2.Lerp (previousPosition, position, delta)
                     let rotationValue = Vector2.Lerp(Vector2 (previousRotation, 0.f), Vector2 (rotation, 0.f), delta).X

@@ -1,6 +1,7 @@
-﻿namespace Salty.Renderer.Components
+﻿namespace Salty.Core.Renderer.Components
 
 open ECS.Core
+open Salty.Core
 
 open System.Numerics
 

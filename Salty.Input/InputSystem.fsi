@@ -3,18 +3,23 @@
 open System
 
 open ECS.Core
+open Salty.Core
+
+type InputData =
+    {
+        MousePosition: MousePosition
+        Events: InputEvent list
+    }
 
 [<RequireQualifiedAccess>]
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Input =
 
-    val mousePositionUpdated : IWorld -> IObservable<MousePosition>
-
-    val eventsUpdated : IWorld -> IObservable<InputEvent list>
+    val dataUpdated : SaltyWorld<IObservable<InputData>>
 
 type InputSystem =
 
     new : unit -> InputSystem
 
-    interface ISystem
+    interface ISystem<Salty>
 

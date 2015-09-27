@@ -1,4 +1,4 @@
-﻿namespace Renderer
+﻿namespace Salty.Core.Renderer
 
 open System
 open System.IO

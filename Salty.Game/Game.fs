@@ -1,17 +1,17 @@
 ﻿namespace Salty.Game
 
 open ECS.Core
+open Salty.Core
+open Salty.Core.Components
+open Salty.Core.Physics
+open Salty.Core.Physics.Components
+open Salty.Core.Renderer
+open Salty.Core.Renderer.Components
+
+open Salty.Game.Core.Components
 
 open System.Numerics
 open System.Reactive.Linq
-
-open Salty.Core.Components
-open Salty.Physics
-open Salty.Physics.Components
-open Salty.Renderer
-open Salty.Renderer.Components
-
-open Salty.Game.Core.Components
 
 type Health () =
 
