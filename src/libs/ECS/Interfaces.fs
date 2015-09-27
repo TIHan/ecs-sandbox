@@ -18,13 +18,15 @@ type IComponentQuery =
 
     abstract TryGet : Entity * Type -> IComponent option
 
+    abstract TryGet : Entity * byref<#IComponent> -> unit
+
     abstract TryGet<'T when 'T :> IComponent> : Entity -> 'T option
 
     abstract TryFind<'T when 'T :> IComponent> : (Entity -> 'T -> bool) -> (Entity * 'T) option
 
-    abstract Get<'T when 'T :> IComponent> : unit -> (Entity * 'T) []
+    abstract GetAll<'T when 'T :> IComponent> : unit -> (Entity * 'T) []
 
-    abstract Get<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : unit -> (Entity * 'T1 * 'T2) []
+    abstract GetAll<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : unit -> (Entity * 'T1 * 'T2) []
 
     abstract ForEach<'T when 'T :> IComponent> : (Entity -> 'T -> unit) -> unit
 

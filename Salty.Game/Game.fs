@@ -87,7 +87,7 @@ module EntityBlueprint =
         )
         |> EntityBlueprint.add (fun () ->
             let health = Health ()
-            health.Var.Value <- 100.f
+            health.Var.Value <- 0.f
             health
         )
         |> EntityBlueprint.add (fun () ->

@@ -2,10 +2,11 @@
 
 open System
 
-type internal EntityEvent =
-    | Created of Entity
-    | Spawned of Entity
-    | Destroyed of Entity
+type internal EntitySpawned = EntitySpawned of Entity with
+
+    interface IEventData
+
+type internal EntityDestroyed = EntityDestroyed of Entity with
 
     interface IEventData
 

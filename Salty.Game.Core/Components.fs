@@ -14,6 +14,8 @@ type Player () =
 
     member val IsMovingRight = Var.create false
 
-    member val Commands : PlayerCommand ResizeArray = ResizeArray () 
+    member val Commands : PlayerCommand ResizeArray = ResizeArray ()
+
+    member val IsDead = Val.create false
 
     interface IComponent

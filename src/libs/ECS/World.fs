@@ -45,26 +45,13 @@ module World =
 module Entity =
     open World
 
-    let created (world: IWorld<_>) =
-        event world
-        |> Observable.choose (function
-            | Created entity -> Some entity
-            | _ -> None
-        )
-
     let spawned (world: IWorld<_>) =
         event world
-        |> Observable.choose (function
-            | Spawned entity -> Some entity
-            | _ -> None
-        )
+        |> Observable.map (fun (EntitySpawned x) -> x)
 
     let destroyed (world: IWorld<_>) =
         event world
-        |> Observable.choose (function
-            | Destroyed entity -> Some entity
-            | _ -> None
-        )
+        |> Observable.map (fun (EntityDestroyed x) -> x)
 
 module Component =
     open World

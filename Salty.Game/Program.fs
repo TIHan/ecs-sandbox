@@ -61,6 +61,22 @@ module DSL =
     let inline update (v: Var<'a>) (f: 'a -> 'a) : World<_, unit> =
         fun world -> v.Value <- f v.Value 
 
+    let rule2 (f: Entity -> 'T1 -> 'T2 -> unit) : World<_, IDisposable> =
+        fun world ->
+            Entity.spawned world |> Observable.subscribe (fun ent ->
+                let mutable c1 = Unchecked.defaultof<'T1>
+                let mutable c2 = Unchecked.defaultof<'T2>
+                
+                world.ComponentQuery.TryGet (ent, &c1)
+                world.ComponentQuery.TryGet (ent, &c2)
+
+                if
+                    not <| obj.ReferenceEquals (c1, null) &&
+                    not <| obj.ReferenceEquals (c2, null)
+                    then
+                        f ent c1 c2
+            )
+
 let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
     let _,m = Matrix4x4.Invert (model * view * projection)
     let x = (((source.X - viewportPosition.X) / (viewportDimensions.X)) * 2.f) - 1.f
@@ -75,8 +91,18 @@ type GameplaySystem () =
     interface ISystem<Salty> with
         
         member __.Init world =
-
             [
+//                rule2 <| fun ent1 (player: Player) (health: Health) ->
+//                    player.IsDead |> Observable.add (fun isDead ->
+//                        if isDead then
+//                            printfn "Entity %i died." ent1.Id
+//                    )
+//                    player.IsDead.Assign (
+//                        health.Var |> Observable.map (fun value ->
+//                            value <= 0.f && not player.IsDead.Value
+//                        )
+//                    )
+
             ]
             |> List.iter (fun f -> f world |> ignore)
 
@@ -160,7 +186,7 @@ type GameplaySystem () =
 
             match world.ComponentQuery.TryFind<Camera> (fun _ _ -> true) with
             | Some (_, camera) ->
-                let players = world.ComponentQuery.Get<Player, Position> ()
+                let players = world.ComponentQuery.GetAll<Player, Position> ()
                 let positions =
                     players
                     |> Array.map (fun (_,_,position) -> position.Var.Value)

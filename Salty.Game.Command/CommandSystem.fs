@@ -17,7 +17,7 @@ type CommandSystem () =
 
             Input.dataUpdated world
             |> Observable.add (fun data ->
-                let players = world.ComponentQuery.Get<Player> ()
+                let players = world.ComponentQuery.GetAll<Player> ()
 
                 players
                 |> Array.iter (fun (entity, player) ->

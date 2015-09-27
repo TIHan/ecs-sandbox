@@ -5,10 +5,11 @@ open System.Reflection
 open System.Collections.Generic
 open System.Threading.Tasks
 
-type EntityEvent =
-    | Created of Entity
-    | Spawned of Entity
-    | Destroyed of Entity
+type EntitySpawned = EntitySpawned of Entity with
+
+    interface IEventData
+
+type EntityDestroyed = EntityDestroyed of Entity with
 
     interface IEventData
 
@@ -57,9 +58,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let lookup = Dictionary<Type, IEntityLookupData> ()
 
     let deferQueue = MessageQueue<unit -> unit> ()
-    let deferPreEntityEventQueue = MessageQueue<EntityEvent> ()
+    let deferPreEntityEventQueue = MessageQueue<unit -> unit> ()
     let deferComponentEventQueue = MessageQueue<unit -> unit> ()
-    let deferEntityEventQueue = MessageQueue<EntityEvent> ()
+    let deferEntityEventQueue = MessageQueue<unit -> unit> ()
     let deferDispose = MessageQueue<obj> ()
 
     member inline this.Defer f =
@@ -101,8 +102,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         if entitySet.Contains entity then
             failwithf "Entity #%i already spawned." entity.Id
         else
-            this.DeferPreEntityEvent (Created entity)
-            this.DeferEntityEvent (Spawned entity)
+            this.DeferEntityEvent <| fun () -> eventAggregator.Publish (EntitySpawned entity)
             entitySet.Add entity |> ignore
 
     member this.Destroy (entity: Entity) =
@@ -293,9 +293,8 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 then
 
                 deferQueue.Process (fun f -> f ())
-                deferPreEntityEventQueue.Process eventAggregator.Publish
                 deferComponentEventQueue.Process (fun f -> f ())
-                deferEntityEventQueue.Process eventAggregator.Publish
+                deferEntityEventQueue.Process (fun f -> f ())
                 deferDispose.Process (fun x ->
                     x.GetType().GetRuntimeProperties()
                     |> Seq.filter (fun p ->
@@ -347,6 +346,9 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             if lookup.TryGetValue (t, &data) then data.TryGetComponent entity
             else None
 
+        member this.TryGet (entity, c: byref<#IComponent>) =
+            this.TryGet (entity, &c)
+
         member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
             let mutable c = Unchecked.defaultof<'T>
             this.TryGet<'T> (entity, &c)
@@ -361,14 +363,14 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
             if obj.ReferenceEquals (result, null) then None
             else Some result
 
-        member this.Get<'T when 'T :> IComponent> () : (Entity * 'T) [] =
+        member this.GetAll<'T when 'T :> IComponent> () : (Entity * 'T) [] =
             let result = ResizeArray<Entity * 'T> ()
 
             this.IterateInternal<'T> ((fun entity x -> result.Add(entity, x)), false, fun _ -> true)
 
             result.ToArray ()
 
-        member this.Get<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> () : (Entity * 'T1 * 'T2) [] =
+        member this.GetAll<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> () : (Entity * 'T1 * 'T2) [] =
             let result = ResizeArray<Entity * 'T1 * 'T2> ()
 
             this.IterateInternal<'T1, 'T2> ((fun entity x1 x2 -> result.Add(entity, x1, x2)), false, fun _ -> true)

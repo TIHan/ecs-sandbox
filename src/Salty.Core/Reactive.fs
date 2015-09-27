@@ -10,10 +10,11 @@ type Var<'T when 'T : equality> (initialValue) =
     member this.Value
         with get () = currentValue
         and set value = 
-            currentValue <- value
-            for i = 0 to observers.Count - 1 do
-                let observer = observers.[i]
-                observer.OnNext value
+            if not <| value.Equals currentValue then
+                currentValue <- value
+                for i = 0 to observers.Count - 1 do
+                    let observer = observers.[i]
+                    observer.OnNext value
 
     interface IObservable<'T> with
 
@@ -50,11 +51,12 @@ type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
         {
             new IObserver<'T> with
 
-                member __.OnNext x = 
-                    value <- x
-                    for i = 0 to observers.Count - 1 do
-                        let observer = observers.[i]
-                        observer.OnNext x
+                member __.OnNext x =
+                    if not <| x.Equals value then 
+                        value <- x
+                        for i = 0 to observers.Count - 1 do
+                            let observer = observers.[i]
+                            observer.OnNext x
 
                 member __.OnError x = 
                     for i = 0 to observers.Count - 1 do
@@ -102,3 +104,4 @@ module Val =
         new Val<'T> (initialValue, source)
 
     let inline value (reactVal: Val<'T>) = reactVal.Value
+
