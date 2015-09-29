@@ -36,8 +36,6 @@
     <Compile Include="Entity.fsi" />
     <Compile Include="Entity.fs" />
     <Compile Include="Interfaces.fs" />
-    <Compile Include="MessageQueue.fsi" />
-    <Compile Include="MessageQueue.fs" />
     <Compile Include="EventAggregator.fsi" />
     <Compile Include="EventAggregator.fs" />
     <Compile Include="EntityManager.fsi" />
