@@ -295,13 +295,13 @@ let main argv =
         world
         30.
         (
-            fun () ->
-                GC.Collect 0
+            id
         )
         (
             fun time interval world ->
                 stopwatch.Restart ()
 
+                GC.Collect 0
                 currentTimeVar.Value <- TimeSpan.FromTicks time
                 intervalVar.Value <- TimeSpan.FromTicks interval
                 runWorld ()

@@ -7,7 +7,7 @@ open ECS.Core
 [<Sealed>]
 type ECSWorld<'U> (dependency, entityAmount, systems: ISystem<'U> list) as this =
     let eventAggregator = EventAggregator () :> IEventAggregator
-    let entityManager = EntityManager (eventAggregator, entityAmount)
+    let entityManager = EntityManager (entityAmount)
     let componentQuery = entityManager :> IComponentQuery
     let componentService = entityManager :> IComponentService
     let entityService = entityManager :> IEntityService
@@ -45,32 +45,26 @@ module World =
 module Entity =
     open World
 
-    let spawned (world: IWorld<_>) =
-        event world
-        |> Observable.map (fun (EntitySpawned x) -> x)
+    let spawned (world: IWorld<_>) = 
+        world.EntityService.GetSpawnedEvent ()
 
-    let destroyed (world: IWorld<_>) =
-        event world
-        |> Observable.map (fun (EntityDestroyed x) -> x)
+    let destroyed (world: IWorld<_>) = 
+        world.EntityService.GetDestroyedEvent ()
 
 module Component =
     open World
 
-    let anyAdded (world: IWorld<_>) =
-        event world
-        |> Observable.map (fun (AnyComponentAdded x) -> x)
+    let anyAdded (world: IWorld<_>) = 
+        world.ComponentService.GetAnyAddedEvent ()
 
-    let anyRemoved (world: IWorld<_>) =
-        event world
-        |> Observable.map (fun (AnyComponentRemoved x) -> x)
+    let anyRemoved (world: IWorld<_>) = 
+        world.ComponentService.GetAnyRemovedEvent ()
 
     let added (world: IWorld<'U>) : IObservable<Entity * #IComponent> =
-        event world
-        |> Observable.map (fun (ComponentAdded x) -> x)
+        world.ComponentService.GetAddedEvent ()
 
     let removed (world: IWorld<'U>) : IObservable<Entity * #IComponent> =
-        event world
-        |> Observable.map (fun (ComponentRemoved x) -> x)
+        world.ComponentService.GetRemovedEvent ()
 
 type EntityBlueprint =
     {

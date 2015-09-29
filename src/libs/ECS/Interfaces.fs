@@ -48,11 +48,23 @@ type IComponentService =
 
     abstract Remove<'T when 'T :> IComponent> : Entity -> unit
 
+    abstract GetAddedEvent<'T when 'T :> IComponent> : unit -> IObservable<Entity * 'T>
+
+    abstract GetAnyAddedEvent : unit -> IObservable<Entity * IComponent * Type>
+
+    abstract GetRemovedEvent<'T when 'T :> IComponent> : unit -> IObservable<Entity * 'T>
+
+    abstract GetAnyRemovedEvent : unit -> IObservable<Entity * IComponent * Type>
+
 type IEntityService =
 
     abstract Spawn : Entity -> unit
 
     abstract Destroy : Entity -> unit
+
+    abstract GetSpawnedEvent : unit -> IObservable<Entity>
+
+    abstract GetDestroyedEvent : unit -> IObservable<Entity>
 
 type ISystem<'U> =
 

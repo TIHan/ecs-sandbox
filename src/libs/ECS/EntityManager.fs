@@ -6,30 +6,6 @@ open System.Collections.Generic
 open System.Collections.Concurrent
 open System.Threading.Tasks
 
-type EntitySpawned = EntitySpawned of Entity with
-
-    interface IEventData
-
-type EntityDestroyed = EntityDestroyed of Entity with
-
-    interface IEventData
-
-type AnyComponentAdded = AnyComponentAdded of (Entity * IComponent * Type) with
-
-    interface IEventData
-
-type AnyComponentRemoved = AnyComponentRemoved of (Entity * IComponent * Type) with
-
-    interface IEventData
-
-type ComponentAdded<'T> = ComponentAdded of (Entity * 'T) with
-
-    interface IEventData
-
-type ComponentRemoved<'T> = ComponentRemoved of (Entity * 'T) with
-
-    interface IEventData
-
 [<AllowNullLiteral>]
 type IEntityLookupData =
 
@@ -50,7 +26,7 @@ type EntityLookupData<'T> =
             else Some (this.components.[id] :> obj :?> IComponent)
 
 [<Sealed>]
-type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
+type EntityManager (entityAmount) =
     let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
     let entitySet = HashSet<Entity> ()
@@ -59,16 +35,20 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let lookup = Dictionary<Type, IEntityLookupData> ()
 
     let deferQueue = ConcurrentQueue<unit -> unit> ()
-    let deferPreEntityEventQueue = Queue<unit -> unit> ()
     let deferComponentEventQueue = Queue<unit -> unit> ()
     let deferEntityEventQueue = Queue<unit -> unit> ()
     let deferDispose = Queue<obj> ()
 
+    let entitySpawnedEvent = Event<Entity> ()
+    let entityDestroyedEvent = Event<Entity> ()
+    let anyComponentAddedEvent = Event<Entity * IComponent * Type> ()
+    let anyComponentRemovedEvent = Event<Entity * IComponent * Type> ()
+    let componentAddedEventLookup = ConcurrentDictionary<Type, obj> ()
+    let componentRemovedEventLookup = ConcurrentDictionary<Type, obj> ()
+
+
     member inline this.Defer f =
         deferQueue.Enqueue f
-
-    member inline this.DeferPreEntityEvent x =
-        deferPreEntityEventQueue.Enqueue x
 
     member inline this.DeferComponentEvent f =
         deferComponentEventQueue.Enqueue f
@@ -103,7 +83,7 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         if entitySet.Contains entity then
             failwithf "Entity #%i already spawned." entity.Id
         else
-            this.DeferEntityEvent <| fun () -> eventAggregator.Publish (EntitySpawned entity)
+            this.DeferEntityEvent <| fun () -> entitySpawnedEvent.Trigger entity
             entitySet.Add entity |> ignore
 
     member this.Destroy (entity: Entity) =
@@ -126,9 +106,17 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
         if data.entitySet.Add entity then
             entityRemovals.[entity.Id].Add (fun () -> this.TryRemoveComponent<'T> entity |> ignore)
             data.entities.Add entity
+
+            // Setup events
             this.DeferComponentEvent <| fun () -> 
-                eventAggregator.Publish (AnyComponentAdded (entity, comp :> IComponent, t))
-                eventAggregator.Publish (ComponentAdded (entity, comp))
+                // Any Component Added
+                anyComponentAddedEvent.Trigger ((entity, comp :> IComponent, t))
+
+                // Component Added
+                let mutable value = Unchecked.defaultof<obj>
+                if componentAddedEventLookup.TryGetValue (typeof<'T>, &value) then
+                    (value :?> Event<Entity * 'T>).Trigger ((entity, comp))
+
             data.components.[entity.Id] <- comp
         else
             failwithf "Component %s already added to Entity #%i." t.Name entity.Id
@@ -147,9 +135,17 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 if not <| obj.ReferenceEquals (comp, null) then
                     componentSet.Remove comp |> ignore
                     data.components.[entity.Id] <- Unchecked.defaultof<'T>
-                    this.DeferComponentEvent <| fun () -> 
-                        eventAggregator.Publish (AnyComponentRemoved (entity, comp :> IComponent, t))
-                        eventAggregator.Publish (ComponentRemoved (entity, comp))
+
+                    // Setup events
+                    this.DeferComponentEvent <| fun () ->
+                        // Any Component Removed 
+                        anyComponentRemovedEvent.Trigger ((entity, comp :> IComponent, t))
+
+                        // Component Removed
+                        let mutable value = Unchecked.defaultof<obj>
+                        if componentRemovedEventLookup.TryGetValue (typeof<'T>, &value) then
+                            (value :?> Event<Entity * 'T>).Trigger ((entity, comp))
+
                     this.DeferDispose comp
                     Some comp  
                 else None  
@@ -287,7 +283,6 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     member this.Process () =
         let rec p () =
             if  deferQueue.Count > 0 || 
-                deferPreEntityEventQueue.Count > 0 ||
                 deferComponentEventQueue.Count > 0 ||
                 deferEntityEventQueue.Count > 0 ||
                 deferDispose.Count > 0
@@ -333,6 +328,19 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
             this.Defer f
 
+        member this.GetAddedEvent<'T when 'T :> IComponent> () =
+            let event = componentAddedEventLookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<Entity * 'T> () :> obj))
+            (event :?> Event<Entity * 'T>).Publish :> IObservable<Entity * 'T>
+
+        member this.GetRemovedEvent<'T when 'T :> IComponent> () =
+            let event = componentRemovedEventLookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<Entity * 'T> () :> obj))
+            (event :?> Event<Entity * 'T>).Publish :> IObservable<Entity * 'T>
+
+        member this.GetAnyAddedEvent () = anyComponentAddedEvent.Publish :> IObservable<Entity * IComponent * Type>
+
+        member this.GetAnyRemovedEvent () = anyComponentRemovedEvent.Publish :> IObservable<Entity * IComponent * Type>
+
+
     interface IEntityService with
 
         member this.Spawn entity =             
@@ -346,6 +354,10 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
                 this.Destroy entity
 
             this.Defer f
+
+        member this.GetSpawnedEvent () = entitySpawnedEvent.Publish :> IObservable<Entity>
+
+        member this.GetDestroyedEvent () = entityDestroyedEvent.Publish :> IObservable<Entity>
 
     interface IComponentQuery with
 
