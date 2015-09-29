@@ -3,6 +3,7 @@
 open System
 open System.Reflection
 open System.Collections.Generic
+open System.Collections.Concurrent
 open System.Threading.Tasks
 
 type EntitySpawned = EntitySpawned of Entity with
@@ -57,26 +58,26 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
     let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
     let lookup = Dictionary<Type, IEntityLookupData> ()
 
-    let deferQueue = MessageQueue<unit -> unit> ()
-    let deferPreEntityEventQueue = MessageQueue<unit -> unit> ()
-    let deferComponentEventQueue = MessageQueue<unit -> unit> ()
-    let deferEntityEventQueue = MessageQueue<unit -> unit> ()
-    let deferDispose = MessageQueue<obj> ()
+    let deferQueue = ConcurrentQueue<unit -> unit> ()
+    let deferPreEntityEventQueue = Queue<unit -> unit> ()
+    let deferComponentEventQueue = Queue<unit -> unit> ()
+    let deferEntityEventQueue = Queue<unit -> unit> ()
+    let deferDispose = Queue<obj> ()
 
     member inline this.Defer f =
-        deferQueue.Push f
+        deferQueue.Enqueue f
 
     member inline this.DeferPreEntityEvent x =
-        deferPreEntityEventQueue.Push x
+        deferPreEntityEventQueue.Enqueue x
 
     member inline this.DeferComponentEvent f =
-        deferComponentEventQueue.Push f
+        deferComponentEventQueue.Enqueue f
 
     member inline this.DeferEntityEvent x =
-        deferEntityEventQueue.Push x
+        deferEntityEventQueue.Enqueue x
 
     member inline this.DeferDispose x =
-        deferDispose.Push x
+        deferDispose.Enqueue x
 
     member this.GetEntityLookupData<'T> () : EntityLookupData<'T> =
         let t = typeof<'T>
@@ -285,23 +286,35 @@ type EntityManager (eventAggregator: IEventAggregator, entityAmount) =
 
     member this.Process () =
         let rec p () =
-            if  deferQueue.HasMessages || 
-                deferPreEntityEventQueue.HasMessages ||
-                deferComponentEventQueue.HasMessages ||
-                deferEntityEventQueue.HasMessages ||
-                deferDispose.HasMessages
+            if  deferQueue.Count > 0 || 
+                deferPreEntityEventQueue.Count > 0 ||
+                deferComponentEventQueue.Count > 0 ||
+                deferEntityEventQueue.Count > 0 ||
+                deferDispose.Count > 0
                 then
 
-                deferQueue.Process (fun f -> f ())
-                deferComponentEventQueue.Process (fun f -> f ())
-                deferEntityEventQueue.Process (fun f -> f ())
-                deferDispose.Process (fun x ->
+                // Base Queue
+                let mutable msg : unit -> unit = Unchecked.defaultof<unit -> unit>
+                while deferQueue.TryDequeue (&msg) do
+                    msg ()
+
+                // Component Event Queue 
+                while deferComponentEventQueue.Count > 0 do
+                    deferComponentEventQueue.Dequeue () ()
+
+                // Entity Event Queue 
+                while deferEntityEventQueue.Count > 0 do
+                    deferEntityEventQueue.Dequeue () ()
+
+                // Dispose Queue 
+                while deferComponentEventQueue.Count > 0 do
+                    let x = deferComponentEventQueue.Dequeue ()
                     x.GetType().GetRuntimeProperties()
                     |> Seq.filter (fun p ->
                         disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo())
                     )
                     |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
-                )
+
                 p ()
             else ()
         p ()
