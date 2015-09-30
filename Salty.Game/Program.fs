@@ -27,55 +27,6 @@ open System.Numerics
 open System.Threading
 
 open System.Reactive.Linq
-[<AutoOpen>]
-module DSL =
-
-    let DoNothing : World<_, unit> = fun _ -> ()
-
-    let inline worldReturn (a: 'a) : World<_, 'a> = fun _ -> a
-
-    let inline (>>=) (w: World<_, 'a>) (f: 'a -> World<_, 'b>) : World<_, 'b> =
-        fun world -> (f (w world)) world
-
-    let inline (>>.) (w1: World<_, 'a>) (w2: World<_, 'b>) =
-        fun world ->
-            w1 world |> ignore
-            w2 world
-
-    let inline skip (x: World<_, _>) : World<_, unit> =
-        fun world -> x world |> ignore
-
-    let inline when' (w: World<_, IObservable<'a>>) (f: 'a -> World<_, unit>) : World<_, IDisposable> =
-        fun world ->
-            (w world) 
-            |> Observable.subscribe (fun a ->
-                (f a) world
-            )
-
-    let inline (<~) (obs: IObservable<'a>) (f: 'a -> World<_, unit>) : World<_, unit> =
-        fun world -> obs |> Observable.add (fun x -> (f x) world)
-
-    let inline (==>) (obs: IObservable<'a>) (v: Val<'a>) : World<_, unit> =
-        fun world -> v.Assign obs
-            
-    let inline update (v: Var<'a>) (f: 'a -> 'a) : World<_, unit> =
-        fun world -> v.Value <- f v.Value 
-
-    let rule2 (f: Entity -> 'T1 -> 'T2 -> unit) : World<_, IDisposable> =
-        fun world ->
-            Entity.spawned world |> Observable.subscribe (fun ent ->
-                let mutable c1 = Unchecked.defaultof<'T1>
-                let mutable c2 = Unchecked.defaultof<'T2>
-                
-                world.ComponentQuery.TryGet (ent, &c1)
-                world.ComponentQuery.TryGet (ent, &c2)
-
-                if
-                    not <| obj.ReferenceEquals (c1, null) &&
-                    not <| obj.ReferenceEquals (c2, null)
-                    then
-                        f ent c1 c2
-            )
 
 let unProject (source: Vector3, model: Matrix4x4, view: Matrix4x4, projection: Matrix4x4, viewportPosition: Vector2, viewportDimensions: Vector2, viewportDepth: Vector2) =
     let _,m = Matrix4x4.Invert (model * view * projection)
@@ -301,7 +252,6 @@ let main argv =
             fun time interval world ->
                 stopwatch.Restart ()
 
-                GC.Collect 0
                 currentTimeVar.Value <- TimeSpan.FromTicks time
                 intervalVar.Value <- TimeSpan.FromTicks interval
                 runWorld ()

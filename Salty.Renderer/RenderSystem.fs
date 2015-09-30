@@ -30,26 +30,6 @@ type RendererSystem () =
             vao <- Renderer.R.CreateVao ()
 
             Component.added world
-            |> Observable.add (function
-                | (entity, position: Position) ->
-                    match world.ComponentQuery.TryGet<Render> entity with
-                    | Some render ->
-                        render.Position.Assign position.Var
-                        render.PreviousPosition <- position.Var.Value
-                    | _ -> ()
-            )
-
-            Component.added world
-            |> Observable.add (function
-                | (entity, rotation: Rotation) ->
-                    match world.ComponentQuery.TryGet<Render> entity with
-                    | Some render ->
-                        render.Rotation.Assign rotation.Var
-                        render.PreviousRotation <- rotation.Var.Value
-                    | _ -> ()
-            )
-
-            Component.added world
             |> Observable.add (fun (entity, render: Render) ->
                 render.Data
                 |> Observable.add (fun data ->
@@ -69,6 +49,18 @@ type RendererSystem () =
                     render.PreviousRotation <- render.Rotation.Value
                 )
             )
+
+            (
+                rule2 <| fun ent (render: Render) (position: Position) ->
+                    render.PreviousPosition <- position.Var.Value
+                    position.Var ==> render.Position
+            ) world
+
+            (
+                rule2 <| fun ent (render: Render) (rotation: Rotation) ->
+                    render.PreviousRotation <- rotation.Var.Value
+                    rotation.Var ==> render.Rotation
+            ) world
 
         member __.Update world =
             let delta = world.Dependency.DeltaTime.Value

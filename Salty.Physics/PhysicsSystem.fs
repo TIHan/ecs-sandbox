@@ -38,10 +38,9 @@ type PhysicsSystem () =
     interface ISystem<Salty> with
         
         member __.Init world =
-            Component.added world
-            |> Observable.add (function
-                | (entity, physics: Physics) ->      
 
+            (
+                onEvent Component.added <| fun (ent, physics: Physics) ->
                     let data = 
                         physics.Data.Value
 
@@ -59,7 +58,7 @@ type PhysicsSystem () =
 
                     physics.Internal.PolygonShape <- new FarseerPhysics.Collision.Shapes.PolygonShape (FarseerPhysics.Common.Vertices (data), physics.Density.Value)
                     physics.Internal.Fixture <- physics.Internal.Body.CreateFixture (physics.Internal.PolygonShape)
-                    physics.Internal.Fixture.UserData <- (entity, physics)
+                    physics.Internal.Fixture.UserData <- (ent, physics)
                     physics.Internal.Body.BodyType <- if physics.IsStatic.Value then FarseerPhysics.Dynamics.BodyType.Static else FarseerPhysics.Dynamics.BodyType.Dynamic
                     physics.Internal.Body.Restitution <- physics.Restitution.Value
                     physics.Internal.Body.Friction <- physics.Friction.Value
@@ -73,37 +72,24 @@ type PhysicsSystem () =
                                 world.EventAggregator.Publish (Collided (phys1, phys2))
                                 true
                         )
-            )
+                    DoNothing
+            ) world
 
-            Component.added world
-            |> Observable.add (fun (entity, physics: Physics) ->
-                match world.ComponentQuery.TryGet<Position> entity with
-                | Some position -> physics.Position.Assign (position.Var)
-                | _ -> ()
+            (
+                onEvent Component.removed <| fun (ent, physics: Physics) ->
+                    physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
+                    DoNothing
+            ) world
 
-                match world.ComponentQuery.TryGet<Rotation> entity with
-                | Some rotation -> physics.Rotation.Assign (rotation.Var)
-                | _ -> ()
-            )
+            (
+                rule2 <| fun ent (physics: Physics) (position: Position) ->
+                    position.Var ==> physics.Position
+            ) world
 
-            Component.added world
-            |> Observable.add (fun (entity, position: Position) ->
-                match world.ComponentQuery.TryGet<Physics> entity with
-                | Some physics -> physics.Position.Assign (position.Var)
-                | _ -> ()
-            )
-
-            Component.added world
-            |> Observable.add (fun (entity, rotation: Rotation) ->
-                match world.ComponentQuery.TryGet<Physics> entity with
-                | Some physics -> physics.Rotation.Assign (rotation.Var)
-                | _ -> ()
-            )
-
-            Component.removed world
-            |> Observable.add (fun (_, physics: Physics) ->
-                physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
-            )
+            (
+                rule2 <| fun ent (physics: Physics) (rotation: Rotation) ->
+                    rotation.Var ==> physics.Rotation
+            ) world
 
         member __.Update world =
             physicsWorld.Step (single world.Dependency.Interval.Value.TotalSeconds)
