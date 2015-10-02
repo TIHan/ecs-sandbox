@@ -38,7 +38,7 @@ type Position () =
             position.X <- Single.Parse (reader.GetAttribute ("X"), NumberStyles.Number, CultureInfo.InvariantCulture)
             position.Y <- Single.Parse (reader.GetAttribute ("Y"), NumberStyles.Number, CultureInfo.InvariantCulture)
 
-            this.Var.Value <- position
+            __unsafe.setVarValueWithNotify this.Var position
 
 type Rotation () =
 

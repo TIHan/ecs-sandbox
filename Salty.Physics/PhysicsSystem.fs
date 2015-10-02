@@ -29,7 +29,7 @@ module Physics =
     let applyImpulse (force: Vector2) (physics: Physics) : SaltyWorld<unit> =
         fun world ->
             physics.Internal.Body.ApplyLinearImpulse (force)
-            physics.Velocity.Value <- physics.Internal.Body.LinearVelocity
+            __unsafe.setVarValueWithNotify physics.Velocity <| physics.Internal.Body.LinearVelocity
 
 type PhysicsSystem () =
 
@@ -96,12 +96,12 @@ type PhysicsSystem () =
 
             world.ComponentQuery.ForEach<Physics, Position, Rotation> (fun entity physicsPolygon position rotation ->
                 if not physicsPolygon.IsStatic.Value then
-                    position.Var.Value <- physicsPolygon.Internal.Body.Position
-                    rotation.Var.Value <- physicsPolygon.Internal.Body.Rotation
-                    physicsPolygon.Velocity.Value <- physicsPolygon.Internal.Body.LinearVelocity
+                    __unsafe.setVarValueWithNotify position.Var <| physicsPolygon.Internal.Body.Position
+                    __unsafe.setVarValueWithNotify rotation.Var <| physicsPolygon.Internal.Body.Rotation
+                    __unsafe.setVarValueWithNotify physicsPolygon.Velocity <| physicsPolygon.Internal.Body.LinearVelocity
 
                     match world.ComponentQuery.TryGet<Centroid> entity with
                     | Some centroid ->
-                        centroid.Var.Value <- physicsPolygon.Internal.Body.WorldCenter
+                        __unsafe.setVarValueWithNotify centroid.Var <| physicsPolygon.Internal.Body.WorldCenter
                     | _ -> ()
             )

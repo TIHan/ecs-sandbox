@@ -58,9 +58,9 @@ type Physics () =
             writer.WriteAttributeString ("Mass", this.Mass.Value.ToString ())
 
         member this.ReadXml reader =
-            this.IsStatic.Value <- bool.Parse (reader.GetAttribute ("IsStatic"))
-            this.Density.Value <- Single.Parse (reader.GetAttribute ("Density"), NumberStyles.Number, CultureInfo.InvariantCulture)
-            this.Restitution.Value <- Single.Parse (reader.GetAttribute ("Restitution"), NumberStyles.Number, CultureInfo.InvariantCulture)
-            this.Friction.Value <- Single.Parse (reader.GetAttribute ("Friction"), NumberStyles.Number, CultureInfo.InvariantCulture)
-            this.Mass.Value <- Single.Parse (reader.GetAttribute ("Mass"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            __unsafe.setVarValueWithNotify this.IsStatic <| bool.Parse (reader.GetAttribute ("IsStatic"))
+            __unsafe.setVarValueWithNotify this.Density <| Single.Parse (reader.GetAttribute ("Density"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            __unsafe.setVarValueWithNotify this.Restitution <| Single.Parse (reader.GetAttribute ("Restitution"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            __unsafe.setVarValueWithNotify this.Friction <| Single.Parse (reader.GetAttribute ("Friction"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            __unsafe.setVarValueWithNotify this.Mass <| Single.Parse (reader.GetAttribute ("Mass"), NumberStyles.Number, CultureInfo.InvariantCulture)
 

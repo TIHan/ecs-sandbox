@@ -23,19 +23,19 @@ type CommandSystem () =
                 |> Array.iter (fun (entity, player) ->
                     data.Events
                     |> List.iter (function
-                        | KeyPressed 'w'                            -> player.IsMovingUp.Value <- true
-                        | KeyReleased 'w'                           -> player.IsMovingUp.Value <- false
-                        | KeyPressed 'a'                            -> player.IsMovingLeft.Value <- true
-                        | KeyReleased 'a'                           -> player.IsMovingLeft.Value <- false
-                        | KeyPressed 'd'                            -> player.IsMovingRight.Value <- true
-                        | KeyReleased 'd'                           -> player.IsMovingRight.Value <- false
+                        | KeyPressed 'w'                            -> __unsafe.setVarValueWithNotify player.IsMovingUp true
+                        | KeyReleased 'w'                           -> __unsafe.setVarValueWithNotify player.IsMovingUp false
+                        | KeyPressed 'a'                            -> __unsafe.setVarValueWithNotify player.IsMovingLeft true
+                        | KeyReleased 'a'                           -> __unsafe.setVarValueWithNotify player.IsMovingLeft false
+                        | KeyPressed 'd'                            -> __unsafe.setVarValueWithNotify player.IsMovingRight true
+                        | KeyReleased 'd'                           -> __unsafe.setVarValueWithNotify player.IsMovingRight false
                         | MouseButtonPressed MouseButtonType.Left   -> player.Commands.Add PlayerCommand.Shoot
-                        | JoystickButtonPressed (id, 10)            -> player.IsMovingUp.Value <- true
-                        | JoystickButtonReleased (id, 10)           -> player.IsMovingUp.Value <- false
-                        | JoystickButtonPressed (id, 2)             -> player.IsMovingLeft.Value <- true
-                        | JoystickButtonReleased (id, 2)            -> player.IsMovingLeft.Value <- false
-                        | JoystickButtonPressed (id, 3)             -> player.IsMovingRight.Value <- true
-                        | JoystickButtonReleased (id, 3)            -> player.IsMovingRight.Value <- false
+                        | JoystickButtonPressed (id, 10)            -> __unsafe.setVarValueWithNotify player.IsMovingUp true
+                        | JoystickButtonReleased (id, 10)           -> __unsafe.setVarValueWithNotify player.IsMovingUp false
+                        | JoystickButtonPressed (id, 2)             -> __unsafe.setVarValueWithNotify player.IsMovingLeft true
+                        | JoystickButtonReleased (id, 2)            -> __unsafe.setVarValueWithNotify player.IsMovingLeft false
+                        | JoystickButtonPressed (id, 3)             -> __unsafe.setVarValueWithNotify player.IsMovingRight true
+                        | JoystickButtonReleased (id, 3)            -> __unsafe.setVarValueWithNotify player.IsMovingRight false
                         | _ -> ()
                     )
                 )

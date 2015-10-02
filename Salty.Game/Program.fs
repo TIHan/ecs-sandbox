@@ -147,7 +147,7 @@ type GameplaySystem () =
                     |> Array.sum
 
                 let center = Vector2.Divide (sum, single players.Length)
-                camera.Position.Value <- center
+                __unsafe.setVarValueWithNotify camera.Position center
 
                 if positions.Length > 0 then
                     let minX = (positions |> Array.minBy (fun v -> v.X)).X 
@@ -203,9 +203,9 @@ let main argv =
     let world = 
         ECSWorld (
             {
-                DeltaTime = Val.createWithObservable 0.f deltaTimeVar
-                CurrentTime = Val.createWithObservable TimeSpan.Zero currentTimeVar
-                Interval = Val.createWithObservable TimeSpan.Zero intervalVar
+                DeltaTime = Val.ofVar deltaTimeVar
+                CurrentTime = Val.ofVar currentTimeVar
+                Interval = Val.ofVar intervalVar
             }, 
             65536,
             [
@@ -252,8 +252,8 @@ let main argv =
             fun time interval world ->
                 stopwatch.Restart ()
 
-                currentTimeVar.Value <- TimeSpan.FromTicks time
-                intervalVar.Value <- TimeSpan.FromTicks interval
+                __unsafe.setVarValueWithNotify currentTimeVar <| TimeSpan.FromTicks time
+                __unsafe.setVarValueWithNotify intervalVar <| TimeSpan.FromTicks interval
                 runWorld ()
 
                 stopwatch.Stop ()
@@ -262,7 +262,7 @@ let main argv =
         )
         (
             fun delta world ->
-                deltaTimeVar.Value <- delta
+                __unsafe.setVarValueWithNotify deltaTimeVar <| delta
                 rendererSystem.Update world
         )
 

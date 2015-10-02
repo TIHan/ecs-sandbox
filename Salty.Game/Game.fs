@@ -26,17 +26,17 @@ module EntityBlueprint =
         blueprint
         |> EntityBlueprint.add (fun () ->
             let position = Position ()
-            position.Var.Value <- p
+            __unsafe.setVarValueWithNotify position.Var p
             position
         )
         |> EntityBlueprint.add (fun () ->
             let rotation = Rotation ()
-            rotation.Var.Value <- 0.f
+            __unsafe.setVarValueWithNotify rotation.Var 0.f
             rotation
         )
         |> EntityBlueprint.add (fun () ->
             let health = Health ()
-            health.Var.Value <- 100.f
+            __unsafe.setVarValueWithNotify health.Var 100.f
             health
         )
 
@@ -77,27 +77,27 @@ module EntityBlueprint =
         blueprint
         |> EntityBlueprint.add (fun () ->
             let position = Position ()
-            position.Var.Value <- p
+            __unsafe.setVarValueWithNotify position.Var p
             position
         )
         |> EntityBlueprint.add (fun () ->
             let rotation = Rotation ()
-            rotation.Var.Value <- 0.f
+            __unsafe.setVarValueWithNotify rotation.Var 0.f
             rotation
         )
         |> EntityBlueprint.add (fun () ->
             let health = Health ()
-            health.Var.Value <- 0.f
+            __unsafe.setVarValueWithNotify health.Var 0.f
             health
         )
         |> EntityBlueprint.add (fun () ->
             let physics = Physics ()
-            physics.Data.Value <- data
-            physics.Density.Value <- 1.f
-            physics.Restitution.Value <- 0.1f
-            physics.Friction.Value <- 0.1f
-            physics.Mass.Value <- 1.f
-            physics.IsStatic.Value <- false
+            __unsafe.setVarValueWithNotify physics.Data data
+            __unsafe.setVarValueWithNotify physics.Density 1.f
+            __unsafe.setVarValueWithNotify physics.Restitution 0.1f
+            __unsafe.setVarValueWithNotify physics.Friction 0.1f
+            __unsafe.setVarValueWithNotify physics.Mass 1.f
+            __unsafe.setVarValueWithNotify physics.IsStatic false
             physics
         )
         |> EntityBlueprint.add (fun () ->
@@ -106,7 +106,7 @@ module EntityBlueprint =
             render.Shader <- Some <| Shader ("boxTexture.vsh", "boxTexture.fsh")
             render.Texture <- Some <| Texture ("crate.jpg", uvData)
             render.DrawKind <- DrawKind.Triangles
-            render.Data.Assign obs
+            __unsafe.setValSource render.Data obs
             render.G <- 255uy
             render
         )
@@ -139,29 +139,29 @@ module EntityBlueprint =
         blueprint
         |> EntityBlueprint.add (fun () ->
             let position = Position ()
-            position.Var.Value <- positionValue
+            __unsafe.setVarValueWithNotify position.Var positionValue
             position
         )
         |> EntityBlueprint.add (fun () ->
             let rotation = Rotation ()
-            rotation.Var.Value <- 0.f
+            __unsafe.setVarValueWithNotify rotation.Var 0.f
             rotation
         )
         |> EntityBlueprint.add (fun () ->
             let physics = Physics ()
-            physics.Data.Value <- data
-            physics.Density.Value <- 1.f
-            physics.Restitution.Value <- 0.f
-            physics.Friction.Value <- 0.1f
-            physics.Mass.Value <- 1.f
-            physics.IsStatic.Value <- true
+            __unsafe.setVarValueWithNotify physics.Data data
+            __unsafe.setVarValueWithNotify physics.Density 1.f
+            __unsafe.setVarValueWithNotify physics.Restitution 0.f
+            __unsafe.setVarValueWithNotify physics.Friction 0.1f
+            __unsafe.setVarValueWithNotify physics.Mass 1.f
+            __unsafe.setVarValueWithNotify physics.IsStatic true
             physics
         )
         |> EntityBlueprint.add (fun () ->
             let render = Render ()
             let obs = Observable.StartWith (Observable.Never (), [|data|])
             render.Shader <- Some <| Shader ("boxLines.vsh", "boxLines.fsh")
-            render.Data.Assign obs
+            __unsafe.setValSource render.Data obs
             render.R <- 120uy
             render.G <- 120uy
             render.B <- 120uy

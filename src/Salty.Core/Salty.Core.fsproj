@@ -34,9 +34,9 @@
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.1\Framework\v4.0\Microsoft.FSharp.Targets" />
   <ItemGroup>
     <Compile Include="GameLoop.fs" />
-    <Compile Include="Reactive.fs" />
-    <Compile Include="SerializationSystem.fs" />
+    <Compile Include="SaltyWorld.fsi" />
     <Compile Include="SaltyWorld.fs" />
+    <Compile Include="SerializationSystem.fs" />
     <Compile Include="Components.fs" />
     <Content Include="paket.references" />
   </ItemGroup>
