@@ -16,6 +16,6 @@ type Player () =
 
     member val Commands : PlayerCommand ResizeArray = ResizeArray ()
 
-    member val IsDead = Val.create false
+    member val IsDead = Val.createConstant false
 
     interface IComponent

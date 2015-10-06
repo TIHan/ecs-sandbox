@@ -36,9 +36,9 @@ type Physics () =
 
     member val Velocity = Var.create Vector2.Zero
 
-    member val Position = Val.create Vector2.Zero
+    member val Position = Val.createConstant Vector2.Zero
 
-    member val Rotation = Val.create 0.f
+    member val Rotation = Val.createConstant 0.f
 
     member val internal Internal = PhysicsInternal () with get, set
 

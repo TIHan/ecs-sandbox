@@ -43,17 +43,23 @@ type GameplaySystem () =
         
         member __.Init world =
             [
-//                rule2 <| fun ent1 (player: Player) (health: Health) ->
-//                    player.IsDead |> Observable.add (fun isDead ->
-//                        if isDead then
-//                            printfn "Entity %i died." ent1.Id
-//                    )
-//                    player.IsDead.Assign (
-//                        health.Var |> Observable.map (fun value ->
-//                            value <= 0.f && not player.IsDead.Value
-//                        )
-//                    )
+                rule2 <| fun ent1 (player: Player) (health: Health) -> 
+                    [
+                        // Server
+                        player.IsDead
+                        |> sink (fun isDead ->
+                            if isDead then
+                                printfn "Entity %i died." ent1.Id
+                            DoNothing
+                        )
 
+                        // Shared
+                        health.Var <~ 
+                            fun value ->
+                                value <= 0.f && not player.IsDead.Value 
+                        ==> player.IsDead
+
+                    ]
             ]
             |> List.iter (fun f -> f world |> ignore)
 
@@ -203,9 +209,9 @@ let main argv =
     let world = 
         ECSWorld (
             {
-                DeltaTime = Val.createWithObservable 0.f deltaTimeVar
-                CurrentTime = Val.createWithObservable TimeSpan.Zero currentTimeVar
-                Interval = Val.createWithObservable TimeSpan.Zero intervalVar
+                DeltaTime = Val.create 0.f deltaTimeVar
+                CurrentTime = Val.create TimeSpan.Zero currentTimeVar
+                Interval = Val.create TimeSpan.Zero intervalVar
             }, 
             65536,
             [

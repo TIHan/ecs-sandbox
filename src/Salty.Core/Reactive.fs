@@ -38,11 +38,6 @@ module Var =
     let create initialValue =
         new Var<'T> (initialValue)
 
-    let inline value (reactVar: Var<'T>) = reactVar.Value
-
-    let inline setValue value (reactVar: Var<'T>) =
-        reactVar.Value <- value
-
 [<Sealed>]
 type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
     let observers = ResizeArray<IObserver<'T>> ()
@@ -73,7 +68,7 @@ type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
 
     member this.Value = value
 
-    member this.Assign (newSource: IObservable<'T>) =
+    member this.UpdatesOn (newSource: IObservable<'T>) =
         subscription.Dispose ()
         subscription <- newSource.Subscribe mainObserver
 
@@ -97,11 +92,8 @@ type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
 
 module Val =
 
-    let create initialValue =
-        new Val<'T> (initialValue, { new IObservable<'T> with member __.Subscribe _ = { new IDisposable with member __.Dispose () = () } })
-
-    let createWithObservable initialValue source =
+    let create initialValue source =
         new Val<'T> (initialValue, source)
 
-    let inline value (reactVal: Val<'T>) = reactVal.Value
-
+    let createConstant initialValue =
+        new Val<'T> (initialValue, { new IObservable<'T> with member __.Subscribe _ = { new IDisposable with member __.Dispose () = () } })

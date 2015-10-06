@@ -106,7 +106,7 @@ module EntityBlueprint =
             render.Shader <- Some <| Shader ("boxTexture.vsh", "boxTexture.fsh")
             render.Texture <- Some <| Texture ("crate.jpg", uvData)
             render.DrawKind <- DrawKind.Triangles
-            render.Data.Assign obs
+            render.Data.UpdatesOn obs
             render.G <- 255uy
             render
         )
@@ -161,7 +161,7 @@ module EntityBlueprint =
             let render = Render ()
             let obs = Observable.StartWith (Observable.Never (), [|data|])
             render.Shader <- Some <| Shader ("boxLines.vsh", "boxLines.fsh")
-            render.Data.Assign obs
+            render.Data.UpdatesOn obs
             render.R <- 120uy
             render.G <- 120uy
             render.B <- 120uy

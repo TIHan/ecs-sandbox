@@ -53,13 +53,17 @@ type RendererSystem () =
             (
                 rule2 <| fun ent (render: Render) (position: Position) ->
                     render.PreviousPosition <- position.Var.Value
-                    position.Var ==> render.Position
+                    [
+                        position.Var ==> render.Position
+                    ]
             ) world
 
             (
                 rule2 <| fun ent (render: Render) (rotation: Rotation) ->
                     render.PreviousRotation <- rotation.Var.Value
-                    rotation.Var ==> render.Rotation
+                    [
+                        rotation.Var ==> render.Rotation
+                    ]
             ) world
 
         member __.Update world =
