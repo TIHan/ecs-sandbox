@@ -35,7 +35,7 @@ module DSL =
     let inline (==>) (source: IObservable<'a>) (v: Val<'a>) : World<_, unit> =
         fun world -> v.UpdatesOn source
 
-    let inline (<~) (source: IObservable<'a>) f = Observable.map f source
+    let inline (<~) f (source: IObservable<'a>) = Observable.map f source
             
     let inline update (v: Var<'a>) (f: 'a -> 'a) : World<_, unit> =
         fun world -> v.Value <- f v.Value 

@@ -54,9 +54,9 @@ type GameplaySystem () =
                         )
 
                         // Shared
-                        health.Var <~ 
-                            fun value ->
-                                value <= 0.f && not player.IsDead.Value 
+                        fun value ->
+                            value <= 0.f && not player.IsDead.Value 
+                        <~ health.Var
                         ==> player.IsDead
 
                     ]

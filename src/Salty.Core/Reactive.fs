@@ -3,18 +3,17 @@
 open System
 
 [<Sealed>]
-type Var<'T when 'T : equality> (initialValue) =
+type Var<'T> (initialValue) =
     let observers = ResizeArray<IObserver<'T>> ()
     let mutable currentValue = initialValue
 
     member this.Value
         with get () = currentValue
         and set value = 
-            if not <| value.Equals currentValue then
-                currentValue <- value
-                for i = 0 to observers.Count - 1 do
-                    let observer = observers.[i]
-                    observer.OnNext value
+            currentValue <- value
+            for i = 0 to observers.Count - 1 do
+                let observer = observers.[i]
+                observer.OnNext value
 
     interface IObservable<'T> with
 
@@ -28,18 +27,13 @@ type Var<'T when 'T : equality> (initialValue) =
                         observers.Remove observer |> ignore
             }
 
-    interface IDisposable with
-
-        member __.Dispose () =
-            ()
-
 module Var =
 
     let create initialValue =
         new Var<'T> (initialValue)
 
 [<Sealed>]
-type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
+type Val<'T> (initialValue, source: IObservable<'T>) =
     let observers = ResizeArray<IObserver<'T>> ()
     let mutable value = initialValue
     let mainObserver = 
@@ -47,11 +41,10 @@ type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
             new IObserver<'T> with
 
                 member __.OnNext x =
-                    if not <| x.Equals value then 
-                        value <- x
-                        for i = 0 to observers.Count - 1 do
-                            let observer = observers.[i]
-                            observer.OnNext x
+                    value <- x
+                    for i = 0 to observers.Count - 1 do
+                        let observer = observers.[i]
+                        observer.OnNext x
 
                 member __.OnError x = 
                     for i = 0 to observers.Count - 1 do
