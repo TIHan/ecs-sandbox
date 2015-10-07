@@ -13,11 +13,28 @@ open Salty.Game.Core.Components
 open System.Numerics
 open System.Reactive.Linq
 
-type Health () =
+type Health (maxHealth) =
 
-    member val Var = Var.create 0.f with get
+    member val Value = Var.create 0.f with get
+
+    member val MaxHealth = maxHealth
 
     interface IComponent
+
+[<AutoOpen>]
+module Game =
+
+    module Player =
+
+        let isDead (health: single) (isDead: bool) =
+            isDead || health <= 0.f
+
+    module Health =
+
+        let update (maxHealth: single) (health: single) =
+            if health >= maxHealth 
+            then maxHealth
+            else health
 
 [<RequireQualifiedAccess>]
 module EntityBlueprint =
@@ -35,8 +52,8 @@ module EntityBlueprint =
             rotation
         )
         |> EntityBlueprint.add (fun () ->
-            let health = Health ()
-            health.Var.Value <- 100.f
+            let health = Health (100.f)
+            health.Value.Value <- 100.f
             health
         )
 
@@ -86,8 +103,8 @@ module EntityBlueprint =
             rotation
         )
         |> EntityBlueprint.add (fun () ->
-            let health = Health ()
-            health.Var.Value <- 0.f
+            let health = Health (0.f)
+            health.Value.Value <- 0.f
             health
         )
         |> EntityBlueprint.add (fun () ->
@@ -106,7 +123,7 @@ module EntityBlueprint =
             render.Shader <- Some <| Shader ("boxTexture.vsh", "boxTexture.fsh")
             render.Texture <- Some <| Texture ("crate.jpg", uvData)
             render.DrawKind <- DrawKind.Triangles
-            render.Data.UpdatesOn obs
+            render.Data.Listen obs
             render.G <- 255uy
             render
         )
@@ -161,7 +178,7 @@ module EntityBlueprint =
             let render = Render ()
             let obs = Observable.StartWith (Observable.Never (), [|data|])
             render.Shader <- Some <| Shader ("boxLines.vsh", "boxLines.fsh")
-            render.Data.UpdatesOn obs
+            render.Data.Listen obs
             render.R <- 120uy
             render.G <- 120uy
             render.B <- 120uy

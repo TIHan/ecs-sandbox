@@ -61,7 +61,7 @@ type Val<'T> (initialValue, source: IObservable<'T>) =
 
     member this.Value = value
 
-    member this.UpdatesOn (newSource: IObservable<'T>) =
+    member this.Listen (newSource: IObservable<'T>) =
         subscription.Dispose ()
         subscription <- newSource.Subscribe mainObserver
 

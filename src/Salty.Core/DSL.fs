@@ -5,6 +5,52 @@ open System
 open ECS.Core
 
 [<AutoOpen>]
+module Observable =
+
+    let inline (<~) f (source: IObservable<'a>) = Observable.map f source
+
+    let inline (<*>) (fSource: IObservable<('a -> 'b)>) (source: IObservable<'a>) : IObservable<'b> =      
+        {
+            new IObservable<'b> with
+
+                member __.Subscribe observer =
+                    let refA = ref None
+                    let refF = ref None
+                    let s1 = 
+                        source 
+                        |> Observable.subscribe (fun a -> refA := Some a; match !refF with | Some f -> observer.OnNext (f a) | _ -> ())
+                    let s2 = 
+                        fSource 
+                        |> Observable.subscribe (fun f -> refF := Some f; match !refA with | Some a -> observer.OnNext (f a) | _ -> ())
+                    {
+                        new IDisposable with
+
+                            member __.Dispose () =
+                                s1.Dispose ()
+                                s2.Dispose ()
+                    }
+        }
+
+    let inline distinct<'a when 'a : equality> (source: IObservable<'a>) =
+        {
+            new IObservable<'a> with
+
+                member __.Subscribe observer =
+                    let refA : 'a option ref = ref None
+                    source
+                    |> Observable.subscribe (fun a ->
+                        match !refA with
+                        | None ->
+                            refA := Some a
+                            observer.OnNext a
+                        | Some existing when not <| a.Equals existing ->
+                            refA := Some a
+                            observer.OnNext a
+                        | _ -> ()
+                    )
+        }
+
+[<AutoOpen>]
 module DSL =
 
     let DoNothing : World<_, unit> = fun _ -> ()
@@ -33,12 +79,13 @@ module DSL =
         fun world -> source |> Observable.add (fun x -> (f x) world)
 
     let inline (==>) (source: IObservable<'a>) (v: Val<'a>) : World<_, unit> =
-        fun world -> v.UpdatesOn source
+        fun world -> v.Listen source
 
-    let inline (<~) f (source: IObservable<'a>) = Observable.map f source
-            
-    let inline update (v: Var<'a>) (f: 'a -> 'a) : World<_, unit> =
-        fun world -> v.Value <- f v.Value 
+    let inline (<--) (var: Var<'T>) (value: 'T) : World<_, unit> =
+        fun world -> var.Value <- value
+
+    let inline source (v: Val<'a>) (source: IObservable<'a>) : World<_, unit> =
+        fun world -> v.Listen source
 
     let inline rule (f: Entity -> 'T -> World<_, unit> list) : World<_, unit> =
         fun world ->

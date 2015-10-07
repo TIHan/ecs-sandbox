@@ -45,19 +45,23 @@ type GameplaySystem () =
             [
                 rule2 <| fun ent1 (player: Player) (health: Health) -> 
                     [
+                        health.Value
+                        |> distinct
+                        |> sink (fun value ->
+                            health.Value <-- Health.update health.MaxHealth value
+                        )
                         // Server
                         player.IsDead
+                        |> distinct
                         |> sink (fun isDead ->
                             if isDead then
                                 printfn "Entity %i died." ent1.Id
-                            DoNothing
+                                DoNothing
+                            else
+                                Player.isDead <~ health.Value <*> player.IsDead
+                                |> distinct
+                                |> source player.IsDead
                         )
-
-                        // Shared
-                        fun value ->
-                            value <= 0.f && not player.IsDead.Value 
-                        <~ health.Var
-                        ==> player.IsDead
 
                     ]
             ]
