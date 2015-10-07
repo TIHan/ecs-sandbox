@@ -29,6 +29,9 @@ module Game =
         let isDead (health: single) (isDead: bool) =
             isDead || health <= 0.f
 
+        let canRessurect (maxHealth: single) (health: single) =
+            health >= maxHealth && maxHealth > 0.f
+
     module Health =
 
         let update (maxHealth: single) (health: single) =

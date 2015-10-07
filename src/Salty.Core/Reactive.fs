@@ -3,17 +3,18 @@
 open System
 
 [<Sealed>]
-type Var<'T> (initialValue) =
+type Var<'T when 'T : equality> (initialValue) =
     let observers = ResizeArray<IObserver<'T>> ()
     let mutable currentValue = initialValue
 
     member this.Value
         with get () = currentValue
         and set value = 
-            currentValue <- value
-            for i = 0 to observers.Count - 1 do
-                let observer = observers.[i]
-                observer.OnNext value
+            if not <| value.Equals currentValue then
+                currentValue <- value
+                for i = 0 to observers.Count - 1 do
+                    let observer = observers.[i]
+                    observer.OnNext value
 
     interface IObservable<'T> with
 
@@ -33,7 +34,7 @@ module Var =
         new Var<'T> (initialValue)
 
 [<Sealed>]
-type Val<'T> (initialValue, source: IObservable<'T>) =
+type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
     let observers = ResizeArray<IObserver<'T>> ()
     let mutable value = initialValue
     let mainObserver = 
@@ -41,10 +42,11 @@ type Val<'T> (initialValue, source: IObservable<'T>) =
             new IObserver<'T> with
 
                 member __.OnNext x =
-                    value <- x
-                    for i = 0 to observers.Count - 1 do
-                        let observer = observers.[i]
-                        observer.OnNext x
+                    if not <| value.Equals x then
+                        value <- x
+                        for i = 0 to observers.Count - 1 do
+                            let observer = observers.[i]
+                            observer.OnNext x
 
                 member __.OnError x = 
                     for i = 0 to observers.Count - 1 do

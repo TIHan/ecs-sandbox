@@ -31,25 +31,6 @@ module Observable =
                     }
         }
 
-    let inline distinct<'a when 'a : equality> (source: IObservable<'a>) =
-        {
-            new IObservable<'a> with
-
-                member __.Subscribe observer =
-                    let refA : 'a option ref = ref None
-                    source
-                    |> Observable.subscribe (fun a ->
-                        match !refA with
-                        | None ->
-                            refA := Some a
-                            observer.OnNext a
-                        | Some existing when not <| a.Equals existing ->
-                            refA := Some a
-                            observer.OnNext a
-                        | _ -> ()
-                    )
-        }
-
 [<AutoOpen>]
 module DSL =
 
