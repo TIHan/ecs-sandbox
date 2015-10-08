@@ -49,8 +49,11 @@ module DSL =
     let inline sink (f: 'a -> SaltyWorld<unit>) (source: IObservable<'a>) : SaltyWorld<unit> =
         fun world -> source |> Observable.add (fun x -> (f x) world)
 
-    let inline (==>) (source: IObservable<'a>) (v: Val<'a>) : SaltyWorld<unit> =
+    let inline sinkToVal (v: Val<'a>) (source: IObservable<'a>) : SaltyWorld<unit> =
         fun world -> v.Listen source
+
+    let inline sinkToVar (v: Var<'a>) (source: IObservable<'a>) : SaltyWorld<unit> =
+        fun world -> source |> Observable.add (fun x -> v.Value <- x)
 
     let inline (<--) (var: Var<'T>) (value: 'T) : SaltyWorld<unit> =
         fun world -> var.Value <- value

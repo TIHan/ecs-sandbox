@@ -45,20 +45,18 @@ type GameplaySystem () =
             [
                 rule2 <| fun ent1 (player: Player) (health: Health) -> 
                     [
-                        health.Value
-                        |> sink (fun value ->
-                            health.Value <-- Health.update health.MaxHealth value
-                        )
+                        Health.update health.MaxHealth <~ health.Value
+                        |> sinkToVar health.Value
 
                         player.IsDead
                         |> sink (fun isDead ->
                             if isDead then
                                 printfn "Entity %i died." ent1.Id
                                 not <~ (Player.canRessurect health.MaxHealth <~ health.Value)
-                                ==> player.IsDead
+                                |> sinkToVal player.IsDead
                             else
                                 Player.isDead <~ health.Value <*> player.IsDead
-                                ==> player.IsDead
+                                |> sinkToVal player.IsDead
                         )
 
                     ]

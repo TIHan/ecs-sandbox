@@ -84,14 +84,14 @@ type PhysicsSystem () =
             (
                 rule2 <| fun ent (physics: Physics) (position: Position) ->
                     [
-                        position.Var ==> physics.Position
+                        position.Var |> sinkToVal physics.Position
                     ]
             ) world
 
             (
                 rule2 <| fun ent (physics: Physics) (rotation: Rotation) ->
                     [
-                        rotation.Var ==> physics.Rotation
+                        rotation.Var |> sinkToVal physics.Rotation
                     ]
             ) world
 
