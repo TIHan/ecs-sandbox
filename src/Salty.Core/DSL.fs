@@ -34,41 +34,28 @@ module Observable =
 [<AutoOpen>]
 module DSL =
 
-    let DoNothing : World<_, unit> = fun _ -> ()
+    let DoNothing : SaltyWorld<unit> = fun _ -> ()
 
-    let inline worldReturn (a: 'a) : World<_, 'a> = fun _ -> a
-
-    let inline (>>=) (w: World<_, 'a>) (f: 'a -> World<_, 'b>) : World<_, 'b> =
+    let inline (>>=) (w: SaltyWorld<'a>) (f: 'a -> SaltyWorld<'b>) : SaltyWorld<'b> =
         fun world -> (f (w world)) world
 
-    let inline (>>.) (w1: World<_, 'a>) (w2: World<_, 'b>) =
-        fun world ->
-            w1 world |> ignore
-            w2 world
-
-    let inline skip (x: World<_, _>) : World<_, unit> =
-        fun world -> x world |> ignore
-
-    let inline onEvent (w: World<_, IObservable<'a>>) (f: 'a -> World<_, unit>) : World<_, unit> =
+    let inline upon (w: SaltyWorld<IObservable<'a>>) (f: 'a -> SaltyWorld<unit>) : SaltyWorld<unit> =
         fun world ->
             (w world) 
             |> Observable.add (fun a ->
                 (f a) world
             )
 
-    let inline sink (f: 'a -> World<_, unit>) (source: IObservable<'a>) : World<_, unit> =
+    let inline sink (f: 'a -> SaltyWorld<unit>) (source: IObservable<'a>) : SaltyWorld<unit> =
         fun world -> source |> Observable.add (fun x -> (f x) world)
 
-    let inline (==>) (source: IObservable<'a>) (v: Val<'a>) : World<_, unit> =
+    let inline (==>) (source: IObservable<'a>) (v: Val<'a>) : SaltyWorld<unit> =
         fun world -> v.Listen source
 
-    let inline (<--) (var: Var<'T>) (value: 'T) : World<_, unit> =
+    let inline (<--) (var: Var<'T>) (value: 'T) : SaltyWorld<unit> =
         fun world -> var.Value <- value
 
-    let inline source (v: Val<'a>) (source: IObservable<'a>) : World<_, unit> =
-        fun world -> v.Listen source
-
-    let inline rule (f: Entity -> 'T -> World<_, unit> list) : World<_, unit> =
+    let inline rule (f: Entity -> 'T -> SaltyWorld<unit> list) : SaltyWorld<unit> =
         fun world ->
             Entity.spawned world |> Observable.add (fun ent ->
 
@@ -80,8 +67,8 @@ module DSL =
                     |> List.iter (fun x -> x world)
             )
 
-    let inline rule2 (f: Entity -> 'T1 -> 'T2 -> World<_, unit> list) : World<_, unit> =
-        fun (world: IWorld<'a>) ->
+    let inline rule2 (f: Entity -> 'T1 -> 'T2 -> SaltyWorld<unit> list) : SaltyWorld<unit> =
+        fun world ->
             Entity.spawned world |> Observable.add (fun ent ->
 
                 let mutable c1 = Unchecked.defaultof<'T1>

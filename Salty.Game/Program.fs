@@ -55,10 +55,10 @@ type GameplaySystem () =
                             if isDead then
                                 printfn "Entity %i died." ent1.Id
                                 not <~ (Player.canRessurect health.MaxHealth <~ health.Value)
-                                |> source player.IsDead
+                                ==> player.IsDead
                             else
                                 Player.isDead <~ health.Value <*> player.IsDead
-                                |> source player.IsDead
+                                ==> player.IsDead
                         )
 
                     ]

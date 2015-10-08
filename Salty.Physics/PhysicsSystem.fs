@@ -40,7 +40,7 @@ type PhysicsSystem () =
         member __.Init world =
 
             (
-                onEvent Component.added <| fun (ent, physics: Physics) ->
+                upon Component.added <| fun (ent, physics: Physics) ->
                     let data = 
                         physics.Data.Value
 
@@ -76,7 +76,7 @@ type PhysicsSystem () =
             ) world
 
             (
-                onEvent Component.removed <| fun (ent, physics: Physics) ->
+                upon Component.removed <| fun (ent, physics: Physics) ->
                     physics.Internal.Body.DestroyFixture (physics.Internal.Fixture)
                     DoNothing
             ) world
