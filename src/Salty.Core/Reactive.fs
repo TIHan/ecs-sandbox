@@ -8,7 +8,9 @@ type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
     let mutable value = initialValue
 
     do
-        source |> Observable.add (fun x -> value <- x)
+        source |> Observable.add (fun x -> 
+            value <- x
+        )
 
     member this.Value = value
 
@@ -40,18 +42,24 @@ type Var<'T when 'T : equality> =
                     let observer = this.observers.[i]
                     observer.OnNext value    
                           
+    member this.ToObservable () =
+        let weakThis = WeakReference<Var<'T>> (this)
+        {
+            new IObservable<'T> with
 
-    interface IObservable<'T> with
+                member __.Subscribe observer =
+                    match weakThis.TryGetTarget () with
+                    | false, _ -> { new IDisposable with member __.Dispose () = () }
+                    | _, this ->
+                        this.observers.Add observer
+                        observer.OnNext this.Value
+                        {
+                            new IDisposable with
 
-        member this.Subscribe observer =
-            this.observers.Add observer
-            observer.OnNext this.Value
-            {
-                new IDisposable with
-
-                    member __.Dispose () =
-                        this.observers.Remove observer |> ignore
-            }
+                                member __.Dispose () =
+                                    this.observers.Remove observer |> ignore
+                        }
+        }
 
     static member inline (!!) (var: Var<'T>) = var.Value
     static member inline (<--) (var: Var<'T>, value: 'T) = var.Value <- value
