@@ -45,8 +45,6 @@ type GameplaySystem () =
             [
                 uponSpawn <| fun ent (health: Health) -> 
                     [
-                        Health.update health.MaxHealth <~ health.Value
-                        |> pushTo health.Value
                     ]
             ]
             |> List.iter (fun f -> f world |> ignore)

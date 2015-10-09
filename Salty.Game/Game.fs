@@ -13,13 +13,20 @@ open Salty.Game.Core.Components
 open System.Numerics
 open System.Reactive.Linq
 
-type Health (maxHealth) =
+// TODO: Fields will be private.
+type Health =
+    {
+        Value: Var<int>
+        MaxValue: int
+        IsDead: Var<bool>
+    }
 
-    member val Value = Var.create 0.f
-
-    member val IsDead = Var.create false
-
-    member val MaxHealth = maxHealth
+    static member Default =
+        {
+            Value = Var.create 0
+            MaxValue = 0
+            IsDead = Var.create false
+        }
 
     interface IComponent
 
@@ -28,10 +35,34 @@ module Game =
 
     module Health =
 
-        let update (maxHealth: single) (health: single) =
-            if health >= maxHealth 
-            then maxHealth
-            else health
+        let create value maxValue =
+            {
+                Value = Var.create value
+                MaxValue = maxValue
+                IsDead = Var.create false
+            }
+
+        let value (health: Health) =
+            Val.ofVar health.Value
+
+        let maxValue (health: Health) = health.MaxValue
+
+        let isDead (health: Health) =
+            Val.ofVar health.IsDead
+
+        let damage (healthToLose: int) (health: Health) (_: IWorld<Salty>) =
+            if not !!health.IsDead then
+                let value = !!health.Value
+                let newValue = value - healthToLose
+
+                health.Value <-- newValue
+
+                if newValue <= 0 then
+                    health.IsDead <-- true
+
+        let gain (healthToGain: int) (health: Health) (_: IWorld<Salty>) =
+            if not !!health.IsDead then
+                health.Value <-- !!health.Value + healthToGain
 
 [<RequireQualifiedAccess>]
 module EntityBlueprint =
@@ -49,8 +80,8 @@ module EntityBlueprint =
             rotation
         )
         |> EntityBlueprint.add (fun () ->
-            let health = Health (100.f)
-            health.Value.Value <- 100.f
+            let health = Health.create 100 100
+            health.Value.Value <- 100
             health
         )
 
@@ -100,8 +131,8 @@ module EntityBlueprint =
             rotation
         )
         |> EntityBlueprint.add (fun () ->
-            let health = Health (0.f)
-            health.Value.Value <- 0.f
+            let health = Health.create 0 0
+            health.Value.Value <- 0
             health
         )
         |> EntityBlueprint.add (fun () ->

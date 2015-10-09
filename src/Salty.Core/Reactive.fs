@@ -4,7 +4,7 @@ open System
 
 [<ReferenceEquality>]
 type Var<'T when 'T : equality> =
-    {
+    private {
         mutable value: 'T
         observers: ResizeArray<IObserver<'T>>
         subscriptions: ResizeArray<IDisposable>
@@ -45,6 +45,9 @@ type Var<'T when 'T : equality> =
                 this.subscriptions
                 |> Seq.iter (fun x -> x.Dispose ())
                 this.isDisposed <- true
+
+    static member inline (!!) (var: Var<'T>) = var.Value
+    static member inline (<--) (var: Var<'T>, value: 'T) = var.Value <- value
 
 module Var =
 
