@@ -69,7 +69,7 @@ type Render () =
 
     member val B = 0uy with get, set
 
-    member val Data : Val<Vector2 []> = Val.createConstant [||] with get
+    member val Data : Var<Vector2 []> = Var.create [||] with get
 
     member val Shader : Shader option = None with get, set
 
@@ -79,11 +79,11 @@ type Render () =
 
     member val internal VBO = Unchecked.defaultof<Renderer.VBO> with get, set
 
-    member val Position = Val.createConstant Vector2.Zero
+    member val Position = Var.create Vector2.Zero
 
     member val internal PreviousPosition = Vector2.Zero with get, set
 
-    member val Rotation = Val.createConstant 0.f
+    member val Rotation = Var.create 0.f
 
     member val internal PreviousRotation = 0.f with get, set
 

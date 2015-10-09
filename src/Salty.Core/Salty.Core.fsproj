@@ -36,7 +36,7 @@
     <Compile Include="GameLoop.fs" />
     <Compile Include="Reactive.fs" />
     <Compile Include="SaltyWorld.fs" />
-    <Compile Include="DSL.fs" />
+    <Compile Include="Helpers.fs" />
     <Compile Include="SerializationSystem.fs" />
     <Compile Include="Components.fs" />
     <Content Include="paket.references" />

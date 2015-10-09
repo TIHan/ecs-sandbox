@@ -2,36 +2,59 @@
 
 open System
 
-[<Sealed>]
-type Var<'T when 'T : equality> (initialValue) =
-    let observers = ResizeArray<IObserver<'T>> ()
-    let mutable currentValue = initialValue
+[<ReferenceEquality>]
+type Var<'T when 'T : equality> =
+    {
+        mutable value: 'T
+        observers: ResizeArray<IObserver<'T>>
+        subscriptions: ResizeArray<IDisposable>
+        mutable isDisposed: bool
+    }
 
     member this.Value
-        with get () = currentValue
+        with get () = this.value
         and set value = 
-            if not <| value.Equals currentValue then
-                currentValue <- value
-                for i = 0 to observers.Count - 1 do
-                    let observer = observers.[i]
+            if not <| value.Equals this.value then
+                this.value <- value
+                for i = 0 to this.observers.Count - 1 do
+                    let observer = this.observers.[i]
                     observer.OnNext value
+
+    member this.Listen (source: IObservable<'T>) =
+        let s =
+            source
+            |> Observable.subscribe (fun x -> this.Value <- x)
+        this.subscriptions.Add s              
 
     interface IObservable<'T> with
 
-        member __.Subscribe observer =
-            observers.Add observer
-            observer.OnNext currentValue
+        member this.Subscribe observer =
+            this.observers.Add observer
+            observer.OnNext this.Value
             {
                 new IDisposable with
 
                     member __.Dispose () =
-                        observers.Remove observer |> ignore
+                        this.observers.Remove observer |> ignore
             }
+
+    interface IDisposable with
+
+        member this.Dispose () =
+            if not this.isDisposed then
+                this.subscriptions
+                |> Seq.iter (fun x -> x.Dispose ())
+                this.isDisposed <- true
 
 module Var =
 
     let create initialValue =
-        new Var<'T> (initialValue)
+        {
+            value = initialValue
+            observers = ResizeArray ()
+            subscriptions = ResizeArray ()
+            isDisposed = false
+        }
 
 [<Sealed>]
 type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
@@ -63,10 +86,6 @@ type Val<'T when 'T : equality> (initialValue, source: IObservable<'T>) =
 
     member this.Value = value
 
-    member this.Listen (newSource: IObservable<'T>) =
-        subscription.Dispose ()
-        subscription <- newSource.Subscribe mainObserver
-
     interface IObservable<'T> with 
              
         member __.Subscribe observer = 
@@ -92,3 +111,6 @@ module Val =
 
     let createConstant initialValue =
         new Val<'T> (initialValue, { new IObservable<'T> with member __.Subscribe _ = { new IDisposable with member __.Dispose () = () } })
+
+    let ofVar (var: Var<'T>) =
+        new Val<'T> (var.Value, var)

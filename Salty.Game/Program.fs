@@ -43,22 +43,10 @@ type GameplaySystem () =
         
         member __.Init world =
             [
-                rule2 <| fun ent1 (player: Player) (health: Health) -> 
+                uponSpawn <| fun ent (health: Health) -> 
                     [
                         Health.update health.MaxHealth <~ health.Value
-                        |> sinkToVar health.Value
-
-                        player.IsDead
-                        |> sink (fun isDead ->
-                            if isDead then
-                                printfn "Entity %i died." ent1.Id
-                                not <~ (Player.canRessurect health.MaxHealth <~ health.Value)
-                                |> sinkToVal player.IsDead
-                            else
-                                Player.isDead <~ health.Value <*> player.IsDead
-                                |> sinkToVal player.IsDead
-                        )
-
+                        |> pushTo health.Value
                     ]
             ]
             |> List.iter (fun f -> f world |> ignore)

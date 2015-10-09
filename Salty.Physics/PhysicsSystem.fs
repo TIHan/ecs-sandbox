@@ -82,16 +82,16 @@ type PhysicsSystem () =
             ) world
 
             (
-                rule2 <| fun ent (physics: Physics) (position: Position) ->
+                uponSpawn2 <| fun ent (physics: Physics) (position: Position) ->
                     [
-                        position.Var |> sinkToVal physics.Position
+                        position.Var |> pushTo physics.Position
                     ]
             ) world
 
             (
-                rule2 <| fun ent (physics: Physics) (rotation: Rotation) ->
+                uponSpawn2 <| fun ent (physics: Physics) (rotation: Rotation) ->
                     [
-                        rotation.Var |> sinkToVal physics.Rotation
+                        rotation.Var |> pushTo physics.Rotation
                     ]
             ) world
 

@@ -51,18 +51,18 @@ type RendererSystem () =
             )
 
             (
-                rule2 <| fun ent (render: Render) (position: Position) ->
+                uponSpawn2 <| fun ent (render: Render) (position: Position) ->
                     render.PreviousPosition <- position.Var.Value
                     [
-                        position.Var |> sinkToVal render.Position
+                        position.Var |> pushTo render.Position
                     ]
             ) world
 
             (
-                rule2 <| fun ent (render: Render) (rotation: Rotation) ->
+                uponSpawn2 <| fun ent (render: Render) (rotation: Rotation) ->
                     render.PreviousRotation <- rotation.Var.Value
                     [
-                        rotation.Var |> sinkToVal render.Rotation
+                        rotation.Var |> pushTo render.Rotation
                     ]
             ) world
 

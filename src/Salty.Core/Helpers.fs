@@ -32,7 +32,7 @@ module Observable =
         }
 
 [<AutoOpen>]
-module DSL =
+module Helpers =
 
     let DoNothing : SaltyWorld<unit> = fun _ -> ()
 
@@ -46,19 +46,13 @@ module DSL =
                 (f a) world
             )
 
-    let inline sink (f: 'a -> SaltyWorld<unit>) (source: IObservable<'a>) : SaltyWorld<unit> =
+    let inline push (f: 'a -> SaltyWorld<unit>) (source: IObservable<'a>) : SaltyWorld<unit> =
         fun world -> source |> Observable.add (fun x -> (f x) world)
 
-    let inline sinkToVal (v: Val<'a>) (source: IObservable<'a>) : SaltyWorld<unit> =
-        fun world -> v.Listen source
+    let inline pushTo (var: Var<'a>) (source: IObservable<'a>) : SaltyWorld<unit> =
+        fun world -> var.Listen source
 
-    let inline sinkToVar (v: Var<'a>) (source: IObservable<'a>) : SaltyWorld<unit> =
-        fun world -> source |> Observable.add (fun x -> v.Value <- x)
-
-    let inline (<--) (var: Var<'T>) (value: 'T) : SaltyWorld<unit> =
-        fun world -> var.Value <- value
-
-    let inline rule (f: Entity -> 'T -> SaltyWorld<unit> list) : SaltyWorld<unit> =
+    let inline uponSpawn (f: Entity -> 'T -> SaltyWorld<unit> list) : SaltyWorld<unit> =
         fun world ->
             Entity.spawned world |> Observable.add (fun ent ->
 
@@ -70,7 +64,7 @@ module DSL =
                     |> List.iter (fun x -> x world)
             )
 
-    let inline rule2 (f: Entity -> 'T1 -> 'T2 -> SaltyWorld<unit> list) : SaltyWorld<unit> =
+    let inline uponSpawn2 (f: Entity -> 'T1 -> 'T2 -> SaltyWorld<unit> list) : SaltyWorld<unit> =
         fun world ->
             Entity.spawned world |> Observable.add (fun ent ->
 

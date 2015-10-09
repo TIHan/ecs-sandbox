@@ -15,7 +15,9 @@ open System.Reactive.Linq
 
 type Health (maxHealth) =
 
-    member val Value = Var.create 0.f with get
+    member val Value = Var.create 0.f
+
+    member val IsDead = Var.create false
 
     member val MaxHealth = maxHealth
 
@@ -23,14 +25,6 @@ type Health (maxHealth) =
 
 [<AutoOpen>]
 module Game =
-
-    module Player =
-
-        let isDead (health: single) (isDead: bool) =
-            isDead || health <= 0.f
-
-        let canRessurect (maxHealth: single) (health: single) =
-            health >= maxHealth && maxHealth > 0.f
 
     module Health =
 
