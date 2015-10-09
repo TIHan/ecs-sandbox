@@ -21,13 +21,6 @@ type Health =
         IsDead: Var<bool>
     }
 
-    static member Default =
-        {
-            Value = Var.create 0
-            MaxValue = 0
-            IsDead = Var.create false
-        }
-
     interface IComponent
 
 [<AutoOpen>]
@@ -36,6 +29,8 @@ module Game =
     module Health =
 
         let create value maxValue =
+            let value = Var.create value
+            let isDead = Val.create false
             {
                 Value = Var.create value
                 MaxValue = maxValue

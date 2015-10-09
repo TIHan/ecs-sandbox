@@ -49,9 +49,6 @@ module Helpers =
     let inline push (f: 'a -> SaltyWorld<unit>) (source: IObservable<'a>) : SaltyWorld<unit> =
         fun world -> source |> Observable.add (fun x -> (f x) world)
 
-    let inline pushTo (var: Var<'a>) (source: IObservable<'a>) : SaltyWorld<unit> =
-        fun world -> var.Listen source
-
     let inline uponSpawn (f: Entity -> 'T -> SaltyWorld<unit> list) : SaltyWorld<unit> =
         fun world ->
             Entity.spawned world |> Observable.add (fun ent ->
