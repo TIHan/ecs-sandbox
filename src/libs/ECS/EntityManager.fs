@@ -30,14 +30,11 @@ type EntityManager (entityAmount) =
     let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
     let entitySet = HashSet<Entity> ()
-    let componentSet = HashSet<IComponent> ()
     let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
     let lookup = Dictionary<Type, IEntityLookupData> ()
 
-    let deferQueue = ConcurrentQueue<unit -> unit> ()
-    let deferComponentEventQueue = Queue<unit -> unit> ()
-    let deferEntityEventQueue = Queue<unit -> unit> ()
-    let deferDispose = Queue<obj> ()
+    let componentActionQueue = ConcurrentQueue<unit -> unit> ()
+    let entityActionQueue = ConcurrentQueue<unit -> unit> ()
 
     let entitySpawnedEvent = Event<Entity> ()
     let entityDestroyedEvent = Event<Entity> ()
@@ -46,18 +43,11 @@ type EntityManager (entityAmount) =
     let componentAddedEventLookup = ConcurrentDictionary<Type, obj> ()
     let componentRemovedEventLookup = ConcurrentDictionary<Type, obj> ()
 
+    member inline this.DeferComponentAction f =
+        componentActionQueue.Enqueue f
 
-    member inline this.Defer f =
-        deferQueue.Enqueue f
-
-    member inline this.DeferComponentEvent f =
-        deferComponentEventQueue.Enqueue f
-
-    member inline this.DeferEntityEvent x =
-        deferEntityEventQueue.Enqueue x
-
-    member inline this.DeferDispose x =
-        deferDispose.Enqueue x
+    member inline this.DeferEntityAction x =
+        entityActionQueue.Enqueue x
 
     member this.GetEntityLookupData<'T> () : EntityLookupData<'T> =
         let t = typeof<'T>
@@ -83,7 +73,7 @@ type EntityManager (entityAmount) =
         if entitySet.Contains entity then
             failwithf "Entity #%i already spawned." entity.Id
         else
-            this.DeferEntityEvent <| fun () -> entitySpawnedEvent.Trigger entity
+            this.DeferEntityAction <| fun () -> entitySpawnedEvent.Trigger entity
             entitySet.Add entity |> ignore
 
     member this.Destroy (entity: Entity) =
@@ -95,11 +85,8 @@ type EntityManager (entityAmount) =
     member this.AddComponent<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
         let t = typeof<'T>
 
-        if not <| entitySet.Contains entity then
-            failwithf "Entity #%i has not been spawned." entity.Id
-
-        if not <| componentSet.Add (comp) then
-            failwithf "Component %s has already been used." t.Name
+        if entitySet.Contains entity then
+            failwithf "Entity #%i has already spawned, cannot add component, %s." entity.Id t.Name
 
         let data = this.GetEntityLookupData<'T> ()
 
@@ -108,7 +95,7 @@ type EntityManager (entityAmount) =
             data.entities.Add entity
 
             // Setup events
-            this.DeferComponentEvent <| fun () -> 
+            this.DeferComponentAction <| fun () -> 
                 // Any Component Added
                 anyComponentAddedEvent.Trigger ((entity, comp :> IComponent, t))
 
@@ -133,11 +120,10 @@ type EntityManager (entityAmount) =
             if entity.Id >= 0 && entity.Id < data.components.Length then
                 let comp = data.components.[entity.Id]
                 if not <| obj.ReferenceEquals (comp, null) then
-                    componentSet.Remove comp |> ignore
                     data.components.[entity.Id] <- Unchecked.defaultof<'T>
 
                     // Setup events
-                    this.DeferComponentEvent <| fun () ->
+                    this.DeferComponentAction <| fun () ->
                         // Any Component Removed 
                         anyComponentRemovedEvent.Trigger ((entity, comp :> IComponent, t))
 
@@ -146,7 +132,6 @@ type EntityManager (entityAmount) =
                         if componentRemovedEventLookup.TryGetValue (typeof<'T>, &value) then
                             (value :?> Event<Entity * 'T>).Trigger ((entity, comp))
 
-                    this.DeferDispose comp
                     Some comp  
                 else None  
             else
@@ -282,36 +267,24 @@ type EntityManager (entityAmount) =
 
     member this.Process () =
         let rec p () =
-            if  deferQueue.Count > 0 || 
-                deferComponentEventQueue.Count > 0 ||
-                deferEntityEventQueue.Count > 0 ||
-                deferDispose.Count > 0
+            if 
+                componentActionQueue.Count > 0 ||
+                entityActionQueue.Count > 0
                 then
 
-                // Base Queue
-                let mutable msg : unit -> unit = Unchecked.defaultof<unit -> unit>
-                while deferQueue.TryDequeue (&msg) do
+                // Component Action Queue 
+                while componentActionQueue.Count > 0 do
+                    let mutable msg = Unchecked.defaultof<unit -> unit>
+                    componentActionQueue.TryDequeue (&msg) |> ignore
                     msg ()
 
-                // Component Event Queue 
-                while deferComponentEventQueue.Count > 0 do
-                    deferComponentEventQueue.Dequeue () ()
-
-                // Entity Event Queue 
-                while deferEntityEventQueue.Count > 0 do
-                    deferEntityEventQueue.Dequeue () ()
-
-                // Dispose Queue 
-                while deferComponentEventQueue.Count > 0 do
-                    let x = deferComponentEventQueue.Dequeue ()
-                    x.GetType().GetRuntimeProperties()
-                    |> Seq.filter (fun p ->
-                        disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo())
-                    )
-                    |> Seq.iter (fun p -> (p.GetValue(x) :?> IDisposable).Dispose ())
+                // Entity Action Queue 
+                while entityActionQueue.Count > 0 do
+                    let mutable msg = Unchecked.defaultof<unit -> unit>
+                    entityActionQueue.TryDequeue (&msg) |> ignore
+                    msg ()
 
                 p ()
-            else ()
         p ()
 
     interface IComponentService with
@@ -320,13 +293,13 @@ type EntityManager (entityAmount) =
             let inline f () =
                 this.AddComponent<'T> (entity, comp)
 
-            this.Defer f
+            this.DeferComponentAction f
 
         member this.Remove<'T when 'T :> IComponent> entity =
             let inline f () =
                 this.TryRemoveComponent<'T> (entity) |> ignore
 
-            this.Defer f
+            this.DeferComponentAction f
 
         member this.GetAddedEvent<'T when 'T :> IComponent> () =
             let event = componentAddedEventLookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<Entity * 'T> () :> obj))
@@ -347,13 +320,13 @@ type EntityManager (entityAmount) =
             let inline f () =
                 this.Spawn entity
 
-            this.Defer f
+            this.DeferEntityAction f
 
         member this.Destroy entity =
             let inline f () =
                 this.Destroy entity
 
-            this.Defer f
+            this.DeferEntityAction f
 
         member this.GetSpawnedEvent () = entitySpawnedEvent.Publish :> IObservable<Entity>
 

@@ -92,7 +92,7 @@ module EntityBlueprint =
     let spawn id (world: IWorld<_>) (blueprint: EntityBlueprint) =
         let entity = Entity id
 
-        world.EntityService.Spawn entity
-        
         blueprint.componentF
         |> List.iter (fun f -> f entity world.ComponentService)
+
+        world.EntityService.Spawn entity
