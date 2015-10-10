@@ -103,13 +103,13 @@ type GameplaySystem () =
 //            )
 
         member __.Update world =
-            world.ComponentQuery.ForEach<Player, Physics> (fun entity player physics ->
+            world.ComponentQuery.ForEach<Player, Physics, Position> (fun entity player physics position ->
                 player.Commands
                 |> Seq.iter (function
                     | Shoot ->
                         let blueprint =
                             EntityBlueprint.create ()
-                            |> EntityBlueprint.test physics.Position.Value
+                            |> EntityBlueprint.test position.Var.Value
                         for i = 0 to 50000 - 1 do
                             blueprint
                             |> EntityBlueprint.spawn (!count) world

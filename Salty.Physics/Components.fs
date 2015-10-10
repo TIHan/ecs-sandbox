@@ -20,25 +20,21 @@ type internal PhysicsInternal () =
 
     member val internal Fixture : FarseerPhysics.Dynamics.Fixture = null with get, set
 
-type Physics () =
+type Physics (data) =
 
-    member val Data : Vector2 [] Var = Var.create [||]
+    member val Data : Vector2 [] = data
 
-    member val IsStatic = Var.create false
+    member val IsStatic = ref false
 
-    member val Density = Var.create 0.f
+    member val Density = ref 0.f
 
-    member val Restitution = Var.create 0.f
+    member val Restitution = ref 0.f
 
-    member val Friction = Var.create 0.f
+    member val Friction = ref 0.f
 
-    member val Mass = Var.create 0.f
+    member val Mass = ref 0.f
 
-    member val Velocity = Var.create Vector2.Zero
-
-    member val Position = Var.create Vector2.Zero
-
-    member val Rotation = Var.create 0.f
+    member val Velocity = ref Vector2.Zero
 
     member val internal Internal = PhysicsInternal () with get, set
 

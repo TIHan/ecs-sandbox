@@ -136,8 +136,7 @@ module EntityBlueprint =
             health
         )
         |> EntityBlueprint.add (fun () ->
-            let physics = Physics ()
-            physics.Data.Value <- data
+            let physics = Physics (data)
             physics.Density.Value <- 1.f
             physics.Restitution.Value <- 0.1f
             physics.Friction.Value <- 0.1f
@@ -193,8 +192,7 @@ module EntityBlueprint =
             rotation
         )
         |> EntityBlueprint.add (fun () ->
-            let physics = Physics ()
-            physics.Data.Value <- data
+            let physics = Physics (data)
             physics.Density.Value <- 1.f
             physics.Restitution.Value <- 0.f
             physics.Friction.Value <- 0.1f

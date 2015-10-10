@@ -20,6 +20,10 @@ module Entity =
 
     val destroyed : World<_, IObservable<Entity>>
 
+    val onSpawned : (Entity -> #IComponent -> unit) -> World<_, unit>
+
+    val onSpawned2 : (Entity -> #IComponent -> #IComponent -> unit) -> World<_, unit>
+
 module Component =
 
     val anyAdded : World<_, IObservable<Entity * IComponent * Type>>

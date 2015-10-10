@@ -51,6 +51,31 @@ module Entity =
     let destroyed (world: IWorld<_>) = 
         world.EntityService.GetDestroyedEvent ()
 
+    let onSpawned (f: Entity -> 'T -> unit) (world: IWorld<_>) =
+        spawned world |> Observable.add (fun ent ->
+
+            let mutable c = Unchecked.defaultof<'T>
+            world.ComponentQuery.TryGet (ent, &c)
+
+            if not <| obj.ReferenceEquals (c, null) then
+                f ent c
+        )
+
+    let onSpawned2 (f: Entity -> 'T1 -> 'T2 -> unit) (world: IWorld<_>) =
+        spawned world |> Observable.add (fun ent ->
+
+            let mutable c1 = Unchecked.defaultof<'T1>
+            let mutable c2 = Unchecked.defaultof<'T2>
+            world.ComponentQuery.TryGet (ent, &c1)
+            world.ComponentQuery.TryGet (ent, &c2)
+
+            if 
+                not <| obj.ReferenceEquals (c1, null) &&
+                not <| obj.ReferenceEquals (c2, null)
+            then
+                f ent c1 c2
+        )
+
 module Component =
     open World
 
