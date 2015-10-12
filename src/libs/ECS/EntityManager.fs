@@ -36,6 +36,8 @@ type EntityManager (entityAmount) =
     let componentActionQueue = ConcurrentQueue<unit -> unit> ()
     let entityActionQueue = ConcurrentQueue<unit -> unit> ()
 
+    let disposalQueue = ConcurrentQueue<obj> ()
+
     let entitySpawnedEvent = Event<Entity> ()
     let entityDestroyedEvent = Event<Entity> ()
     let anyComponentAddedEvent = Event<Entity * IComponent * Type> ()
@@ -131,6 +133,8 @@ type EntityManager (entityAmount) =
                         let mutable value = Unchecked.defaultof<obj>
                         if componentRemovedEventLookup.TryGetValue (typeof<'T>, &value) then
                             (value :?> Event<Entity * 'T>).Trigger ((entity, comp))
+
+                        disposalQueue.Enqueue (comp)
 
                     Some comp  
                 else None  
@@ -269,7 +273,8 @@ type EntityManager (entityAmount) =
         let rec p () =
             if 
                 componentActionQueue.Count > 0 ||
-                entityActionQueue.Count > 0
+                entityActionQueue.Count > 0 ||
+                disposalQueue.Count > 0
                 then
 
                 // Component Action Queue 
@@ -283,6 +288,16 @@ type EntityManager (entityAmount) =
                     let mutable msg = Unchecked.defaultof<unit -> unit>
                     entityActionQueue.TryDequeue (&msg) |> ignore
                     msg ()
+
+                // Disposal Queue 
+                while disposalQueue.Count > 0 do
+                    let o = ref Unchecked.defaultof<obj>
+                    disposalQueue.TryDequeue (o) |> ignore
+                    o.GetType().GetRuntimeProperties()
+                    |> Seq.filter (fun p ->
+                        disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo())
+                    )
+                    |> Seq.iter (fun p -> (p.GetValue(o) :?> IDisposable).Dispose ())
 
                 p ()
         p ()
