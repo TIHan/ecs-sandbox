@@ -13,56 +13,53 @@ open Salty.Game.Core.Components
 open System.Numerics
 open System.Reactive.Linq
 
-// TODO: Fields will be private.
 type Health =
     {
-        Value: Var<int>
-        MaxValue: int
-        IsDead: Var<bool>
+        Current: int
+        Max: int
+        IsDead: bool
     }
 
-    static member Default =
-        {
-            Value = Var.create 0
-            MaxValue = 0
-            IsDead = Var.create false
-        }
-
     interface IComponent
+
+type HealthEvent =
+    | Gained of Entity * Health * amount: int 
+    | Damaged of Entity * Health * amount: int
 
 [<AutoOpen>]
 module Game =
 
     module Health =
 
-        let create value maxValue =
+        let create value max =
             {
-                Value = Var.create value
-                MaxValue = maxValue
-                IsDead = Var.create false
+                Current = value
+                Max = max
+                IsDead = false
             }
 
-        let value (health: Health) =
-            Val.ofVar health.Value
+        let damage (healthToLose: int) (health: Health) =
+            if not health.IsDead then
+                let newCurrent = 
+                    match health.Current - healthToLose with
+                    | x when x < 0 -> 0
+                    | x -> x
 
-        let maxValue (health: Health) = health.MaxValue
+                let isDead = newCurrent <= 0
+                { health with Current = newCurrent; IsDead = isDead }
+            else 
+                health
 
-        let isDead (health: Health) =
-            Val.ofVar health.IsDead
+        let gain (healthToGain: int) (health: Health) =
+            if not health.IsDead then
+                let newCurrent = 
+                    match health.Current + healthToGain with
+                    | x when x > health.Max -> health.Max
+                    | x -> x
 
-        let damage (healthToLose: int) (health: Health) (_: IWorld<Salty>) =
-            if not !!health.IsDead then
-                let value = !!health.Value
-                let newValue = value - healthToLose
-
-                health.Value <-- newValue
-
-                if newValue <= 0 then
-                    health.IsDead <-- true
-
-        let gain (healthToGain: int) (health: Health) (_: IWorld<Salty>) =
-            if not !!health.IsDead then
-                health.Value <-- !!health.Value + healthToGain
+                { health with Current = newCurrent }
+            else
+                health
 
 [<RequireQualifiedAccess>]
 module EntityBlueprint =
@@ -81,7 +78,6 @@ module EntityBlueprint =
         )
         |> EntityBlueprint.add (fun () ->
             let health = Health.create 100 100
-            health.Value.Value <- 100
             health
         )
 
@@ -132,7 +128,6 @@ module EntityBlueprint =
         )
         |> EntityBlueprint.add (fun () ->
             let health = Health.create 0 0
-            health.Value.Value <- 0
             health
         )
         |> EntityBlueprint.add (fun () ->
