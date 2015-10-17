@@ -13,8 +13,8 @@ type IEntityLookupData =
 
 type EntityLookupData<'T> =
     {
+        active: bool []
         entities: Entity ResizeArray
-        entitySet: Entity HashSet
         components: 'T []
     }
 
@@ -29,7 +29,7 @@ type EntityLookupData<'T> =
 type EntityManager (entityAmount) =
     let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
-    let entitySet = HashSet<Entity> ()
+    let active = Array.init entityAmount (fun _ -> false)
     let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
     let lookup = Dictionary<Type, IEntityLookupData> ()
 
@@ -55,14 +55,14 @@ type EntityManager (entityAmount) =
         let t = typeof<'T>
         let mutable data = null
         if not <| lookup.TryGetValue (t, &data) then
+            let active = Array.init entityAmount (fun _ -> false)
             let entities = ResizeArray (entityAmount)
-            let entitySet = HashSet ()
             let components = Array.init<'T> entityAmount (fun _ -> Unchecked.defaultof<'T>)
             
             let data =
                 {
+                    active = active
                     entities = entities
-                    entitySet = entitySet
                     components = components
                 }
 
@@ -71,29 +71,33 @@ type EntityManager (entityAmount) =
         else
             data :?> EntityLookupData<'T>
 
-    member this.Spawn entity =
-        if entitySet.Contains entity then
-            failwithf "Entity #%i already spawned." entity.Id
+    member this.Spawn (ent: Entity) =
+        if active.[ent.Id] then
+            failwithf "Entity #%i already spawned." ent.Id
         else
-            this.DeferEntityAction <| fun () -> entitySpawnedEvent.Trigger entity
-            entitySet.Add entity |> ignore
+            this.DeferEntityAction <| fun () -> entitySpawnedEvent.Trigger ent
+            active.[ent.Id] <- true
 
-    member this.Destroy (entity: Entity) =
-        if entitySet.Remove entity then
-            let removals = entityRemovals.[entity.Id]
+    member this.Destroy (ent: Entity) =
+        if active.[ent.Id] then
+            active.[ent.Id] <- false
+
+            let removals = entityRemovals.[ent.Id]
             removals.ForEach (fun f -> f ())
             removals.Clear ()            
 
     member this.AddComponent<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
         let t = typeof<'T>
 
-        if entitySet.Contains entity then
+        if active.[entity.Id] then
             failwithf "Entity #%i has already spawned, cannot add component, %s." entity.Id t.Name
 
         let data = this.GetEntityLookupData<'T> ()
 
-        if data.entitySet.Add entity then
+        if not data.active.[entity.Id] then
             entityRemovals.[entity.Id].Add (fun () -> this.TryRemoveComponent<'T> entity |> ignore)
+
+            data.active.[entity.Id] <- true
             data.entities.Add entity
 
             // Setup events
@@ -116,7 +120,7 @@ type EntityManager (entityAmount) =
         if lookup.TryGetValue (t, &data) then
             let data = data :?> EntityLookupData<'T>
 
-            data.entitySet.Remove entity |> ignore
+            data.active.[entity.Id] <- false
             data.entities.Remove entity |> ignore
 
             if entity.Id >= 0 && entity.Id < data.components.Length then
@@ -174,12 +178,12 @@ type EntityManager (entityAmount) =
 
             let inline iter i =
                 let entity = data.entities.[i]
-                let com = data.components.[entity.Id]
 
                 if
-                    not <| obj.ReferenceEquals (com, null) &&
+                    data.active.[entity.Id] &&
                     predicate entity.Id
                     then
+                    let com = data.components.[entity.Id]
                     f entity com
 
             if useParallelism
@@ -201,14 +205,14 @@ type EntityManager (entityAmount) =
 
             for i = 0 to entities.Count - 1 do
                 let entity = entities.[i]
-                let com1 = data1.components.[entity.Id]
-                let com2 = data2.components.[entity.Id]
 
                 if 
-                    not <| obj.ReferenceEquals (com1, null) && 
-                    not <| obj.ReferenceEquals (com2, null) &&
+                    data1.active.[entity.Id] && 
+                    data2.active.[entity.Id] &&
                     predicate entity.Id
                     then
+                    let com1 = data1.components.[entity.Id]
+                    let com2 = data2.components.[entity.Id]
                     f entity com1 com2
 
     member inline this.IterateInternal<'T1, 'T2, 'T3> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
@@ -226,16 +230,16 @@ type EntityManager (entityAmount) =
 
             for i = 0 to entities.Count - 1 do
                 let entity = entities.[i]
-                let com1 = data1.components.[entity.Id]
-                let com2 = data2.components.[entity.Id]
-                let com3 = data3.components.[entity.Id]
 
                 if 
-                    not <| obj.ReferenceEquals (com1, null) && 
-                    not <| obj.ReferenceEquals (com2, null) &&
-                    not <| obj.ReferenceEquals (com3, null) &&
+                    data1.active.[entity.Id] && 
+                    data2.active.[entity.Id] &&
+                    data3.active.[entity.Id] &&
                     predicate entity.Id
                     then
+                    let com1 = data1.components.[entity.Id]
+                    let com2 = data2.components.[entity.Id]
+                    let com3 = data3.components.[entity.Id]
                     f entity com1 com2 com3
 
     member inline this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
@@ -255,18 +259,18 @@ type EntityManager (entityAmount) =
 
             for i = 0 to entities.Count - 1 do
                 let entity = entities.[i]
-                let com1 = data1.components.[entity.Id]
-                let com2 = data2.components.[entity.Id]
-                let com3 = data3.components.[entity.Id]
-                let com4 = data4.components.[entity.Id]
 
                 if 
-                    not <| obj.ReferenceEquals (com1, null) && 
-                    not <| obj.ReferenceEquals (com2, null) &&
-                    not <| obj.ReferenceEquals (com3, null) &&
-                    not <| obj.ReferenceEquals (com4, null) &&
+                    data1.active.[entity.Id] && 
+                    data2.active.[entity.Id] &&
+                    data3.active.[entity.Id] &&
+                    data4.active.[entity.Id] &&
                     predicate entity.Id
                     then
+                    let com1 = data1.components.[entity.Id]
+                    let com2 = data2.components.[entity.Id]
+                    let com3 = data3.components.[entity.Id]
+                    let com4 = data4.components.[entity.Id]
                     f entity com1 com2 com3 com4
 
     member this.Process () =
