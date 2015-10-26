@@ -278,12 +278,12 @@ type R private () =
         VBO (id, data.Length)
 
     [<Import; MI (MIO.NoInlining)>]
-    static member private _GetUniformLocation (shaderProgramId: int) (name: nativeptr<sbyte>) : unit =
+    static member private _GetUniformLocation (shaderProgramId: int) (name: nativeptr<sbyte>) : int =
         C """
         return glGetUniformLocation (shaderProgramId, name);
         """
 
-    static member GetUniformLocation (shaderProgramId: int) (name: string) : unit =
+    static member GetUniformLocation (shaderProgramId: int) (name: string) : int =
         let handle = GCHandle.Alloc (name, GCHandleType.Pinned)
         let addr = handle.AddrOfPinnedObject () |> NativePtr.ofNativeInt<sbyte>
         let result = R._GetUniformLocation (shaderProgramId) addr
@@ -480,15 +480,35 @@ module Shader =
             mutable id: int
         }
 
-        member this.Bind () = this.bind ()
+        member this.Bind = this.bind
 
         member this.Value
             with get () = this.value
             and set value = this.value <- value
 
-    type Uniform private () =
+    [<RequireQualifiedAccess>]
+    type ShaderSource =
+        | Full of string
+        | Partial of string
 
-        static member Create (value: int32) =
+    [<ReferenceEquality>]
+    type Program =
+        private {
+            mutable programId: int
+            mutable vertexShaderSource: ShaderSource
+            mutable fragmentShaderSource: ShaderSource
+            uniformLocationFuncs: ResizeArray<unit -> unit>
+        }
+
+        static member Create (vertexShaderSource: ShaderSource, fragmentShaderSource: ShaderSource) =
+            {
+                programId = -1
+                vertexShaderSource = vertexShaderSource
+                fragmentShaderSource = fragmentShaderSource
+                uniformLocationFuncs = ResizeArray ()
+            }
+
+        member this.CreateUniform (value: int32, name: string) =
             let uniform =
                 {
                     value = value
@@ -499,57 +519,13 @@ module Shader =
             uniform.bind <- fun () -> 
                 if not <| uniform.id.Equals -1 then
                     R.UniformInt uniform.id uniform.value
+
+            this.uniformLocationFuncs.Add (fun () ->
+                if not <| this.programId.Equals -1 then
+                    uniform.id <- R.GetUniformLocation this.programId name
+            )
             
             uniform
-
-    type Test =
-        {
-            uValue: Uniform<int32>
-        }
-
-    type ShaderSource =
-        | Full of string
-        | Partial of string
-
-    [<ReferenceEquality>]
-    type Program<'T> =
-        private {
-            mutable shader: 'T
-            mutable programId: int
-            mutable vertexShaderSource: ShaderSource
-            mutable fragmentShaderSource: ShaderSource
-            uniformLocationFuncs: ResizeArray<unit -> unit>
-        }
-
-        static member Create (shader: 'T, vertexShaderSource: ShaderSource, fragmentShaderSource: ShaderSource) =
-            let t = typeof<'T>
-
-            let program =
-                {
-                    shader = shader
-                    programId = -1
-                    vertexShaderSource = vertexShaderSource
-                    fragmentShaderSource = fragmentShaderSource
-                    uniformLocationFuncs = ResizeArray ()
-                }
-
-            let props = 
-                t.GetProperties ()
-                |> Seq.filter (fun prop -> prop.DeclaringType.Name = "Uniform`1")
-            
-            let idFields =
-                props
-                |> Seq.map (fun prop -> prop.DeclaringType.GetField ("id"))
-
-            (props, idFields)
-            ||> Seq.iter2 (fun prop idField ->
-                program.uniformLocationFuncs.Add (fun () ->
-                    if not <| program.programId.Equals -1 then
-                        idField.SetValue (prop, R.GetUniformLocation program.programId prop.Name)
-                )
-            )
-
-            program
 
         member this.VertexShaderSource
             with get () = this.vertexShaderSource
@@ -560,8 +536,28 @@ module Shader =
             and set value = this.fragmentShaderSource <- value
 
         member this.Compile () =
-            ()
+            this.uniformLocationFuncs
+            |> Seq.iter (fun f -> ())
 
         member this.Use () =
             if this.programId <> -1 then
                 R.UseProgram (this.programId)
+
+
+    type Test =
+        {
+            Value: Uniform<int>
+        }
+
+    let testProgram = Program.Create (ShaderSource.Full (""), ShaderSource.Full (""))
+
+    let testShader =
+        {
+            Value = testProgram.CreateUniform (0, "uValue")
+        }
+
+    testProgram.Compile ()
+
+    testProgram.Use ()
+
+    testShader.Value.Bind ()
