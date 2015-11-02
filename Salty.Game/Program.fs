@@ -193,7 +193,7 @@ let main argv =
     let deltaTimeVar = Var.create 0.f
     let intervalVar = Var.create TimeSpan.Zero
     let world = 
-        ECSWorld (
+        World (
             {
                 DeltaTime = Val.create 0.f deltaTimeVar
                 CurrentTime = Val.create TimeSpan.Zero currentTimeVar
@@ -210,8 +210,6 @@ let main argv =
         )
 
     let inline runWorld () = world.Run ()
-
-    let world = world :> IWorld<Salty>
 
     let rendererSystem = RendererSystem () :> ISystem<Salty>
     rendererSystem.Init world

@@ -4,31 +4,44 @@ open System
 
 open ECS.Core
 
-[<Sealed>]
-type ECSWorld<'U> =
+type ISystem<'T> =
 
-    new : 'U * int * ISystem<'U> list -> ECSWorld<'U>
+    abstract Init : World<'T> -> unit
+
+    abstract Update : World<'T> -> unit
+
+and [<Sealed>] World<'U> =
+
+    new : 'U * int * ISystem<'U> list -> World<'U>
    
     member Run : unit -> unit
 
-    interface IWorld<'U>
+    member Dependency : 'U
+
+    member EventAggregator : IEventAggregator
+
+    member ComponentQuery : IComponentQuery
+
+    member ComponentService : IComponentService
+
+    member EntityService : IEntityService
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Entity =
 
-    val spawned : World<_, IObservable<Entity>>
+    val spawned : World<_> -> IObservable<Entity>
 
-    val destroyed : World<_, IObservable<Entity>>
+    val destroyed : World<_> -> IObservable<Entity>
 
 module Component =
 
-    val anyAdded : World<_, IObservable<Entity * IComponent * Type>>
+    val anyAdded : World<_> -> IObservable<Entity * IComponent * Type>
 
-    val anyRemoved : World<_, IObservable<Entity * IComponent * Type>>
+    val anyRemoved : World<_> -> IObservable<Entity * IComponent * Type>
 
-    val added : World<_, IObservable<Entity * #IComponent>>
+    val added : World<_> -> IObservable<Entity * #IComponent>
 
-    val removed : World<_, IObservable<Entity * #IComponent>>
+    val removed : World<_> -> IObservable<Entity * #IComponent>
 
 [<Sealed>]
 type EntityBlueprint
@@ -40,4 +53,4 @@ module EntityBlueprint =
 
     val add<'T when 'T :> IComponent> : (unit -> 'T) -> EntityBlueprint -> EntityBlueprint
 
-    val spawn : int -> IWorld<_> -> EntityBlueprint -> unit
+    val spawn : int -> World<_> -> EntityBlueprint -> unit

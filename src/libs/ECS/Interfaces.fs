@@ -65,23 +65,3 @@ type IEntityService =
     abstract GetSpawnedEvent : unit -> IObservable<Entity>
 
     abstract GetDestroyedEvent : unit -> IObservable<Entity>
-
-type ISystem<'U> =
-
-    abstract Init : IWorld<'U> -> unit
-
-    abstract Update : IWorld<'U> -> unit
-
-and IWorld<'U> =
-
-    abstract Dependency : 'U
-
-    abstract EventAggregator : IEventAggregator
-
-    abstract ComponentQuery : IComponentQuery
-
-    abstract ComponentService : IComponentService
-
-    abstract EntityService : IEntityService
-
-type World<'U, 'T> = IWorld<'U> -> 'T

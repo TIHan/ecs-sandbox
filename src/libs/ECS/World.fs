@@ -4,8 +4,13 @@ open System
 
 open ECS.Core
 
-[<Sealed>]
-type ECSWorld<'U> (dependency, entityAmount, systems: ISystem<'U> list) as this =
+type ISystem<'T> =
+
+    abstract Init : World<'T> -> unit
+
+    abstract Update : World<'T> -> unit
+
+and [<Sealed>] World<'U> (dependency: 'U, entityAmount, systems: ISystem<'U> list) as this =
     let eventAggregator = EventAggregator () :> IEventAggregator
     let entityManager = EntityManager (entityAmount)
     let componentQuery = entityManager :> IComponentQuery
@@ -25,45 +30,43 @@ type ECSWorld<'U> (dependency, entityAmount, systems: ISystem<'U> list) as this 
             entityManager.Process ()
         )
 
-    interface IWorld<'U> with
+    member __.Dependency = dependency
 
-        member __.Dependency = dependency
+    member __.EventAggregator = eventAggregator
 
-        member __.EventAggregator = eventAggregator
+    member __.ComponentQuery = componentQuery
 
-        member __.ComponentQuery = componentQuery
+    member __.ComponentService = componentService
 
-        member __.ComponentService = componentService
-
-        member __.EntityService = entityService
+    member __.EntityService = entityService
 
 module World =
 
-    let inline event (world: IWorld<_>) = world.EventAggregator.GetEvent ()
+    let inline event (world: World<_>) = world.EventAggregator.GetEvent ()
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Entity =
     open World
 
-    let spawned (world: IWorld<_>) = 
+    let spawned (world: World<_>) = 
         world.EntityService.GetSpawnedEvent ()
 
-    let destroyed (world: IWorld<_>) = 
+    let destroyed (world: World<_>) = 
         world.EntityService.GetDestroyedEvent ()
 
 module Component =
     open World
 
-    let anyAdded (world: IWorld<_>) = 
+    let anyAdded (world: World<_>) = 
         world.ComponentService.GetAnyAddedEvent ()
 
-    let anyRemoved (world: IWorld<_>) = 
+    let anyRemoved (world: World<_>) = 
         world.ComponentService.GetAnyRemovedEvent ()
 
-    let added (world: IWorld<'U>) : IObservable<Entity * #IComponent> =
+    let added (world: World<'U>) : IObservable<Entity * #IComponent> =
         world.ComponentService.GetAddedEvent ()
 
-    let removed (world: IWorld<'U>) : IObservable<Entity * #IComponent> =
+    let removed (world: World<'U>) : IObservable<Entity * #IComponent> =
         world.ComponentService.GetRemovedEvent ()
 
 type EntityBlueprint =
@@ -89,7 +92,7 @@ module EntityBlueprint =
             componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: blueprint.componentF
         }
 
-    let spawn id (world: IWorld<_>) (blueprint: EntityBlueprint) =
+    let spawn id (world: World<_>) (blueprint: EntityBlueprint) =
         let entity = Entity id
 
         blueprint.componentF

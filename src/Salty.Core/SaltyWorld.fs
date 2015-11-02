@@ -11,4 +11,4 @@ type Salty =
         Interval: Val<TimeSpan>
     }
 
-type SaltyWorld<'T> = World<Salty, 'T>
+type SaltyWorld<'T> = World<Salty> -> 'T
