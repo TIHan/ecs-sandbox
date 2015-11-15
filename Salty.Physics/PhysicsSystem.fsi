@@ -12,12 +12,12 @@ open System.Xml.Serialization
 
 module Physics =
 
-    val collided : SaltyWorld<IObservable<(Entity * Physics) * (Entity * Physics)>>
+    val onCollided : World -> IObservable<(Entity * Physics) * (Entity * Physics)>
 
-    val applyImpulse : Vector2 -> Physics -> SaltyWorld<unit>
+    val applyImpulse : Vector2 -> Physics -> World -> unit
 
 type PhysicsSystem =
 
     new : unit -> PhysicsSystem
 
-    interface ISystem<Salty>
+    interface ISystem

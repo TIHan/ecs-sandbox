@@ -4,11 +4,11 @@ open System
 
 open ECS.Core
 
-type Salty =
+type WorldTime =
     {
-        CurrentTime: Val<TimeSpan>
-        DeltaTime: Val<single>
-        Interval: Val<TimeSpan>
+        mutable CurrentTime: TimeSpan
+        mutable DeltaTime: single
+        mutable Interval: TimeSpan
     }
 
-type SaltyWorld<'T> = World<Salty> -> 'T
+    interface IComponent

@@ -19,7 +19,7 @@ type InputDataUpdated = InputDataUpdated of InputData with
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Input =
     
-    let dataUpdated : SaltyWorld<IObservable<InputData>> =
+    let onDataUpdated : World -> IObservable<InputData> =
         fun world ->
             world.EventAggregator.GetEvent<InputDataUpdated> ()
             |> Observable.map (function
@@ -28,7 +28,7 @@ module Input =
 
 type InputSystem () =
 
-    interface ISystem<Salty> with
+    interface ISystem with
 
         member __.Init _ =
             ()

@@ -17,7 +17,7 @@ type ISerializableComponent =
     inherit IComponent
     inherit IXmlSerializable
 
-type SerializationSystem<'T> () =
+type SerializationSystem () =
 
     let entities : (ResizeArray<ISerializableComponent> []) = Array.init 65536 (fun _ -> ResizeArray ())
     let interfaceSerializableComponentType = typeof<ISerializableComponent>
@@ -34,11 +34,11 @@ type SerializationSystem<'T> () =
         |> Array.reduce Array.append
         |> Array.sortBy (fun x -> x.Name.ToLower ())
 
-    interface ISystem<'T> with
+    interface ISystem with
 
         member this.Init world =
             world
-            |> Component.anyAdded
+            |> Component.onAnyAdded
             |> Observable.add (fun (entity, o, t) ->
                 if typeof<ISerializableComponent>.IsAssignableFrom t then
                     let id = entity.Id
@@ -46,7 +46,7 @@ type SerializationSystem<'T> () =
             )
 
             world
-            |> Component.anyRemoved
+            |> Component.onAnyRemoved
             |> Observable.add (fun (entity, o, t) ->
                 if typeof<ISerializableComponent>.IsAssignableFrom t then
                     let id = entity.Id

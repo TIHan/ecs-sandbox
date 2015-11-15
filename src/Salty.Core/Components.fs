@@ -9,15 +9,17 @@ open ECS.Core
 
 open Salty.Core
 
-type Centroid () =
-
-    member val Var = Var.create Vector2.Zero with get
+type Centroid =
+    {
+        mutable Value: Vector2
+    }
 
     interface IComponent
 
-type Position () =
-
-    member val Var = Var.create Vector2.Zero with get
+type Position =
+    {
+        mutable Value: Vector2
+    }
 
     interface ISerializableComponent
 
@@ -28,7 +30,7 @@ type Position () =
         member __.GetSchema () = null
 
         member this.WriteXml writer =
-            let position = this.Var.Value
+            let position = this.Value
             writer.WriteAttributeString ("X", position.X.ToString ("F"))
             writer.WriteAttributeString ("Y", position.Y.ToString ("F"))
 
@@ -38,10 +40,11 @@ type Position () =
             position.X <- Single.Parse (reader.GetAttribute ("X"), NumberStyles.Number, CultureInfo.InvariantCulture)
             position.Y <- Single.Parse (reader.GetAttribute ("Y"), NumberStyles.Number, CultureInfo.InvariantCulture)
 
-            this.Var.Value <- position
+            this.Value <- position
 
-type Rotation () =
-
-    member val Var = Var.create 0.f with get
+type Rotation =
+    {
+        mutable Value: single
+    }
 
     interface IComponent

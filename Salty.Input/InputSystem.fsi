@@ -15,11 +15,11 @@ type InputData =
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Input =
 
-    val dataUpdated : SaltyWorld<IObservable<InputData>>
+    val onDataUpdated : World -> IObservable<InputData>
 
 type InputSystem =
 
     new : unit -> InputSystem
 
-    interface ISystem<Salty>
+    interface ISystem
 

@@ -22,23 +22,23 @@ type internal PhysicsInternal () =
 
 type Physics () =
 
-    member val Data : Vector2 [] Var = Var.create [||]
+    member val Data : Vector2 [] = [||] with get, set
 
-    member val IsStatic = Var.create false
+    member val IsStatic = false with get, set
 
-    member val Density = Var.create 0.f
+    member val Density = 0.f with get, set
 
-    member val Restitution = Var.create 0.f
+    member val Restitution = 0.f with get, set
 
-    member val Friction = Var.create 0.f
+    member val Friction = 0.f with get, set
 
-    member val Mass = Var.create 0.f
+    member val Mass = 0.f with get, set
 
-    member val Velocity = Var.create Vector2.Zero
+    member val Velocity = Vector2.Zero with get, set
 
-    member val Position = Var.create Vector2.Zero
+    member val Position = Vector2.Zero with get, set
 
-    member val Rotation = Var.create 0.f
+    member val Rotation = 0.f with get, set
 
     member val internal Internal = PhysicsInternal () with get, set
 
@@ -51,16 +51,16 @@ type Physics () =
         member this.GetSchema () = null
 
         member this.WriteXml writer =
-            writer.WriteAttributeString ("IsStatic", this.IsStatic.Value.ToString ())
-            writer.WriteAttributeString ("Density", this.Density.Value.ToString ())
-            writer.WriteAttributeString ("Restitution", this.Restitution.Value.ToString ())
-            writer.WriteAttributeString ("Friction", this.Friction.Value.ToString ())
-            writer.WriteAttributeString ("Mass", this.Mass.Value.ToString ())
+            writer.WriteAttributeString ("IsStatic", this.IsStatic.ToString ())
+            writer.WriteAttributeString ("Density", this.Density.ToString ())
+            writer.WriteAttributeString ("Restitution", this.Restitution.ToString ())
+            writer.WriteAttributeString ("Friction", this.Friction.ToString ())
+            writer.WriteAttributeString ("Mass", this.Mass.ToString ())
 
         member this.ReadXml reader =
-            this.IsStatic.Value <- bool.Parse (reader.GetAttribute ("IsStatic"))
-            this.Density.Value <- Single.Parse (reader.GetAttribute ("Density"), NumberStyles.Number, CultureInfo.InvariantCulture)
-            this.Restitution.Value <- Single.Parse (reader.GetAttribute ("Restitution"), NumberStyles.Number, CultureInfo.InvariantCulture)
-            this.Friction.Value <- Single.Parse (reader.GetAttribute ("Friction"), NumberStyles.Number, CultureInfo.InvariantCulture)
-            this.Mass.Value <- Single.Parse (reader.GetAttribute ("Mass"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            this.IsStatic <- bool.Parse (reader.GetAttribute ("IsStatic"))
+            this.Density <- Single.Parse (reader.GetAttribute ("Density"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            this.Restitution <- Single.Parse (reader.GetAttribute ("Restitution"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            this.Friction <- Single.Parse (reader.GetAttribute ("Friction"), NumberStyles.Number, CultureInfo.InvariantCulture)
+            this.Mass <- Single.Parse (reader.GetAttribute ("Mass"), NumberStyles.Number, CultureInfo.InvariantCulture)
 
