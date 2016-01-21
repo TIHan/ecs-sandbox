@@ -64,14 +64,14 @@ type EntityManager (entityAmount) =
         else
             data :?> EntityLookupData<'T>
 
-    member this.Spawn (ent: Entity) =
+    member this.SpawnInternal (ent: Entity) =
         if active.[ent.Id] then
             failwithf "Entity #%i already spawned." ent.Id
         else
             this.DeferEntityAction <| fun () -> entitySpawnedEvent.Trigger ent
             active.[ent.Id] <- true
 
-    member this.Destroy (ent: Entity) =
+    member this.DestroyInternal (ent: Entity) =
         if active.[ent.Id] then
             active.[ent.Id] <- false
 
@@ -79,7 +79,7 @@ type EntityManager (entityAmount) =
             removals.ForEach (fun f -> f ())
             removals.Clear ()            
 
-    member this.AddComponent<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
+    member this.AddComponentInternal<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
         let t = typeof<'T>
 
         if active.[entity.Id] then
@@ -88,7 +88,7 @@ type EntityManager (entityAmount) =
         let data = this.GetEntityLookupData<'T> ()
 
         if not data.Active.[entity.Id] then
-            entityRemovals.[entity.Id].Add (fun () -> this.TryRemoveComponent<'T> entity |> ignore)
+            entityRemovals.[entity.Id].Add (fun () -> this.TryRemoveComponentInternal<'T> entity |> ignore)
 
             data.Active.[entity.Id] <- true
             data.Entities.Add entity
@@ -107,7 +107,7 @@ type EntityManager (entityAmount) =
         else
             failwithf "Component %s already added to Entity #%i." t.Name entity.Id
         
-    member this.TryRemoveComponent<'T when 'T :> IComponent> (entity: Entity) : 'T option =
+    member this.TryRemoveComponentInternal<'T when 'T :> IComponent> (entity: Entity) : 'T option =
         let t = typeof<'T>
         let mutable data = null
         if lookup.TryGetValue (t, &data) then
@@ -140,21 +140,21 @@ type EntityManager (entityAmount) =
         else
             None
 
-    member this.TryGet<'T> (entity: Entity, c: byref<'T>) = 
+    member this.TryGetInternal<'T> (entity: Entity, c: byref<'T>) = 
         let mutable data = null
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             if (entity.Id >= 0 && entity.Id < data.Components.Length) then
                 c <- data.Components.[entity.Id]
 
-    member this.TryGet<'T when 'T :> IComponent> (entity: Entity, c: byref<IComponent>) = 
+    member this.TryGetInternal<'T when 'T :> IComponent> (entity: Entity, c: byref<IComponent>) = 
         let mutable data = null
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             if (entity.Id >= 0 && entity.Id < data.Components.Length) then
                 c <- data.Components.[entity.Id]
 
-    member this.TryFind<'T> (f: Entity -> 'T -> bool, result: byref<Entity * 'T>) =
+    member this.TryFindInternal<'T> (f: Entity -> 'T -> bool, result: byref<Entity * 'T>) =
         let mutable data = null
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
@@ -306,112 +306,112 @@ type EntityManager (entityAmount) =
                 p ()
         p ()
 
-    interface IComponentService with
+    // Components
 
-        member this.Add<'T when 'T :> IComponent> entity (comp: 'T) =
-            let inline f () =
-                this.AddComponent<'T> (entity, comp)
+    member this.AddComponent<'T when 'T :> IComponent> entity (comp: 'T) =
+        let inline f () =
+            this.AddComponentInternal<'T> (entity, comp)
 
-            this.DeferComponentAction f
+        this.DeferComponentAction f
 
-        member this.Remove<'T when 'T :> IComponent> entity =
-            let inline f () =
-                this.TryRemoveComponent<'T> (entity) |> ignore
+    member this.RemoveComponent<'T when 'T :> IComponent> entity =
+        let inline f () =
+            this.TryRemoveComponentInternal<'T> (entity) |> ignore
 
-            this.DeferComponentAction f
+        this.DeferComponentAction f
 
-        member this.GetAddedEvent<'T when 'T :> IComponent> () =
-            let event = componentAddedEventLookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<Entity * 'T> () :> obj))
-            (event :?> Event<Entity * 'T>).Publish :> IObservable<Entity * 'T>
+    member this.GetAddedEvent<'T when 'T :> IComponent> () =
+        let event = componentAddedEventLookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<Entity * 'T> () :> obj))
+        (event :?> Event<Entity * 'T>).Publish :> IObservable<Entity * 'T>
 
-        member this.GetRemovedEvent<'T when 'T :> IComponent> () =
-            let event = componentRemovedEventLookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<Entity * 'T> () :> obj))
-            (event :?> Event<Entity * 'T>).Publish :> IObservable<Entity * 'T>
+    member this.GetRemovedEvent<'T when 'T :> IComponent> () =
+        let event = componentRemovedEventLookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<Entity * 'T> () :> obj))
+        (event :?> Event<Entity * 'T>).Publish :> IObservable<Entity * 'T>
 
-        member this.GetAnyAddedEvent () = anyComponentAddedEvent.Publish :> IObservable<Entity * IComponent * Type>
+    member this.GetAnyAddedEvent () = anyComponentAddedEvent.Publish :> IObservable<Entity * IComponent * Type>
 
-        member this.GetAnyRemovedEvent () = anyComponentRemovedEvent.Publish :> IObservable<Entity * IComponent * Type>
+    member this.GetAnyRemovedEvent () = anyComponentRemovedEvent.Publish :> IObservable<Entity * IComponent * Type>
 
 
-    interface IEntityService with
+    // Entities
 
-        member this.Spawn entity =             
-            let inline f () =
-                this.Spawn entity
+    member this.Spawn entity =             
+        let inline f () =
+            this.SpawnInternal entity
 
-            this.DeferEntityAction f
+        this.DeferEntityAction f
 
-        member this.Destroy entity =
-            let inline f () =
-                this.Destroy entity
+    member this.Destroy entity =
+        let inline f () =
+            this.DestroyInternal entity
 
-            this.DeferEntityAction f
+        this.DeferEntityAction f
 
-        member this.GetSpawnedEvent () = entitySpawnedEvent.Publish :> IObservable<Entity>
+    member this.GetSpawnedEvent () = entitySpawnedEvent.Publish :> IObservable<Entity>
 
-        member this.GetDestroyedEvent () = entityDestroyedEvent.Publish :> IObservable<Entity>
+    member this.GetDestroyedEvent () = entityDestroyedEvent.Publish :> IObservable<Entity>
 
-    interface IComponentQuery with
+    // Component Query
 
-        member this.Has<'T when 'T :> IComponent> (entity: Entity) : bool =
-            let mutable c = Unchecked.defaultof<'T>
-            this.TryGet<'T> (entity, &c)
-            obj.ReferenceEquals (c, null)
+    member this.Has<'T when 'T :> IComponent> (entity: Entity) : bool =
+        let mutable c = Unchecked.defaultof<'T>
+        this.TryGetInternal<'T> (entity, &c)
+        obj.ReferenceEquals (c, null)
 
-        member this.TryGet (entity: Entity, t: Type) : IComponent option =
-            let mutable c = Unchecked.defaultof<IComponent>
-            this.TryGet (entity, &c)
-            if obj.ReferenceEquals (c, null) then None
-            else Some c
+    member this.TryGet (entity: Entity, t: Type) : IComponent option =
+        let mutable c = Unchecked.defaultof<IComponent>
+        this.TryGetInternal (entity, &c)
+        if obj.ReferenceEquals (c, null) then None
+        else Some c
 
-        member this.TryGet (entity, c: byref<#IComponent>) =
-            this.TryGet (entity, &c)
+    member this.TryGet (entity, c: byref<#IComponent>) =
+        this.TryGetInternal (entity, &c)
 
-        member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
-            let mutable c = Unchecked.defaultof<'T>
-            this.TryGet<'T> (entity, &c)
+    member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
+        let mutable c = Unchecked.defaultof<'T>
+        this.TryGet<'T> (entity, &c)
 
-            if obj.ReferenceEquals (c, null) then None
-            else Some c
+        if obj.ReferenceEquals (c, null) then None
+        else Some c
 
-        member this.TryFind<'T when 'T :> IComponent> (f: Entity -> 'T -> bool) : (Entity * 'T) option =
-            let mutable result = Unchecked.defaultof<Entity * 'T>
-            this.TryFind (f, &result)
-            
-            if obj.ReferenceEquals (result, null) then None
-            else Some result
+    member this.TryFind<'T when 'T :> IComponent> (f: Entity -> 'T -> bool) : (Entity * 'T) option =
+        let mutable result = Unchecked.defaultof<Entity * 'T>
+        this.TryFindInternal (f, &result)
+        
+        if obj.ReferenceEquals (result, null) then None
+        else Some result
 
-        member this.GetAll<'T when 'T :> IComponent> () : (Entity * 'T) [] =
-            let result = ResizeArray<Entity * 'T> ()
+    member this.GetAll<'T when 'T :> IComponent> () : (Entity * 'T) [] =
+        let result = ResizeArray<Entity * 'T> ()
 
-            this.IterateInternal<'T> ((fun entity x -> result.Add(entity, x)), false, fun _ -> true)
+        this.IterateInternal<'T> ((fun entity x -> result.Add(entity, x)), false, fun _ -> true)
 
-            result.ToArray ()
+        result.ToArray ()
 
-        member this.GetAll<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> () : (Entity * 'T1 * 'T2) [] =
-            let result = ResizeArray<Entity * 'T1 * 'T2> ()
+    member this.GetAll<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> () : (Entity * 'T1 * 'T2) [] =
+        let result = ResizeArray<Entity * 'T1 * 'T2> ()
 
-            this.IterateInternal<'T1, 'T2> ((fun entity x1 x2 -> result.Add(entity, x1, x2)), false, fun _ -> true)
+        this.IterateInternal<'T1, 'T2> ((fun entity x1 x2 -> result.Add(entity, x1, x2)), false, fun _ -> true)
 
-            result.ToArray ()
+        result.ToArray ()
 
-        member this.ForEach<'T when 'T :> IComponent> f : unit =
-            this.IterateInternal<'T> (f, false, fun _ -> true)
+    member this.ForEach<'T when 'T :> IComponent> f : unit =
+        this.IterateInternal<'T> (f, false, fun _ -> true)
 
-        member this.ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
-            this.IterateInternal<'T1, 'T2> (f, false, fun _ -> true)
+    member this.ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
+        this.IterateInternal<'T1, 'T2> (f, false, fun _ -> true)
 
-        member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> f : unit =
-            this.IterateInternal<'T1, 'T2, 'T3> (f, false, fun _ -> true)
+    member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> f : unit =
+        this.IterateInternal<'T1, 'T2, 'T3> (f, false, fun _ -> true)
 
-        member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> f : unit =
-            this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f, false, fun _ -> true)
+    member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> f : unit =
+        this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f, false, fun _ -> true)
 
-        member this.ParallelForEach<'T when 'T :> IComponent> f : unit =
-            this.IterateInternal<'T> (f, true, fun _ -> true)
+    member this.ParallelForEach<'T when 'T :> IComponent> f : unit =
+        this.IterateInternal<'T> (f, true, fun _ -> true)
 
-        member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
-            this.IterateInternal<'T1, 'T2> (f, true, fun _ -> true)
+    member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
+        this.IterateInternal<'T1, 'T2> (f, true, fun _ -> true)
 
-        member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> f : unit =
-            this.IterateInternal<'T1, 'T2, 'T3> (f, true, fun _ -> true)
+    member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> f : unit =
+        this.IterateInternal<'T1, 'T2, 'T3> (f, true, fun _ -> true)

@@ -6,71 +6,49 @@ open ECS.Core
 
 type ISystem =
 
-    abstract Init : World -> unit
+    abstract Init : EntityManager * EventAggregator -> unit
 
-    abstract Update : World -> unit
+    abstract Update : EntityManager * EventAggregator -> unit
 
-and [<Sealed>] World (entityAmount, systems: ISystem list) as this =
-    let eventAggregator = EventAggregator () :> IEventAggregator
+type [<Sealed>] World (entityAmount, systems: ISystem list) =
+    let eventAggregator = EventAggregator ()
     let entityManager = EntityManager (entityAmount)
-    let componentQuery = entityManager :> IComponentQuery
-    let componentService = entityManager :> IComponentService
-    let entityService = entityManager :> IEntityService
-    let componentQuery = entityManager :> IComponentQuery
+    let deps = (entityManager, eventAggregator)
 
     do
         systems
-        |> List.iter (fun system -> system.Init this)
+        |> List.iter (fun system -> system.Init deps)
 
     member __.Run () =
         entityManager.Process ()
 
         systems |> List.iter (fun (sys: ISystem) ->
-            sys.Update this
+            sys.Update deps
             entityManager.Process ()
         )
 
-    member __.EventAggregator = eventAggregator
+    member __.Events = eventAggregator
 
-    member __.ComponentQuery = componentQuery
+    member __.Entities = entityManager
 
-    member __.ComponentService = componentService
+type EventSystem<'Event when 'Event :> IEvent> (update) =
+    let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
 
-    member __.EntityService = entityService
+    interface ISystem with
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module World =
+        member __.Init (_, events) =
+            events.GetEvent<'Event> ()
+            |> Observable.add queue.Enqueue
 
-    let inline event (world: World) = world.EventAggregator.GetEvent ()
-
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module Entity =
-    open World
-
-    let onSpawned (world: World) = 
-        world.EntityService.GetSpawnedEvent ()
-
-    let onDestroyed (world: World) = 
-        world.EntityService.GetDestroyedEvent ()
-
-module Component =
-    open World
-
-    let onAnyAdded (world: World) = 
-        world.ComponentService.GetAnyAddedEvent ()
-
-    let onAnyRemoved (world: World) = 
-        world.ComponentService.GetAnyRemovedEvent ()
-
-    let onAdded (world: World) : IObservable<Entity * #IComponent> =
-        world.ComponentService.GetAddedEvent ()
-
-    let onRemoved (world: World) : IObservable<Entity * #IComponent> =
-        world.ComponentService.GetRemovedEvent ()
+        member __.Update (entities, _) =
+            let iter = update entities
+            let mutable eventValue = Unchecked.defaultof<'Event>
+            while queue.TryDequeue (&eventValue) do
+                iter eventValue
 
 type EntityBlueprint =
     {
-        componentF: (Entity -> IComponentService -> unit) list
+        componentF: (Entity -> EntityManager -> unit) list
     }
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -83,18 +61,18 @@ module EntityBlueprint =
      
     let add<'T when 'T :> IComponent> (compf: unit -> 'T) (blueprint: EntityBlueprint) : EntityBlueprint =
         { blueprint with
-            componentF = (fun entity (service: IComponentService) -> service.Add<'T> entity (compf ())) :: blueprint.componentF
+            componentF = (fun entity entityManager -> entityManager.AddComponent<'T> entity (compf ())) :: blueprint.componentF
         }
 
     let remove<'T when 'T :> IComponent> (blueprint: EntityBlueprint) : EntityBlueprint =
         { blueprint with
-            componentF = (fun entity (service: IComponentService) -> service.Remove<'T> entity) :: blueprint.componentF
+            componentF = (fun entity entityManager -> entityManager.RemoveComponent<'T> entity) :: blueprint.componentF
         }
 
-    let spawn id (world: World) (blueprint: EntityBlueprint) =
+    let spawn id (entityManager: EntityManager) (blueprint: EntityBlueprint) =
         let entity = Entity id
 
         blueprint.componentF
-        |> List.iter (fun f -> f entity world.ComponentService)
+        |> List.iter (fun f -> f entity entityManager)
 
-        world.EntityService.Spawn entity
+        entityManager.Spawn entity

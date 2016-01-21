@@ -3,8 +3,10 @@
 open System
 
 [<Sealed>]
-type internal EventAggregator =
+type EventAggregator =
 
-    interface IEventAggregator
+    internal new : unit -> EventAggregator
 
-    new : unit -> EventAggregator
+    member internal GetEvent<'T when 'T :> IEvent> : unit -> IObservable<'T>
+
+    member Publish : #IEvent -> unit

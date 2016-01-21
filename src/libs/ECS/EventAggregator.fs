@@ -7,13 +7,11 @@ open System.Collections.Concurrent
 type EventAggregator () =
     let lookup = ConcurrentDictionary<Type, obj> ()
 
-    interface IEventAggregator with
+    member __.GetEvent<'T when 'T :> IEvent> () =
+        let event = lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj))
+        (event :?> Event<'T>).Publish :> IObservable<'T>
 
-        member __.GetEvent () =
-            let event = lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj))
-            (event :?> Event<'T>).Publish :> IObservable<#IEventData>
-
-        member __.Publish eventValue =
-            let mutable value = Unchecked.defaultof<obj>
-            if lookup.TryGetValue (typeof<'T>, &value) then
-                (value :?> Event<'T>).Trigger eventValue
+    member __.Publish (eventValue: #IEvent) =
+        let mutable value = Unchecked.defaultof<obj>
+        if lookup.TryGetValue (typeof<'T>, &value) then
+            (value :?> Event<'T>).Trigger eventValue
