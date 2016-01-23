@@ -10,9 +10,33 @@ type ISystem =
 
     abstract Update : EntityManager * EventAggregator -> unit
 
+type System private () =
+
+    static member Append (sys1: ISystem) (sys2: ISystem) =
+        {
+            new ISystem with
+
+                member __.Init (entities, events) =
+                    sys1.Init (entities, events)
+                    sys2.Init (entities, events)
+
+                member __.Update (entities, events) =
+                    sys1.Update (entities, events)
+                    sys2.Update (entities, events)
+        }
+
+    static member Empty =
+        {
+            new ISystem with
+
+                member __.Init (_, _) = ()
+
+                member __.Update (_, _) = ()
+        }
+
 type [<Sealed>] World (entityAmount, systems: ISystem list) =
     let eventAggregator = EventAggregator ()
-    let entityManager = EntityManager (entityAmount)
+    let entityManager = EntityManager (eventAggregator, entityAmount)
     let deps = (entityManager, eventAggregator)
 
     do
@@ -20,11 +44,8 @@ type [<Sealed>] World (entityAmount, systems: ISystem list) =
         |> List.iter (fun system -> system.Init deps)
 
     member __.Run () =
-        entityManager.Process ()
-
-        systems |> List.iter (fun (sys: ISystem) ->
+        systems |> List.iter (fun sys ->
             sys.Update deps
-            entityManager.Process ()
         )
 
     member __.Events = eventAggregator
@@ -40,39 +61,7 @@ type EventSystem<'Event when 'Event :> IEvent> (update) =
             events.GetEvent<'Event> ()
             |> Observable.add queue.Enqueue
 
-        member __.Update (entities, _) =
-            let iter = update entities
+        member __.Update (entities, events) =
             let mutable eventValue = Unchecked.defaultof<'Event>
             while queue.TryDequeue (&eventValue) do
-                iter eventValue
-
-type EntityBlueprint =
-    {
-        componentF: (Entity -> EntityManager -> unit) list
-    }
-
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module EntityBlueprint =
-
-    let create () =
-        {
-            componentF = []
-        }
-     
-    let add<'T when 'T :> IComponent> (compf: unit -> 'T) (blueprint: EntityBlueprint) : EntityBlueprint =
-        { blueprint with
-            componentF = (fun entity entityManager -> entityManager.AddComponent<'T> entity (compf ())) :: blueprint.componentF
-        }
-
-    let remove<'T when 'T :> IComponent> (blueprint: EntityBlueprint) : EntityBlueprint =
-        { blueprint with
-            componentF = (fun entity entityManager -> entityManager.RemoveComponent<'T> entity) :: blueprint.componentF
-        }
-
-    let spawn id (entityManager: EntityManager) (blueprint: EntityBlueprint) =
-        let entity = Entity id
-
-        blueprint.componentF
-        |> List.iter (fun f -> f entity entityManager)
-
-        entityManager.Spawn entity
+                update entities eventValue

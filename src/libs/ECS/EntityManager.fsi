@@ -3,6 +3,60 @@
 open System
 
 [<Sealed>]
+type ComponentAdded<'T when 'T :> IComponent> =
+
+    member Entity : Entity
+
+    member Component : 'T
+
+    interface IEvent
+
+[<Sealed>]
+type ComponentRemoved<'T when 'T :> IComponent> =
+
+    member Entity : Entity
+
+    member Component : 'T
+
+    interface IEvent
+
+[<Sealed>]
+type AnyComponentAdded =
+
+    member Entity : Entity
+
+    member Component : IComponent
+
+    member ComponentType : Type
+
+    interface IEvent
+
+[<Sealed>]
+type AnyComponentRemoved =
+
+    member Entity : Entity
+
+    member Component : IComponent
+
+    member ComponentType : Type
+
+    interface IEvent
+
+[<Sealed>]
+type EntitySpawned =
+
+    member Entity : Entity
+
+    interface IEvent
+
+[<Sealed>]
+type EntityDestroyed =
+
+    member Entity : Entity
+
+    interface IEvent
+
+[<Sealed>]
 type EntityManager =
 
     // Component Query
@@ -37,28 +91,16 @@ type EntityManager =
 
     // Components
 
-    member AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
+    member internal AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
 
-    member RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
-
-    member GetAddedEvent<'T when 'T :> IComponent> : unit -> IObservable<Entity * 'T>
-
-    member GetAnyAddedEvent : unit -> IObservable<Entity * IComponent * Type>
-
-    member GetRemovedEvent<'T when 'T :> IComponent> : unit -> IObservable<Entity * 'T>
-
-    member GetAnyRemovedEvent : unit -> IObservable<Entity * IComponent * Type>
+    member internal RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
 
     // Entites
 
-    member Spawn : Entity -> unit
+    member internal Spawn : Entity -> unit
 
     member Destroy : Entity -> unit
 
-    member GetSpawnedEvent : unit -> IObservable<Entity>
+    member internal Process : unit -> unit
 
-    member GetDestroyedEvent : unit -> IObservable<Entity>
-
-    member Process : unit -> unit
-
-    new : entityAmount: int -> EntityManager
+    new : EventAggregator * entityAmount: int -> EntityManager
