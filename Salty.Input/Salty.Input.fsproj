@@ -52,8 +52,8 @@
   <ItemGroup>
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
-    <Compile Include="InputSystem.fsi" />
-    <Compile Include="InputSystem.fs" />
+    <Compile Include="InputPublisher.fsi" />
+    <Compile Include="InputPublisher.fs" />
     <Content Include="paket.references" />
   </ItemGroup>
   <ItemGroup>

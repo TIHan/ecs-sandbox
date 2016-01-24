@@ -21,9 +21,9 @@ type RendererSystem () =
         let mutable v = Vector3.Transform(Vector3 (x, y, z), m)
         v
 
-    interface ISystem<Salty> with
+    interface ISystem with
 
-        member __.Init world =
+        member __.Init (entities, events) =
             Renderer.R.InitSDL ()
             let window = Renderer.R.CreateWindow ()
             context <- Renderer.R.Init (window)
