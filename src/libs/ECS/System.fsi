@@ -30,3 +30,10 @@ type EventQueue<'Event when 'Event :> IEvent> =
     new : (EntityManager -> 'Event -> unit) -> EventQueue<'Event>
 
     interface ISystem
+
+[<Sealed>]
+type EntityProcessor =
+
+    new : unit -> EntityProcessor
+
+    interface ISystem

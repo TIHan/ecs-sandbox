@@ -58,3 +58,12 @@ type EventQueue<'Event when 'Event :> IEvent> (f) =
             let mutable event = Unchecked.defaultof<'Event>
             while queue.TryDequeue (&event) do
                 f entities event
+
+[<Sealed>]
+type EntityProcessor () =
+
+    interface ISystem with
+
+        member __.Init (_, _) = ()
+
+        member __.Update (entities, _) = entities.Process ()
