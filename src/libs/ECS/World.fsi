@@ -4,18 +4,11 @@ open System
 
 open ECS.Core
 
-type ISystem =
+[<Sealed>]
+type World =
 
-    abstract Init : EntityManager * EventAggregator -> unit
-
-    abstract Update : EntityManager * EventAggregator -> unit
-
-type [<Sealed>] World =
-
-    new : int * ISystem list -> World
+    new : maxEntityCount: int -> World
    
-    member Run : unit -> unit
+    member InitSystem : ISystem -> unit
 
-    member Events : EventAggregator
-
-    member Entities : EntityManager
+    member RunSystem : ISystem -> unit

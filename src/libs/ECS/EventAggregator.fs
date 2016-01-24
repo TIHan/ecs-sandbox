@@ -3,6 +3,8 @@
 open System
 open System.Collections.Concurrent
 
+type IEvent = interface end
+
 [<Sealed>]
 type EventAggregator () =
     let lookup = ConcurrentDictionary<Type, obj> ()

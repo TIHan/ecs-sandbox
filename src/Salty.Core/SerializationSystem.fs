@@ -19,7 +19,7 @@ type ISerializableComponent =
 
 type SerializationSystem () =
 
-    let entities : (ResizeArray<ISerializableComponent> []) = Array.init 65536 (fun _ -> ResizeArray ())
+    let serializedEntities : (ResizeArray<ISerializableComponent> []) = Array.init 65536 (fun _ -> ResizeArray ())
     let interfaceSerializableComponentType = typeof<ISerializableComponent>
 
     let componentTypes =
@@ -34,26 +34,29 @@ type SerializationSystem () =
         |> Array.reduce Array.append
         |> Array.sortBy (fun x -> x.Name.ToLower ())
 
+    let listenAnyComponentAdded =
+        EventListener<AnyComponentAdded> (fun entities evt ->
+            if typeof<ISerializableComponent>.IsAssignableFrom evt.ComponentType then
+                let id = evt.Entity.Id
+                serializedEntities.[id].Add (evt.Component :?> ISerializableComponent)
+        )
+        :> ISystem
+
+    let listenAnyComponentRemoved =
+        EventListener<AnyComponentRemoved> (fun entities evt ->
+            if typeof<ISerializableComponent>.IsAssignableFrom evt.ComponentType then
+                let id = evt.Entity.Id
+                serializedEntities.[id] <- ResizeArray ()
+        )
+        :> ISystem
+
     interface ISystem with
 
-        member this.Init world =
-            world
-            |> Component.onAnyAdded
-            |> Observable.add (fun (entity, o, t) ->
-                if typeof<ISerializableComponent>.IsAssignableFrom t then
-                    let id = entity.Id
-                    entities.[id].Add (o :?> ISerializableComponent)
-            )
+        member this.Init (entities, events) =
+            listenAnyComponentAdded.Init (entities, events)
+            listenAnyComponentRemoved.Init (entities, events)
 
-            world
-            |> Component.onAnyRemoved
-            |> Observable.add (fun (entity, o, t) ->
-                if typeof<ISerializableComponent>.IsAssignableFrom t then
-                    let id = entity.Id
-                    entities.[id] <- ResizeArray ()
-            )
-
-        member this.Update world =
+        member this.Update (entities, events) =
       
 //            outputStream.Position <- 0L
 //            outputStream.SetLength (0L)
@@ -68,7 +71,7 @@ type SerializationSystem () =
             use writer = XmlWriter.Create (outputStream, settings)
 
             writer.WriteStartElement ("Game", "root")
-            entities
+            serializedEntities
             |> Array.iteri (fun i comps ->
                 match comps with
                 | comps when comps.Count.Equals 0 -> ()
@@ -102,7 +105,7 @@ type SerializationSystem () =
                         currentEntity <- Entity (Int32.Parse (reader.GetAttribute("Id")))
                     | name ->
                         let compType = componentTypes |> Array.find (fun x -> x.Name.Equals name)
-                        match world.ComponentQuery.TryGet (currentEntity, compType) with
+                        match entities.TryGet (currentEntity, compType) with
                         | Some comp ->
                             let comp = comp :?> ISerializableComponent
                             comp.ReadXml reader

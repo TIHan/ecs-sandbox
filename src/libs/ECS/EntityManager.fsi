@@ -2,6 +2,8 @@
 
 open System
 
+type IComponent = interface end
+
 [<Sealed>]
 type ComponentAdded<'T when 'T :> IComponent> =
 

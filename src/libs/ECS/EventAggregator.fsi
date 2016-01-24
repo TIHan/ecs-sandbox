@@ -2,6 +2,8 @@
 
 open System
 
+type IEvent = interface end
+
 [<Sealed>]
 type EventAggregator =
 

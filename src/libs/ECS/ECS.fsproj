@@ -16,7 +16,8 @@
     <DefineConstants>DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <ConsolePause>false</ConsolePause>
-    <PlatformTarget></PlatformTarget>
+    <PlatformTarget>
+    </PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugSymbols>false</DebugSymbols>
@@ -25,18 +26,21 @@
     <ErrorReport>prompt</ErrorReport>
     <ConsolePause>false</ConsolePause>
     <GenerateTailCalls>true</GenerateTailCalls>
-    <PlatformTarget></PlatformTarget>
-    <DefineConstants></DefineConstants>
+    <PlatformTarget>
+    </PlatformTarget>
+    <DefineConstants>
+    </DefineConstants>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.1\Framework\v4.0\Microsoft.FSharp.Targets" />
   <ItemGroup>
     <Compile Include="Entity.fsi" />
     <Compile Include="Entity.fs" />
-    <Compile Include="Interfaces.fs" />
     <Compile Include="EventAggregator.fsi" />
     <Compile Include="EventAggregator.fs" />
     <Compile Include="EntityManager.fsi" />
     <Compile Include="EntityManager.fs" />
+    <Compile Include="System.fsi" />
+    <Compile Include="System.fs" />
     <Compile Include="EntityBlueprint.fsi" />
     <Compile Include="EntityBlueprint.fs" />
     <Compile Include="World.fsi" />

@@ -6,6 +6,8 @@ open System.Collections.Generic
 open System.Collections.Concurrent
 open System.Threading.Tasks
 
+type IComponent = interface end
+
 [<AllowNullLiteral>]
 type IEntityLookupData = interface end
 
@@ -76,7 +78,6 @@ type EntityDestroyed (ent: Entity) =
 
 [<Sealed>]
 type EntityManager (eventAggregator: EventAggregator, entityAmount) =
-    let disposableTypeInfo = typeof<IDisposable>.GetTypeInfo()
 
     let active = Array.init entityAmount (fun _ -> false)
     let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
@@ -84,7 +85,6 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
 
     let componentActionQueue = ConcurrentQueue<unit -> unit> ()
     let entityActionQueue = ConcurrentQueue<unit -> unit> ()
-    let disposalQueue = ConcurrentQueue<IComponent> ()
 
     member inline this.DeferComponentAction f =
         componentActionQueue.Enqueue f
@@ -174,8 +174,6 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
 
                         // Component Removed
                         eventAggregator.Publish (ComponentRemoved (entity, comp))
-
-                        disposalQueue.Enqueue (comp)
 
                     Some comp  
                 else None  
@@ -321,31 +319,18 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
         let rec p () =
             if 
                 componentActionQueue.Count > 0 ||
-                entityActionQueue.Count > 0 ||
-                disposalQueue.Count > 0
+                entityActionQueue.Count > 0
                 then
 
+                let mutable f = Unchecked.defaultof<unit -> unit>
+
                 // Component Action Queue 
-                while componentActionQueue.Count > 0 do
-                    let mutable msg = Unchecked.defaultof<unit -> unit>
-                    componentActionQueue.TryDequeue (&msg) |> ignore
-                    msg ()
+                while componentActionQueue.TryDequeue (&f) do
+                    f ()
 
                 // Entity Action Queue 
-                while entityActionQueue.Count > 0 do
-                    let mutable msg = Unchecked.defaultof<unit -> unit>
-                    entityActionQueue.TryDequeue (&msg) |> ignore
-                    msg ()
-
-                // Disposal Queue 
-                while disposalQueue.Count > 0 do
-                    let o = ref Unchecked.defaultof<IComponent>
-                    disposalQueue.TryDequeue (o) |> ignore
-                    o.GetType().GetRuntimeProperties()
-                    |> Seq.filter (fun p ->
-                        disposableTypeInfo.IsAssignableFrom(p.PropertyType.GetTypeInfo())
-                    )
-                    |> Seq.iter (fun p -> (p.GetValue(o) :?> IDisposable).Dispose ())
+                while entityActionQueue.TryDequeue (&f) do
+                    f ()
 
                 p ()
         p ()
