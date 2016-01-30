@@ -93,16 +93,20 @@ type EntityManager =
 
     // Components
 
-    member internal AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
+    member inline internal AddComponentNow<'T when 'T :> IComponent> : Entity * 'T -> unit
+
+    member inline internal AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
 
     member internal RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
 
     // Entites
 
-    member internal Spawn : Entity -> unit
+    member inline internal SpawnNow : (Entity -> unit) -> unit
+
+    member inline internal Spawn : (Entity -> unit) -> unit
 
     member Destroy : Entity -> unit
 
     member internal Process : unit -> unit
 
-    new : EventAggregator * entityAmount: int -> EntityManager
+    internal new : EventAggregator * entityAmount: int -> EntityManager

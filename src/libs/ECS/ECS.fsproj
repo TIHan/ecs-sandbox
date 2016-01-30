@@ -41,8 +41,8 @@
     <Compile Include="EntityManager.fs" />
     <Compile Include="System.fsi" />
     <Compile Include="System.fs" />
-    <Compile Include="EntityBlueprint.fsi" />
-    <Compile Include="EntityBlueprint.fs" />
+    <Compile Include="EntityPrototype.fsi" />
+    <Compile Include="EntityPrototype.fs" />
     <Compile Include="World.fsi" />
     <Compile Include="World.fs" />
     <None Include="paket.references" />
