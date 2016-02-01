@@ -11,57 +11,47 @@ type Entity =
 
 type IComponent = interface end
 
-[<Sealed>]
 type ComponentAdded<'T when 'T :> IComponent> =
-
-    member Entity : Entity
-
-    member Component : 'T
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 
-[<Sealed>]
 type ComponentRemoved<'T when 'T :> IComponent> =
-
-    member Entity : Entity
-
-    member Component : 'T
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 
-[<Sealed>]
 type AnyComponentAdded =
-
-    member Entity : Entity
-
-    member Component : IComponent
-
-    member ComponentType : Type
+    {
+        Entity: Entity
+        ComponentType: Type
+    }
 
     interface IEvent
 
-[<Sealed>]
 type AnyComponentRemoved =
-
-    member Entity : Entity
-
-    member Component : IComponent
-
-    member ComponentType : Type
+    {
+        Entity: Entity
+        ComponentType: Type
+    }
 
     interface IEvent
 
-[<Sealed>]
 type EntitySpawned =
-
-    member Entity : Entity
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 
-[<Sealed>]
 type EntityDestroyed =
-
-    member Entity : Entity
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 

@@ -18,6 +18,7 @@ type IComponent = interface end
 [<AllowNullLiteral>]
 type IEntityLookupData = interface end
 
+[<ReferenceEquality>]
 type EntityLookupData<'T> =
     {
         Active: bool []
@@ -27,59 +28,47 @@ type EntityLookupData<'T> =
 
     interface IEntityLookupData
 
-[<Sealed>]
-type ComponentAdded<'T when 'T :> IComponent> (ent: Entity, com: 'T) =
-
-    member __.Entity = ent
-
-    member __.Component = com
+type ComponentAdded<'T when 'T :> IComponent> =
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 
-[<Sealed>]
-type ComponentRemoved<'T when 'T :> IComponent> (ent: Entity, com: 'T) =
-
-    member __.Entity = ent
-
-    member __.Component = com
+type ComponentRemoved<'T when 'T :> IComponent> =
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 
-[<Sealed>]
-type AnyComponentAdded (ent: Entity, com: IComponent) =
-    let typ = com.GetType ()
-
-    member __.Entity = ent
-
-    member __.Component = com
-
-    member __.ComponentType = typ
+type AnyComponentAdded =
+    {
+        Entity: Entity
+        ComponentType: Type
+    }
 
     interface IEvent
 
-[<Sealed>]
-type AnyComponentRemoved (ent: Entity, com: IComponent) =
-    let typ = com.GetType ()
-
-    member __.Entity = ent
-
-    member __.Component = com
-
-    member __.ComponentType = typ
+type AnyComponentRemoved =
+    {
+        Entity: Entity
+        ComponentType: Type
+    }
 
     interface IEvent
 
-[<Sealed>]
-type EntitySpawned (ent: Entity) =
-
-    member __.Entity = ent
+type EntitySpawned =
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 
-[<Sealed>]
-type EntityDestroyed (ent: Entity) =
-
-    member __.Entity = ent
+type EntityDestroyed =
+    {
+        Entity: Entity
+    }
 
     interface IEvent
 
@@ -309,8 +298,8 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 data.Components.[entity.Id] <- comp
 
                 emitAddComponentEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish (AnyComponentAdded (entity, comp))
-                    eventAggregator.Publish (ComponentAdded (entity, comp))
+                    eventAggregator.Publish ({ AnyComponentAdded.Entity = entity; ComponentType = comp.GetType () })
+                    eventAggregator.Publish (let e : ComponentAdded<'T> = { Entity = entity } in e)
                 )
         )
 
@@ -326,8 +315,8 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 data.Components.[entity.Id] <- Unchecked.defaultof<'T>
 
                 emitRemoveComponentEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish (AnyComponentRemoved (entity, comp))
-                    eventAggregator.Publish (ComponentRemoved (entity, comp))
+                    eventAggregator.Publish ({ AnyComponentRemoved.Entity = entity; ComponentType = comp.GetType () })
+                    eventAggregator.Publish (let e : ComponentRemoved<'T> = { Entity = entity } in e)
                 )
         )
 
@@ -353,7 +342,7 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 )
 
                 emitSpawnEntityEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish (EntitySpawned entity)
+                    eventAggregator.Publish ({ EntitySpawned.Entity = entity })
                 )
         )
 
@@ -368,7 +357,7 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 removedEntityQueue.Enqueue entity  
 
                 emitDestroyEntityEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish (EntityDestroyed entity)
+                    eventAggregator.Publish ({ EntityDestroyed.Entity = entity })
                 )
         )  
 
