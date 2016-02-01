@@ -6,14 +6,17 @@ open System.Collections.Generic
 open System.Collections.Concurrent
 open System.Threading.Tasks
 
+[<Struct>]
+type Entity =
+
+    val Id : int
+
+    new (id) = { Id = id }
+
 type IComponent = interface end
 
 [<AllowNullLiteral>]
-type IEntityLookupData =
-
-    abstract Activate : Entity -> unit
-
-    abstract Deactivate : Entity -> unit
+type IEntityLookupData = interface end
 
 type EntityLookupData<'T> =
     {
@@ -22,11 +25,7 @@ type EntityLookupData<'T> =
         Components: 'T []
     }
 
-    interface IEntityLookupData with
-
-        member this.Activate entity = this.Active.[entity.Id] <- true
-
-        member this.Deactivate entity = this.Active.[entity.Id] <- false
+    interface IEntityLookupData
 
 [<Sealed>]
 type ComponentAdded<'T when 'T :> IComponent> (ent: Entity, com: 'T) =
@@ -94,17 +93,16 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
 
     let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
 
-    let componentActionQueue = ConcurrentQueue<unit -> unit> ()
-    let entityActionQueue = ConcurrentQueue<unit -> unit> ()
+    let addComponentQueue = ConcurrentQueue<unit -> unit> ()
+    let removeComponentQueue = ConcurrentQueue<unit -> unit> ()
 
-    let addComponentQueue = Queue<unit -> unit> ()
-    let removeComponentQueue = Queue<unit -> unit> ()
+    let spawnEntityQueue = ConcurrentQueue<unit -> unit> ()
+    let destroyEntityQueue = ConcurrentQueue<unit -> unit> ()
+
+    let activateEntityQueue = Queue<unit -> unit> ()
 
     let emitAddComponentEventQueue = Queue<unit -> unit> ()
     let emitRemoveComponentEventQueue = Queue<unit -> unit> ()
-
-    let spawnEntityQueue = Queue<unit -> unit> ()
-    let destroyEntityQueue = Queue<unit -> unit> ()
 
     let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
     let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
@@ -113,50 +111,31 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
         while queue.Count > 0 do
             queue.Dequeue () ()
 
+    let processConcurrentQueue (queue: ConcurrentQueue<unit -> unit>) =
+        let mutable f = Unchecked.defaultof<unit -> unit>
+        while queue.TryDequeue (&f) do
+            f ()
+
     member this.Process () =
         while
-            not componentActionQueue.IsEmpty ||
-            not entityActionQueue.IsEmpty do
+            not addComponentQueue.IsEmpty       ||
+            not removeComponentQueue.IsEmpty    ||
+            not spawnEntityQueue.IsEmpty        ||
+            not destroyEntityQueue.IsEmpty
+                do
 
-            let mutable f = Unchecked.defaultof<unit -> unit>
+            processConcurrentQueue  destroyEntityQueue
+            processConcurrentQueue  spawnEntityQueue
 
-            // Component Action Queue 
-            while componentActionQueue.TryDequeue (&f) do
-                f ()
+            processConcurrentQueue  removeComponentQueue
+            processConcurrentQueue  addComponentQueue
 
-            // Entity Action Queue 
-            while entityActionQueue.TryDequeue (&f) do
-                f ()
+            processQueue            activateEntityQueue
 
-
-            // Process Destroyed Entities
-
-            processQueue destroyEntityQueue
-
-
-            // Process Removed Components
-
-            processQueue removeComponentQueue
-            processQueue emitRemoveComponentEventQueue
-            processQueue emitDestroyEntityEventQueue
-
-
-            // Process Added Components
-
-            processQueue emitAddComponentEventQueue
-            processQueue addComponentQueue
-
-
-            // Process Spawned Entities
-
-            processQueue spawnEntityQueue
-            processQueue emitSpawnEntityEventQueue
-
-    member inline this.DeferComponentAction f =
-        componentActionQueue.Enqueue f
-
-    member inline this.DeferEntityAction x =
-        entityActionQueue.Enqueue x
+            processQueue            emitRemoveComponentEventQueue
+            processQueue            emitDestroyEntityEventQueue
+            processQueue            emitAddComponentEventQueue
+            processQueue            emitSpawnEntityEventQueue
 
     member this.GetEntityLookupData<'T> () : EntityLookupData<'T> =
         let t = typeof<'T>
@@ -177,82 +156,6 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
             data
         else
             data :?> EntityLookupData<'T>
-
-    member inline this.SpawnNow f =
-        let entity =
-            if removedEntityQueue.Count > 0 then
-                let entity = nextEntity
-                nextEntity <- Entity (entity.Id + 1)
-                entity
-            else
-                removedEntityQueue.Dequeue ()
-
-        if entityAmount <= entity.Id then
-            printfn "ECS WARNING: Unable to spawn entity, #%i. Max entity count hit." entity.Id
-        else
-            f entity
-
-            spawnEntityQueue.Enqueue (fun () ->
-                active.[entity.Id] <- true
-            )
-
-            emitSpawnEntityEventQueue.Enqueue (fun () -> 
-                eventAggregator.Publish (EntitySpawned entity)
-            )
-
-    member inline this.DestroyNow (entity: Entity) =
-        if active.[entity.Id] then
-            destroyEntityQueue.Enqueue (fun () ->
-                active.[entity.Id] <- false
-
-                let removals = entityRemovals.[entity.Id]
-                removals.ForEach (fun f -> f ())
-                removals.Clear ()
-                removedEntityQueue.Enqueue entity  
-            )      
-
-            emitDestroyEntityEventQueue.Enqueue (fun () ->
-                eventAggregator.Publish (EntityDestroyed entity)
-            )
-
-    member inline this.AddComponentNow<'T when 'T :> IComponent> (entity: Entity, comp: 'T) =
-        if active.[entity.Id] then
-            failwithf "Entity, #%i, has already spawned. Cannot add component, %s." entity.Id typeof<'T>.Name
-
-        let data = this.GetEntityLookupData<'T> ()
-
-        if not data.Active.[entity.Id] then
-            addComponentQueue.Enqueue (fun () ->
-                entityRemovals.[entity.Id].Add (fun () -> this.RemoveComponentNow<'T> entity)
-
-                data.Active.[entity.Id] <- true
-                data.Entities.Add entity
-                data.Components.[entity.Id] <- comp
-            )
-
-            emitAddComponentEventQueue.Enqueue (fun () ->
-                eventAggregator.Publish (AnyComponentAdded (entity, comp))
-                eventAggregator.Publish (ComponentAdded (entity, comp))
-            )
-        else
-            printfn "ECS WARNING: Component, %s, already added to Entity, #%i." typeof<'T>.Name entity.Id
-        
-    member this.RemoveComponentNow<'T when 'T :> IComponent> (entity: Entity) =
-        let data = this.GetEntityLookupData<'T> ()
-
-        if data.Active.[entity.Id] then
-            let comp = data.Components.[entity.Id]
-
-            removeComponentQueue.Enqueue (fun () ->
-                data.Active.[entity.Id] <- false
-                data.Entities.Remove entity |> ignore
-                data.Components.[entity.Id] <- Unchecked.defaultof<'T>
-            )
-
-            emitRemoveComponentEventQueue.Enqueue (fun () ->
-                eventAggregator.Publish (AnyComponentRemoved (entity, comp))
-                eventAggregator.Publish (ComponentRemoved (entity, comp))
-            )
 
     member this.TryGetInternal<'T> (entity: Entity, c: byref<'T>) = 
         let mutable data = null
@@ -389,19 +292,85 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
 
     // Components
 
-    member inline this.AddComponent<'T when 'T :> IComponent> entity (comp: 'T) =
-        this.DeferComponentAction (fun () -> this.AddComponentNow (entity, comp))
+    member this.AddComponent<'T when 'T :> IComponent> (entity: Entity) (comp: 'T) =
+        addComponentQueue.Enqueue (fun () ->
+            if active.[entity.Id] then
+                failwithf "Entity, #%i, has already spawned. Cannot add component, %s." entity.Id typeof<'T>.Name
 
-    member this.RemoveComponent<'T when 'T :> IComponent> entity =
-        this.DeferComponentAction (fun () -> this.RemoveComponentNow<'T> (entity))
+            let data = this.GetEntityLookupData<'T> ()
+
+            if data.Active.[entity.Id] then
+                printfn "ECS WARNING: Component, %s, already added to Entity, #%i." typeof<'T>.Name entity.Id
+            else
+                entityRemovals.[entity.Id].Add (fun () -> this.RemoveComponent<'T> entity)
+
+                data.Active.[entity.Id] <- true
+                data.Entities.Add entity
+                data.Components.[entity.Id] <- comp
+
+                emitAddComponentEventQueue.Enqueue (fun () ->
+                    eventAggregator.Publish (AnyComponentAdded (entity, comp))
+                    eventAggregator.Publish (ComponentAdded (entity, comp))
+                )
+        )
+
+    member this.RemoveComponent<'T when 'T :> IComponent> (entity: Entity) =
+        removeComponentQueue.Enqueue (fun () ->
+            let data = this.GetEntityLookupData<'T> ()
+
+            if data.Active.[entity.Id] then
+                let comp = data.Components.[entity.Id]
+
+                data.Active.[entity.Id] <- false
+                data.Entities.Remove entity |> ignore
+                data.Components.[entity.Id] <- Unchecked.defaultof<'T>
+
+                emitRemoveComponentEventQueue.Enqueue (fun () ->
+                    eventAggregator.Publish (AnyComponentRemoved (entity, comp))
+                    eventAggregator.Publish (ComponentRemoved (entity, comp))
+                )
+        )
 
     // Entities
 
-    member inline this.Spawn f =             
-        this.DeferEntityAction (fun () -> this.SpawnNow f)
+    member this.Spawn f =             
+        spawnEntityQueue.Enqueue (fun () ->
+            let entity =
+                if removedEntityQueue.Count > 0 then
+                    let entity = nextEntity
+                    nextEntity <- Entity (entity.Id + 1)
+                    entity
+                else
+                    removedEntityQueue.Dequeue ()
 
-    member this.Destroy entity =
-        this.DeferEntityAction (fun () -> this.DestroyNow entity)
+            if entityAmount <= entity.Id then
+                printfn "ECS WARNING: Unable to spawn entity, #%i. Max entity count hit." entity.Id
+            else
+                f entity
+
+                activateEntityQueue.Enqueue (fun () ->
+                    active.[entity.Id] <- true
+                )
+
+                emitSpawnEntityEventQueue.Enqueue (fun () ->
+                    eventAggregator.Publish (EntitySpawned entity)
+                )
+        )
+
+    member this.Destroy (entity: Entity) =
+        destroyEntityQueue.Enqueue (fun () ->
+            if active.[entity.Id] then
+                active.[entity.Id] <- false
+
+                let removals = entityRemovals.[entity.Id]
+                removals.ForEach (fun f -> f ())
+                removals.Clear ()
+                removedEntityQueue.Enqueue entity  
+
+                emitDestroyEntityEventQueue.Enqueue (fun () ->
+                    eventAggregator.Publish (EntityDestroyed entity)
+                )
+        )  
 
     // Component Query
 

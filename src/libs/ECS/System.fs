@@ -9,32 +9,7 @@ type ISystem =
     abstract Update : EntityManager * EventAggregator -> unit
 
 [<Sealed>]
-type System private () =
-
-    static member Append (sys1: ISystem) (sys2: ISystem) =
-        {
-            new ISystem with
-
-                member __.Init (entities, events) =
-                    sys1.Init (entities, events)
-                    sys2.Init (entities, events)
-
-                member __.Update (entities, events) =
-                    sys1.Update (entities, events)
-                    sys2.Update (entities, events)
-        }
-
-    static member Empty =
-        {
-            new ISystem with
-
-                member __.Init (_, _) = ()
-
-                member __.Update (_, _) = ()
-        }
-
-[<Sealed>]
-type EventListener<'Event when 'Event :> IEvent> (f) =
+type EventSystem<'Event when 'Event :> IEvent> (f) =
 
     interface ISystem with
 
@@ -45,7 +20,7 @@ type EventListener<'Event when 'Event :> IEvent> (f) =
         member __.Update (_, _) = ()
 
 [<Sealed>]
-type EventQueue<'Event when 'Event :> IEvent> (f) =
+type EventQueueSystem<'Event when 'Event :> IEvent> (f) =
     let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
 
     interface ISystem with
@@ -60,7 +35,7 @@ type EventQueue<'Event when 'Event :> IEvent> (f) =
                 f entities event
 
 [<Sealed>]
-type EntityProcessor () =
+type EntityProcessorSystem () =
 
     interface ISystem with
 

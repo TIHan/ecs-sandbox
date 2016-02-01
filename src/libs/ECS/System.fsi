@@ -11,29 +11,22 @@ type ISystem =
     abstract Update : EntityManager * EventAggregator -> unit
 
 [<Sealed>]
-type System =
+type EventSystem<'Event when 'Event :> IEvent> =
 
-    static member Append : ISystem -> ISystem -> ISystem
-
-    static member Empty : ISystem
-
-[<Sealed>]
-type EventListener<'Event when 'Event :> IEvent> =
-
-    new : (EntityManager -> 'Event -> unit) -> EventListener<'Event>
+    new : (EntityManager -> 'Event -> unit) -> EventSystem<'Event>
 
     interface ISystem
 
 [<Sealed>]
-type EventQueue<'Event when 'Event :> IEvent> =
+type EventQueueSystem<'Event when 'Event :> IEvent> =
 
-    new : (EntityManager -> 'Event -> unit) -> EventQueue<'Event>
+    new : (EntityManager -> 'Event -> unit) -> EventQueueSystem<'Event>
 
     interface ISystem
 
 [<Sealed>]
-type EntityProcessor =
+type EntityProcessorSystem =
 
-    new : unit -> EntityProcessor
+    new : unit -> EntityProcessorSystem
 
     interface ISystem

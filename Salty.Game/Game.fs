@@ -64,7 +64,7 @@ module Game =
 [<RequireQualifiedAccess>]
 module EntityBlueprint =
 
-    let test p (blueprint: EntityBlueprint) =
+    let test p (blueprint: EntityPrototype) =
         blueprint
         |> EntityBlueprint.add (fun () ->
             let position = Position ()

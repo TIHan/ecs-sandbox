@@ -2,6 +2,13 @@
 
 open System
 
+[<Struct>]
+type Entity =
+
+    val Id : int
+
+    new : int -> Entity
+
 type IComponent = interface end
 
 [<Sealed>]
@@ -93,17 +100,13 @@ type EntityManager =
 
     // Components
 
-    member inline internal AddComponentNow<'T when 'T :> IComponent> : Entity * 'T -> unit
-
-    member inline internal AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
+    member internal AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
 
     member internal RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
 
     // Entites
 
-    member inline internal SpawnNow : (Entity -> unit) -> unit
-
-    member inline internal Spawn : (Entity -> unit) -> unit
+    member internal Spawn : (Entity -> unit) -> unit
 
     member Destroy : Entity -> unit
 
