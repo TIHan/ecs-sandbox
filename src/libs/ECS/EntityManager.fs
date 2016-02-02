@@ -187,7 +187,7 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 if
                     data.Active.[entity.Id] &&
                     predicate entity.Id
-                    then
+                        then
                     let com = data.Components.[entity.Id]
                     f entity com
 
@@ -200,33 +200,37 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
 
     member inline this.IterateInternal<'T1, 'T2> (f: Entity -> 'T1 -> 'T2 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2> with
-        | (false,_),_
-        | _,(false,_) -> ()
-        | (_,data1),(_,data2) ->
+        | (true, data1), (true, data2) ->
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
 
             let entities =
                 [|data1.Entities;data2.Entities|] |> Array.minBy (fun x -> x.Count)
 
-            for i = 0 to entities.Count - 1 do
+            let count = entities.Count
+
+            let inline iter i =
                 let entity = entities.[i]
 
-                if 
-                    data1.Active.[entity.Id] && 
+                if
+                    data1.Active.[entity.Id] &&
                     data2.Active.[entity.Id] &&
                     predicate entity.Id
-                    then
+                        then
                     let com1 = data1.Components.[entity.Id]
                     let com2 = data2.Components.[entity.Id]
                     f entity com1 com2
 
+            if useParallelism
+            then Parallel.For (0, count, iter) |> ignore
+            else
+                for i = 0 to count - 1 do
+                    iter i
+        | _ -> ()
+
     member inline this.IterateInternal<'T1, 'T2, 'T3> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3> with
-        | (false,_),_,_
-        | _,(false,_),_
-        | _,_,(false,_) -> ()
-        | (_,data1),(_,data2),(_,data3) ->
+        | (true, data1), (true, data2), (true, data3) ->
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
             let data3 = data3 :?> EntityLookupData<'T3>
@@ -234,27 +238,32 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
             let entities =
                 [|data1.Entities;data2.Entities;data3.Entities|] |> Array.minBy (fun x -> x.Count)
 
-            for i = 0 to entities.Count - 1 do
+            let count = entities.Count
+
+            let inline iter i =
                 let entity = entities.[i]
 
-                if 
-                    data1.Active.[entity.Id] && 
+                if
+                    data1.Active.[entity.Id] &&
                     data2.Active.[entity.Id] &&
                     data3.Active.[entity.Id] &&
                     predicate entity.Id
-                    then
+                        then
                     let com1 = data1.Components.[entity.Id]
                     let com2 = data2.Components.[entity.Id]
                     let com3 = data3.Components.[entity.Id]
                     f entity com1 com2 com3
 
+            if useParallelism
+            then Parallel.For (0, count, iter) |> ignore
+            else
+                for i = 0 to count - 1 do
+                    iter i
+          | _ -> ()
+
     member inline this.IterateInternal<'T1, 'T2, 'T3, 'T4> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit, useParallelism: bool, predicate: int -> bool) : unit =
         match lookup.TryGetValue typeof<'T1>, lookup.TryGetValue typeof<'T2>, lookup.TryGetValue typeof<'T3>, lookup.TryGetValue typeof<'T4> with
-        | (false,_),_,_,_
-        | _,(false,_),_,_
-        | _,_,(false,_),_
-        | _,_,_,(false,_) -> ()
-        | (_,data1),(_,data2),(_,data3),(_,data4) ->
+        | (true, data1), (true, data2), (true, data3), (true, data4) ->
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
             let data3 = data3 :?> EntityLookupData<'T3>
@@ -263,21 +272,30 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
             let entities =
                 [|data1.Entities;data2.Entities;data3.Entities;data4.Entities|] |> Array.minBy (fun x -> x.Count)
 
-            for i = 0 to entities.Count - 1 do
+            let count = entities.Count
+
+            let inline iter i =
                 let entity = entities.[i]
 
-                if 
-                    data1.Active.[entity.Id] && 
+                if
+                    data1.Active.[entity.Id] &&
                     data2.Active.[entity.Id] &&
                     data3.Active.[entity.Id] &&
                     data4.Active.[entity.Id] &&
                     predicate entity.Id
-                    then
+                        then
                     let com1 = data1.Components.[entity.Id]
                     let com2 = data2.Components.[entity.Id]
                     let com3 = data3.Components.[entity.Id]
                     let com4 = data4.Components.[entity.Id]
                     f entity com1 com2 com3 com4
+
+            if useParallelism
+            then Parallel.For (0, count, iter) |> ignore
+            else
+                for i = 0 to count - 1 do
+                    iter i
+         | _ -> ()
 
     // Components
 

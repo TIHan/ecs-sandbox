@@ -11,7 +11,7 @@ type EventAggregator () =
 
     member __.GetEvent<'T when 'T :> IEvent> () =
         let event = lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj))
-        (event :?> Event<'T>).Publish :> IObservable<'T>
+        (event :?> Event<'T>).Publish
 
     member __.Publish (eventValue: #IEvent) =
         let mutable value = Unchecked.defaultof<obj>

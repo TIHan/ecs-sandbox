@@ -8,37 +8,33 @@ type ISystem =
 
     abstract Update : EntityManager * EventAggregator -> unit
 
-[<Sealed>]
-type EventSystem<'Event when 'Event :> IEvent> (f) =
+module Systems =
 
-    interface ISystem with
+    [<Sealed>]
+    type EventQueue<'Event when 'Event :> IEvent> (f) =
+        let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
 
-        member __.Init (entities, events) =
-            events.GetEvent<'Event> ()
-            |> Observable.add (fun event -> f entities event)
+        interface ISystem with
 
-        member __.Update (_, _) = ()
+            member __.Init (_, events) =
+                events.GetEvent<'Event> ()
+                |> Event.add queue.Enqueue
 
-[<Sealed>]
-type EventQueueSystem<'Event when 'Event :> IEvent> (f) =
-    let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
+            member __.Update (entities, events) =
+                let mutable event = Unchecked.defaultof<'Event>
+                while queue.TryDequeue (&event) do
+                    f entities events event
 
-    interface ISystem with
 
-        member __.Init (_, events) =
-            events.GetEvent<'Event> ()
-            |> Observable.add queue.Enqueue
+        static member Create f = EventQueue (f)
 
-        member __.Update (entities, events) =
-            let mutable event = Unchecked.defaultof<'Event>
-            while queue.TryDequeue (&event) do
-                f entities event
+    [<Sealed>]
+    type EntityProcessor () =
 
-[<Sealed>]
-type EntityProcessorSystem () =
+        interface ISystem with
 
-    interface ISystem with
+            member __.Init (_, _) = ()
 
-        member __.Init (_, _) = ()
+            member __.Update (entities, _) = entities.Process ()
 
-        member __.Update (entities, _) = entities.Process ()
+        static member Create () = EntityProcessor ()

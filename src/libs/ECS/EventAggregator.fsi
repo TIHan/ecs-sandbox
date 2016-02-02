@@ -9,6 +9,6 @@ type EventAggregator =
 
     internal new : unit -> EventAggregator
 
-    member internal GetEvent<'T when 'T :> IEvent> : unit -> IObservable<'T>
+    member GetEvent<'T when 'T :> IEvent> : unit -> IEvent<'T>
 
     member Publish : #IEvent -> unit
