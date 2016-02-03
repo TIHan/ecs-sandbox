@@ -13,9 +13,10 @@ type Entity =
 
     new (id) = { Id = id }
 
+    override this.ToString () = String.Format ("(Entity #{0})", this.Id)
+
 type IComponent = interface end
 
-[<AllowNullLiteral>]
 type IEntityLookupData = interface end
 
 [<ReferenceEquality>]
@@ -28,59 +29,39 @@ type EntityLookupData<'T> =
 
     interface IEntityLookupData
 
-type ComponentAdded<'T when 'T :> IComponent> =
-    {
-        Entity: Entity
-    }
+type ComponentAdded<'T when 'T :> IComponent> = ComponentAdded of Entity with
 
     interface IEvent
 
-type ComponentRemoved<'T when 'T :> IComponent> =
-    {
-        Entity: Entity
-    }
+type ComponentRemoved<'T when 'T :> IComponent> = ComponentRemoved of Entity with
 
     interface IEvent
 
-type AnyComponentAdded =
-    {
-        Entity: Entity
-        ComponentType: Type
-    }
+type AnyComponentAdded = AnyComponentAdded of Entity * componentType: Type with
 
     interface IEvent
 
-type AnyComponentRemoved =
-    {
-        Entity: Entity
-        ComponentType: Type
-    }
+type AnyComponentRemoved = AnyComponentRemoved of Entity * componentType: Type with
 
     interface IEvent
 
-type EntitySpawned =
-    {
-        Entity: Entity
-    }
+type EntitySpawned = EntitySpawned of Entity with
 
     interface IEvent
 
-type EntityDestroyed =
-    {
-        Entity: Entity
-    }
+type EntityDestroyed = EntityDestroyed of Entity with
 
     interface IEvent
 
 [<Sealed>]
-type EntityManager (eventAggregator: EventAggregator, entityAmount) =
+type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     let lookup = Dictionary<Type, IEntityLookupData> ()
-    let active = Array.init entityAmount (fun _ -> false)
+    let active = Array.init maxEntityAmount (fun _ -> false)
 
     let mutable nextEntity = Entity 0
     let removedEntityQueue = Queue<Entity> () 
 
-    let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init entityAmount (fun _ -> ResizeArray ())
+    let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init maxEntityAmount (fun _ -> ResizeArray ())
 
     let addComponentQueue = ConcurrentQueue<unit -> unit> ()
     let removeComponentQueue = ConcurrentQueue<unit -> unit> ()
@@ -128,11 +109,11 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
 
     member this.GetEntityLookupData<'T> () : EntityLookupData<'T> =
         let t = typeof<'T>
-        let mutable data = null
+        let mutable data = Unchecked.defaultof<IEntityLookupData>
         if not <| lookup.TryGetValue (t, &data) then
-            let active = Array.init entityAmount (fun _ -> false)
-            let entities = ResizeArray (entityAmount)
-            let components = Array.init<'T> entityAmount (fun _ -> Unchecked.defaultof<'T>)
+            let active = Array.init maxEntityAmount (fun _ -> false)
+            let entities = ResizeArray (maxEntityAmount)
+            let components = Array.init<'T> maxEntityAmount (fun _ -> Unchecked.defaultof<'T>)
             
             let data =
                 {
@@ -147,21 +128,21 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
             data :?> EntityLookupData<'T>
 
     member this.TryGetInternal<'T> (entity: Entity, c: byref<'T>) = 
-        let mutable data = null
+        let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             if (entity.Id >= 0 && entity.Id < data.Components.Length) then
                 c <- data.Components.[entity.Id]
 
     member this.TryGetInternal<'T when 'T :> IComponent> (entity: Entity, c: byref<IComponent>) = 
-        let mutable data = null
+        let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             if (entity.Id >= 0 && entity.Id < data.Components.Length) then
                 c <- data.Components.[entity.Id]
 
     member this.TryFindInternal<'T> (f: Entity -> 'T -> bool, result: byref<Entity * 'T>) =
-        let mutable data = null
+        let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             let count = data.Entities.Count
@@ -302,12 +283,12 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
     member this.AddComponent<'T when 'T :> IComponent> (entity: Entity) (comp: 'T) =
         addComponentQueue.Enqueue (fun () ->
             if active.[entity.Id] then
-                failwithf "Entity, #%i, has already spawned. Cannot add component, %s." entity.Id typeof<'T>.Name
+                failwithf "%A has already spawned. Cannot add component, %s." entity typeof<'T>.Name
 
             let data = this.GetEntityLookupData<'T> ()
 
             if data.Active.[entity.Id] then
-                printfn "ECS WARNING: Component, %s, already added to Entity, #%i." typeof<'T>.Name entity.Id
+                printfn "ECS WARNING: Component, %s, already added to %A." typeof<'T>.Name entity
             else
                 entityRemovals.[entity.Id].Add (fun () -> this.RemoveComponent<'T> entity)
 
@@ -316,8 +297,8 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 data.Components.[entity.Id] <- comp
 
                 emitAddComponentEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish ({ AnyComponentAdded.Entity = entity; ComponentType = comp.GetType () })
-                    eventAggregator.Publish (let e : ComponentAdded<'T> = { Entity = entity } in e)
+                    eventAggregator.Publish (AnyComponentAdded (entity, comp.GetType ()))
+                    eventAggregator.Publish<ComponentAdded<'T>> (ComponentAdded (entity))
                 )
         )
 
@@ -333,8 +314,8 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 data.Components.[entity.Id] <- Unchecked.defaultof<'T>
 
                 emitRemoveComponentEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish ({ AnyComponentRemoved.Entity = entity; ComponentType = comp.GetType () })
-                    eventAggregator.Publish (let e : ComponentRemoved<'T> = { Entity = entity } in e)
+                    eventAggregator.Publish (AnyComponentRemoved (entity, comp.GetType ()))
+                    eventAggregator.Publish<ComponentRemoved<'T>> (ComponentRemoved (entity))
                 )
         )
 
@@ -350,8 +331,8 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 else
                     removedEntityQueue.Dequeue ()
 
-            if entityAmount <= entity.Id then
-                printfn "ECS WARNING: Unable to spawn entity, #%i. Max entity count hit." entity.Id
+            if maxEntityAmount <= entity.Id then
+                printfn "ECS WARNING: Unable to spawn %A. Max entity amount hit: %i." entity maxEntityAmount
             else
                 f entity
 
@@ -360,7 +341,7 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 )
 
                 emitSpawnEntityEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish ({ EntitySpawned.Entity = entity })
+                    eventAggregator.Publish (EntitySpawned (entity))
                 )
         )
 
@@ -375,7 +356,7 @@ type EntityManager (eventAggregator: EventAggregator, entityAmount) =
                 removedEntityQueue.Enqueue entity  
 
                 emitDestroyEntityEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish ({ EntityDestroyed.Entity = entity })
+                    eventAggregator.Publish (EntityDestroyed (entity))
                 )
         )  
 

@@ -11,47 +11,27 @@ type Entity =
 
 type IComponent = interface end
 
-type ComponentAdded<'T when 'T :> IComponent> =
-    {
-        Entity: Entity
-    }
+type ComponentAdded<'T when 'T :> IComponent> = ComponentAdded of Entity with
 
     interface IEvent
 
-type ComponentRemoved<'T when 'T :> IComponent> =
-    {
-        Entity: Entity
-    }
+type ComponentRemoved<'T when 'T :> IComponent> = ComponentRemoved of Entity with
 
     interface IEvent
 
-type AnyComponentAdded =
-    {
-        Entity: Entity
-        ComponentType: Type
-    }
+type AnyComponentAdded = AnyComponentAdded of Entity * componentType: Type with
 
     interface IEvent
 
-type AnyComponentRemoved =
-    {
-        Entity: Entity
-        ComponentType: Type
-    }
+type AnyComponentRemoved = AnyComponentRemoved of Entity * componentType: Type with
 
     interface IEvent
 
-type EntitySpawned =
-    {
-        Entity: Entity
-    }
+type EntitySpawned = EntitySpawned of Entity with
 
     interface IEvent
 
-type EntityDestroyed =
-    {
-        Entity: Entity
-    }
+type EntityDestroyed = EntityDestroyed of Entity with
 
     interface IEvent
 
