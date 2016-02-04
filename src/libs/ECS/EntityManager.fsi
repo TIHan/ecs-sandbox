@@ -1,13 +1,25 @@
 ﻿namespace ECS.Core
 
 open System
+open System.Runtime.InteropServices
 
-[<Struct>]
+#nowarn "9"
+
+[<Struct; StructLayout (LayoutKind.Explicit)>]
 type Entity =
 
-    val Id : int
+    [<FieldOffset (0)>]
+    val Index : int
 
-    new : int -> Entity
+    /// Version of the Entity in relation to its index. 
+    /// Re-using the index, will increment the version by one. Doing this repeatly, for example, 60 times a second, it will take more than two years to overflow.
+    [<FieldOffset (4)>]
+    val Version : uint32
+
+    [<FieldOffset (0); DefaultValue>]
+    val Id : uint64
+
+    new : int * uint32 -> Entity
 
 type IComponent = interface end
 
@@ -39,12 +51,8 @@ type EntityDestroyed = EntityDestroyed of Entity with
 type EntityManager =
 
     // Component Query
-    
-    member Has<'T when 'T :> IComponent> : Entity -> bool
 
     member TryGet : Entity * Type -> IComponent option
-
-    member TryGet : Entity * byref<#IComponent> -> unit
 
     member TryGet<'T when 'T :> IComponent> : Entity -> 'T option
 
@@ -82,4 +90,4 @@ type EntityManager =
 
     member internal Process : unit -> unit
 
-    internal new : EventAggregator * entityAmount: int -> EntityManager
+    internal new : EventAggregator * maxEntityAmount: int -> EntityManager
