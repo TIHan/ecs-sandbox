@@ -311,14 +311,12 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 if data.Active.[entity.Index] then
                     printfn "ECS WARNING: Component, %s, already added to %A." typeof<'T>.Name entity
                 else
-                    let entityCount = data.EntityCount + 1
-
                     entityRemovals.[entity.Index].Add (fun () -> this.RemoveComponent<'T> entity)
 
                     data.Active.[entity.Index] <- true
                     data.Components.[entity.Index] <- comp
-                    data.Entities.[entityCount] <- entity
-                    data.entityCount <- entityCount
+                    data.Entities.[data.EntityCount] <- entity
+                    data.entityCount <- data.EntityCount + 1
 
                     emitAddComponentEventQueue.Enqueue (fun () ->
                         eventAggregator.Publish (AnyComponentAdded (entity, typeof<'T>))
