@@ -1,14 +1,17 @@
-﻿namespace ECS.Core
+﻿namespace ECS.World
 
-open System
+open ECS
 
-open ECS.Core
+[<Sealed>]
+type SystemHandle =
+
+    member Update : (unit -> unit)
 
 [<Sealed>]
 type World =
 
-    new : maxEntityCount: int -> World
+    new : maxEntityAmount: int -> World
    
-    member InitSystem : ISystem -> unit
+    member AddSystem : ISystem -> SystemHandle
 
-    member RunSystem : ISystem -> unit
+    member AddSystems : ISystem seq -> SystemHandle

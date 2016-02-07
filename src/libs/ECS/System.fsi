@@ -1,14 +1,13 @@
-﻿namespace ECS.Core
+﻿namespace ECS
 
-open System
-
-open ECS.Core
+type Entities = EntityManager
+type Events = EventAggregator
 
 type ISystem =
 
-    abstract Init : EntityManager * EventAggregator -> unit
+    abstract Init : Entities * Events -> unit
 
-    abstract Update : EntityManager * EventAggregator -> unit
+    abstract Update : Entities * Events -> unit
 
 module Systems =
 
@@ -17,7 +16,7 @@ module Systems =
 
         interface ISystem
 
-        static member Create : (EntityManager -> EventAggregator -> 'Event -> unit) -> EventQueue<'Event>
+        static member Create : (Entities -> Events -> 'Event -> unit) -> EventQueue<'Event>
 
     [<Sealed>]
     type EntityProcessor =

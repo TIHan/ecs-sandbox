@@ -1,6 +1,4 @@
-﻿namespace ECS.Core
-
-open System
+﻿namespace ECS
 
 type IEvent = interface end
 

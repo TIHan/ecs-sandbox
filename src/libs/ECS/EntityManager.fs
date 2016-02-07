@@ -1,4 +1,4 @@
-﻿namespace ECS.Core
+﻿namespace ECS
 
 open System
 open System.Reflection

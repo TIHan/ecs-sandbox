@@ -1,15 +1,29 @@
-﻿namespace ECS.Core
+﻿namespace ECS.World
 
-open System
-
-open ECS.Core
+open ECS
 
 [<Sealed>]
-type World (maxEntityCount) =
+type SystemHandle (f: unit -> unit) =
+
+    member this.Update = f
+
+[<Sealed>]
+type World (maxEntityAmount) =
     let eventAggregator = EventAggregator ()
-    let entityManager = EntityManager (eventAggregator, maxEntityCount)
+    let entityManager = EntityManager (eventAggregator, maxEntityAmount)
 
-    member this.InitSystem (sys: ISystem) = sys.Init (entityManager, eventAggregator)
+    member this.AddSystem (sys: ISystem) =
+        sys.Init (entityManager, eventAggregator)
+        SystemHandle (fun () -> sys.Update (entityManager, eventAggregator))
 
-    member this.RunSystem (sys: ISystem) = sys.Update (entityManager, eventAggregator)
+    member this.AddSystems (systems: ISystem seq) =
+        let systems = systems |> Array.ofSeq
+
+        systems
+        |> Seq.iter (fun sys -> sys.Init (entityManager, eventAggregator))
+
+        SystemHandle (fun () ->
+            for i = 0 to systems.Length - 1 do
+                systems.[i].Update (entityManager, eventAggregator)
+        )
  
