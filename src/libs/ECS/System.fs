@@ -18,8 +18,7 @@ module Systems =
         interface ISystem with
 
             member __.Init (_, events) =
-                events.GetEvent<'Event> ()
-                |> Event.add queue.Enqueue
+                events.Listen queue.Enqueue
 
             member __.Update (entities, events) =
                 let mutable event = Unchecked.defaultof<'Event>

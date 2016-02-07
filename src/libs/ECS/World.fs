@@ -26,4 +26,8 @@ type World (maxEntityAmount) =
             for i = 0 to systems.Length - 1 do
                 systems.[i].Update (entityManager, eventAggregator)
         )
+
+    member this.EntityManager = entityManager
+
+    member this.EventAggregator = eventAggregator
  

@@ -9,9 +9,9 @@ type IEvent = interface end
 type EventAggregator () =
     let lookup = ConcurrentDictionary<Type, obj> ()
 
-    member __.GetEvent<'T when 'T :> IEvent> () =
+    member __.Listen<'T when 'T :> IEvent> f =
         let event = lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj))
-        (event :?> Event<'T>).Publish
+        (event :?> Event<'T>).Publish.Add f
 
     member __.Publish (eventValue: #IEvent) =
         let mutable value = Unchecked.defaultof<obj>

@@ -15,3 +15,7 @@ type World =
     member AddSystem : ISystem -> SystemHandle
 
     member AddSystems : ISystem seq -> SystemHandle
+
+    member EntityManager : EntityManager with get
+
+    member EventAggregator : EventAggregator with get
