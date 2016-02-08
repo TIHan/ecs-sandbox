@@ -27,29 +27,6 @@ type Entity =
 
 type IComponent = interface end
 
-type IEntityLookupData =
-
-    abstract Entities : Entity [] with get
-
-    abstract EntityCount : int with get
-
-[<ReferenceEquality>]
-type EntityLookupData<'T> =
-    {
-        Entities: Entity []
-        Components: 'T []
-        IndexLookup: int []
-        mutable entityCount: int 
-    }
-
-    member this.EntityCount = this.entityCount
-
-    interface IEntityLookupData with
-
-        member this.Entities = this.Entities
-
-        member this.EntityCount = this.entityCount
-
 type ComponentAdded<'T when 'T :> IComponent> = ComponentAdded of Entity with
 
     interface IEvent
@@ -74,12 +51,29 @@ type EntityDestroyed = EntityDestroyed of Entity with
 
     interface IEvent
 
-[<Struct>]
-type Hopac =
+type IEntityLookupData =
 
-    val Value : int
+    abstract Entities : Entity [] with get
 
-    interface IEvent
+    abstract EntityCount : int with get
+
+[<ReferenceEquality>]
+type EntityLookupData<'T when 'T :> IComponent> =
+    {
+        ComponentAddedEvent: Event<ComponentAdded<'T>>
+        Entities: Entity []
+        Components: 'T []
+        IndexLookup: int []
+        mutable entityCount: int 
+    }
+
+    member this.EntityCount = this.entityCount
+
+    interface IEntityLookupData with
+
+        member this.Entities = this.Entities
+
+        member this.EntityCount = this.entityCount
 
 [<Sealed>]
 type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
@@ -107,6 +101,9 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
     let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
     let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
+
+    let entitySpawnedEvent : Event<EntitySpawned> = EventAggregator.Unsafe.getEvent eventAggregator
+    let anyComponentAddedEvent : Event<AnyComponentAdded> = EventAggregator.Unsafe.getEvent eventAggregator
 
     let processQueue (queue: Queue<unit -> unit>) =
         while queue.Count > 0 do
@@ -138,12 +135,15 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             processQueue            emitAddComponentEventQueue
             processQueue            emitSpawnEntityEventQueue
 
-    member this.GetEntityLookupData<'T> () : EntityLookupData<'T> =
+    member this.GetEntityLookupData<'T when 'T :> IComponent> () : EntityLookupData<'T> =
         let t = typeof<'T>
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if not <| lookup.TryGetValue (t, &data) then            
+        if lookup.TryGetValue (t, &data) then  
+            data :?> EntityLookupData<'T>
+        else          
             let data =
                 {
+                    ComponentAddedEvent = EventAggregator.Unsafe.getEvent eventAggregator
                     Entities = Array.zeroCreate<Entity> maxEntityAmount
                     Components = Array.zeroCreate<'T> maxEntityAmount
                     IndexLookup = Array.init maxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
@@ -152,10 +152,8 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
             lookup.[t] <- data
             data
-        else
-            data :?> EntityLookupData<'T>
 
-    member this.TryGetInternal<'T> (entity: Entity, comp: byref<'T>) = 
+    member this.TryGetInternal<'T when 'T :> IComponent> (entity: Entity, comp: byref<'T>) = 
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
@@ -167,7 +165,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data = data :?> EntityLookupData<'T>
             comp <- data.Components.[data.IndexLookup.[entity.Index]]
 
-    member inline this.Iterate<'T> (f: Entity -> 'T -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T when 'T :> IComponent> (f: Entity -> 'T -> unit, useParallelism: bool) : unit =
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
@@ -182,7 +180,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2> (f: Entity -> 'T1 -> 'T2 -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> (f: Entity -> 'T1 -> 'T2 -> unit, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) then
@@ -209,7 +207,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> unit, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -241,7 +239,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3, 'T4> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -296,8 +294,8 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                     data.entityCount <- data.EntityCount + 1
 
                     emitAddComponentEventQueue.Enqueue (fun () ->
-                        eventAggregator.Publish (AnyComponentAdded (entity, typeof<'T>))
-                        eventAggregator.Publish<ComponentAdded<'T>> (ComponentAdded (entity))
+                        anyComponentAddedEvent.Trigger (AnyComponentAdded (entity, typeof<'T>))
+                        data.ComponentAddedEvent.Trigger (ComponentAdded (entity))
                     )
 
             else
@@ -358,7 +356,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 activeVersions.[entity.Index] <- entity.Version
 
                 emitSpawnEntityEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish (EntitySpawned (entity))
+                    entitySpawnedEvent.Trigger (EntitySpawned (entity))
                 )
 
         )

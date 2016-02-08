@@ -76,7 +76,7 @@ let main argv =
         benchmark <| fun () ->
             entityProcessorHandle.Update ()
 
-    for i = 0 to 100 - 1 do
+    for i = 0 to 1000 - 1 do
         testComponent
         |> EntityPrototype.spawn world.EntityManager
 
