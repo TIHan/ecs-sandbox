@@ -98,8 +98,7 @@
     </ProjectReference>
     <ProjectReference Include="..\Salty.Input\Salty.Input.fsproj">
       <Name>Salty.Input</Name>
-      <Project>{ce1f8c45-c665-4f36-a2c2-1fa973f9da47}</Project>
-      <Private>True</Private>
+      <Project>{CE1F8C45-C665-4F36-A2C2-1FA973F9DA47}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Salty.Renderer\Salty.Renderer.fsproj">
       <Name>Salty.Renderer</Name>

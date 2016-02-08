@@ -59,8 +59,7 @@
   <ItemGroup>
     <ProjectReference Include="..\src\Salty.Core\Salty.Core.fsproj">
       <Name>Salty.Core</Name>
-      <Project>{71d32e38-195a-4166-add7-da4ba880aee0}</Project>
-      <Private>True</Private>
+      <Project>{71D32E38-195A-4166-ADD7-DA4BA880AEE0}</Project>
     </ProjectReference>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
