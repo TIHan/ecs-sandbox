@@ -3,7 +3,7 @@
 [<ReferenceEquality>]
 type EntityPrototype =
     {
-        funcs: (Entity -> EntityManager -> unit) list
+        f: (Entity -> EntityManager -> unit)
     }
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -11,16 +11,15 @@ module EntityPrototype =
 
     let create () =
         {
-            funcs = []
+            f = fun _ _ -> ()
         }
      
     let add (f: unit -> #IComponent) prototype =
         { prototype with
-            funcs = (fun entity entities -> entities.AddComponent entity (f ())) :: prototype.funcs
+            f = fun entity entities -> entities.AddComponent entity (f ()); prototype.f entity entities
         }
 
     let spawn (entities: EntityManager) prototype =
         entities.Spawn (fun entity ->
-            prototype.funcs
-            |> List.iter (fun f -> f entity entities)
-        )
+            prototype.f entity entities
+        )        
