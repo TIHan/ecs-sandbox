@@ -2,16 +2,19 @@
 open ECS.World
 open ECS.Systems
 
+open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
+
+[<Struct>]
 type TestComponent =
-    {
-        Value: int
-    }
+
+    val mutable Value : int
 
     interface IComponent
 
 type TestComponent2 =
     {
-        Value: int
+        mutable Value: int
     }
 
     interface IComponent
@@ -32,11 +35,7 @@ type TestComponent4 =
 
 let testComponent =
     EntityPrototype.create ()
-    |> EntityPrototype.add<TestComponent> (fun () ->
-        {
-            Value = 1234
-        }
-    )
+    |> EntityPrototype.add TestComponent
     |> EntityPrototype.add<TestComponent2> (fun () ->
         {
             Value = 1234
@@ -82,11 +81,19 @@ let main argv =
 
     printfn "1000 Entities"
     benchmark <| fun () ->
-        entityProcessorHandle.Update ()  
+        entityProcessorHandle.Update () 
 
-//    world.EntityManager.ForEach<TestComponent> (fun entity test ->
-//        printfn "%A %A" entity test
-//    )
+    let entities = world.EntityManager
+
+    ForEach<TestComponent, TestComponent2> (fun entity test test2 ->
+        test.Value <- 42
+    )
+    |> entities.Do
+
+    ForEach<TestComponent> (fun entity test ->
+        printfn "TestComponent: %A" test.Value
+    )
+    |> entities.Do
 
     0
 

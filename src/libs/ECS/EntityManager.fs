@@ -57,6 +57,14 @@ type IEntityLookupData =
 
     abstract EntityCount : int with get
 
+type ForEach<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
+
+type ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
+
+type ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
+
+type ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
+
 [<ReferenceEquality>]
 type EntityLookupData<'T when 'T :> IComponent> =
     {
@@ -165,14 +173,16 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data = data :?> EntityLookupData<'T>
             comp <- data.Components.[data.IndexLookup.[entity.Index]]
 
-    member inline this.Iterate<'T when 'T :> IComponent> (f: Entity -> 'T -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T when 'T :> IComponent> (del: ForEach<'T>, useParallelism: bool) : unit =
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
 
             let count = data.EntityCount
+            let entities = data.Entities
+            let components = data.Components
 
-            let inline iter i = f data.Entities.[i] data.Components.[i]
+            let inline iter i = del.Invoke (entities.[i], &components.[i])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -180,7 +190,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> (f: Entity -> 'T1 -> 'T2 -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> (del: ForEach<'T1, 'T2>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) then
@@ -189,17 +199,16 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data2 = data2 :?> EntityLookupData<'T2>
 
             let count = data.EntityCount
+            let entities = data.Entities
 
             let inline iter i =
-                let entity = data.Entities.[i]
+                let entity = entities.[i]
 
                 let comp1Index = data1.IndexLookup.[entity.Index]
                 let comp2Index = data2.IndexLookup.[entity.Index]
 
                 if comp1Index >= 0 && comp2Index >= 0 then
-                    let comp1 = data1.Components.[comp1Index]
-                    let comp2 = data2.Components.[comp2Index]
-                    f entity comp1 comp2
+                    del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -207,7 +216,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> (del: ForEach<'T1, 'T2, 'T3>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -219,19 +228,17 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data3 = data3 :?> EntityLookupData<'T3>
 
             let count = data.EntityCount
+            let entities = data.Entities
 
             let inline iter i =
-                let entity = data.Entities.[i]
+                let entity = entities.[i]
 
                 let comp1Index = data1.IndexLookup.[entity.Index]
                 let comp2Index = data2.IndexLookup.[entity.Index]
                 let comp3Index = data3.IndexLookup.[entity.Index]
 
                 if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 then
-                    let comp1 = data1.Components.[comp1Index]
-                    let comp2 = data2.Components.[comp2Index]
-                    let comp3 = data3.Components.[comp3Index]
-                    f entity comp1 comp2 comp3
+                    del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -239,7 +246,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> (del: ForEach<'T1, 'T2, 'T3, 'T4>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -253,9 +260,10 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data4 = data4 :?> EntityLookupData<'T4>
 
             let count = data.EntityCount
+            let entities = data.Entities
 
             let inline iter i =
-                let entity = data.Entities.[i]
+                let entity = entities.[i]
 
                 let comp1Index = data1.IndexLookup.[entity.Index]
                 let comp2Index = data2.IndexLookup.[entity.Index]
@@ -263,11 +271,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 let comp4Index = data4.IndexLookup.[entity.Index]
 
                 if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && comp4Index >= 0 then
-                    let comp1 = data1.Components.[comp1Index]
-                    let comp2 = data2.Components.[comp2Index]
-                    let comp3 = data3.Components.[comp3Index]
-                    let comp4 = data4.Components.[comp4Index]
-                    f entity comp1 comp2 comp3 comp4
+                    del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index], &data4.Components.[comp4Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -431,23 +435,23 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
         result.ToArray ()
 
-    member this.ForEach<'T when 'T :> IComponent> f : unit =
-        this.Iterate<'T> (f, false)
+    member this.Do<'T when 'T :> IComponent> del : unit =
+        this.Iterate<'T> (del, false)
 
-    member this.ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
-        this.Iterate<'T1, 'T2> (f, false)
+    member this.Do<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
+        this.Iterate<'T1, 'T2> (del, false)
 
-    member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> f : unit =
-        this.Iterate<'T1, 'T2, 'T3> (f, false)
+    member this.Do<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
+        this.Iterate<'T1, 'T2, 'T3> (del, false)
 
-    member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> f : unit =
-        this.Iterate<'T1, 'T2, 'T3, 'T4> (f, false)
+    member this.Do<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> del : unit =
+        this.Iterate<'T1, 'T2, 'T3, 'T4> (del, false)
 
-    member this.ParallelForEach<'T when 'T :> IComponent> f : unit =
-        this.Iterate<'T> (f, true)
+    member this.DoParallel<'T when 'T :> IComponent> del : unit =
+        this.Iterate<'T> (del, true)
 
-    member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> f : unit =
-        this.Iterate<'T1, 'T2> (f, true)
+    member this.DoParallel<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
+        this.Iterate<'T1, 'T2> (del, true)
 
-    member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> f : unit =
-        this.Iterate<'T1, 'T2, 'T3> (f, true)
+    member this.DoParallel<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
+        this.Iterate<'T1, 'T2, 'T3> (del, true)
