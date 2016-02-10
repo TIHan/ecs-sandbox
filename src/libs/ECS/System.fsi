@@ -3,12 +3,13 @@
 type Entities = EntityManager
 type Events = EventAggregator
 
+type SystemUpdate = SystemUpdate of (unit -> unit)
+
 type ISystem =
 
-    abstract Init : Entities * Events -> unit
+    abstract Init : Entities * Events -> SystemUpdate
 
-    abstract Update : Entities * Events -> unit
-
+[<RequireQualifiedAccess>]
 module Systems =
 
     [<Sealed>]
@@ -16,11 +17,11 @@ module Systems =
 
         interface ISystem
 
-        static member Create : (Entities -> Events -> 'Event -> unit) -> EventQueue<'Event>
+        new : (Entities -> Events -> 'Event -> unit) -> EventQueue<'Event>
 
     [<Sealed>]
     type EntityProcessor =
 
         interface ISystem
 
-        static member Create : unit -> EntityProcessor
+        new : unit -> EntityProcessor

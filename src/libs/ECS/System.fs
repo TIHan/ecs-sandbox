@@ -3,38 +3,35 @@
 type Entities = EntityManager
 type Events = EventAggregator
 
+type SystemUpdate = SystemUpdate of (unit -> unit)
+
 type ISystem =
 
-    abstract Init : Entities * Events -> unit
+    abstract Init : Entities * Events -> SystemUpdate
 
-    abstract Update : Entities * Events -> unit
-
+[<RequireQualifiedAccess>]
 module Systems =
 
     [<Sealed>]
     type EventQueue<'Event when 'Event :> IEvent> (f) =
-        let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
 
         interface ISystem with
 
-            member __.Init (_, events) =
+            member __.Init (entities, events) =
+                let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
+
                 events.Listen queue.Enqueue
 
-            member __.Update (entities, events) =
-                let mutable event = Unchecked.defaultof<'Event>
-                while queue.TryDequeue (&event) do
-                    f entities events event
-
-
-        static member Create f = EventQueue (f)
+                SystemUpdate (fun () ->
+                    let mutable event = Unchecked.defaultof<'Event>
+                    while queue.TryDequeue (&event) do
+                        f entities events event
+                )
 
     [<Sealed>]
     type EntityProcessor () =
 
         interface ISystem with
 
-            member __.Init (_, _) = ()
-
-            member __.Update (entities, _) = entities.Process ()
-
-        static member Create () = EntityProcessor ()
+            member __.Init (entities, _) =
+                SystemUpdate entities.Process

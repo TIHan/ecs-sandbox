@@ -1,6 +1,5 @@
 ﻿open ECS
 open ECS.World
-open ECS.Systems
 
 open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
@@ -33,67 +32,71 @@ type TestComponent4 =
 
     interface IComponent
 
-let testComponent =
-    EntityPrototype.create ()
-    |> EntityPrototype.add TestComponent
-    |> EntityPrototype.add<TestComponent2> (fun () ->
-        {
-            Value = 1234
-        }
-    )
-    |> EntityPrototype.add<TestComponent3> (fun () ->
-        {
-            Value = 1234
-        }
-    )
-    |> EntityPrototype.add<TestComponent4> (fun () ->
-        {
-            Value = 1234
-        }
-    )
+type TestComponent5 =
+    {
+        Value: int
+    }
+
+    interface IComponent
+
+[<RequireQualifiedAccess>]
+module Entity =
+
+    let test =
+        EntityPrototype.create ()
+        |> EntityPrototype.add TestComponent
+        |> EntityPrototype.add<TestComponent2> (fun () ->
+            {
+                Value = 1234
+            }
+        )
+        |> EntityPrototype.add<TestComponent3> (fun () ->
+            {
+                Value = 1234
+            }
+        )
+        |> EntityPrototype.add<TestComponent4> (fun () ->
+            {
+                Value = 1234
+            }
+        )
+        |> EntityPrototype.add<TestComponent5> (fun () ->
+            {
+                Value = 1234
+            }
+        )
 
 let benchmark f =
     let s = System.Diagnostics.Stopwatch.StartNew ()
     f ()
     s.Stop ()
-    printfn "Time: %A" s.ElapsedMilliseconds
+    printfn "Time: %A" s.Elapsed.TotalMilliseconds
 
 [<EntryPoint>]
 let main argv = 
-    let world = World (10000)
+    let world = World (65536)
+    let entities = world.EntityManager
+    let events = world.EventAggregator
 
-    let entityProcessor = EntityProcessor.Create ()
+    let entityProcessor = Systems.EntityProcessor ()
 
     let entityProcessorHandle = world.AddSystem entityProcessor
 
-    for i = 0 to 10 - 1 do
+    for i = 0 to 10000 - 1 do
+        entities.Spawn Entity.test
 
-        for i = 0 to 5 - 1 do
-            testComponent
-            |> EntityPrototype.spawn world.EntityManager
-
-        benchmark <| fun () ->
-            entityProcessorHandle.Update ()
-
-    for i = 0 to 1000 - 1 do
-        testComponent
-        |> EntityPrototype.spawn world.EntityManager
-
-    printfn "1000 Entities"
+    printfn "10000 Entities"
     benchmark <| fun () ->
         entityProcessorHandle.Update () 
 
-    let entities = world.EntityManager
+    for i = 0 to 50 - 1 do
+        benchmark <| fun () ->
+            ForEach<TestComponent, TestComponent2> (fun entity test _ ->
+                test.Value <- 42
+            )
+            |> entities.Do
 
-    ForEach<TestComponent, TestComponent2> (fun entity test test2 ->
-        test.Value <- 42
-    )
-    |> entities.Do
-
-    ForEach<TestComponent> (fun entity test ->
-        printfn "TestComponent: %A" test.Value
-    )
-    |> entities.Do
+    printfn "%A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L
 
     0
 

@@ -13,18 +13,20 @@ type World (maxEntityAmount) =
     let entityManager = EntityManager (eventAggregator, maxEntityAmount)
 
     member this.AddSystem (sys: ISystem) =
-        sys.Init (entityManager, eventAggregator)
-        SystemHandle (fun () -> sys.Update (entityManager, eventAggregator))
+        match sys.Init (entityManager, eventAggregator) with
+        | SystemUpdate update -> SystemHandle update
 
     member this.AddSystems (systems: ISystem seq) =
         let systems = systems |> Array.ofSeq
 
-        systems
-        |> Seq.iter (fun sys -> sys.Init (entityManager, eventAggregator))
+        let updates =
+            systems
+            |> Array.map (fun sys -> sys.Init (entityManager, eventAggregator))
+            |> Array.map (function | SystemUpdate update -> update)
 
         SystemHandle (fun () ->
-            for i = 0 to systems.Length - 1 do
-                systems.[i].Update (entityManager, eventAggregator)
+            for i = 0 to updates.Length - 1 do
+                updates.[i] ()
         )
 
     member this.EntityManager = entityManager
