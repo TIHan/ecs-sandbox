@@ -47,13 +47,13 @@ type EntityDestroyed = EntityDestroyed of Entity with
 
     interface IEvent
 
-type ForEach<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
+type ForEachDelegate<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
 
-type ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
+type ForEachDelegate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
 
-type ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
 
-type ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
 
 [<Sealed>]
 type EntityManager =
@@ -70,19 +70,19 @@ type EntityManager =
 
     member GetAll<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : unit -> (Entity * 'T1 * 'T2) []
 
-    member Do : ForEach<#IComponent> -> unit
+    member ForEach<'T when 'T :> IComponent> : ForEachDelegate<'T> -> unit
 
-    member Do : ForEach<#IComponent, #IComponent> -> unit
+    member ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : ForEachDelegate<'T1, 'T2> -> unit
 
-    member Do : ForEach<#IComponent, #IComponent, #IComponent> -> unit
+    member ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
 
-    member Do : ForEach<#IComponent, #IComponent, #IComponent, #IComponent> -> unit
+    member ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> : ForEachDelegate<'T1, 'T2, 'T3, 'T4> -> unit
 
-    member DoParallel : ForEach<#IComponent> -> unit
+    member ParallelForEach<'T when 'T :> IComponent> : ForEachDelegate<'T> -> unit
 
-    member DoParallel : ForEach<#IComponent, #IComponent> -> unit
+    member ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : ForEachDelegate<'T1, 'T2> -> unit
 
-    member DoParallel : ForEach<#IComponent, #IComponent, #IComponent> -> unit
+    member ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
 
     // Components
 

@@ -70,7 +70,7 @@ let benchmark f =
     let s = System.Diagnostics.Stopwatch.StartNew ()
     f ()
     s.Stop ()
-    printfn "Time: %A" s.Elapsed.TotalMilliseconds
+    printfn "Time: %A ms" s.Elapsed.TotalMilliseconds
 
 [<EntryPoint>]
 let main argv = 
@@ -91,12 +91,12 @@ let main argv =
 
     for i = 0 to 50 - 1 do
         benchmark <| fun () ->
-            ForEach<TestComponent, TestComponent2> (fun entity test _ ->
+            entities.ForEach<TestComponent, TestComponent2> (fun entity test test2 ->
                 test.Value <- 42
+                test2 <- { Value = 42 }
             )
-            |> entities.Do
 
-    printfn "%A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L
+    printfn "Memory: %A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L
 
     0
 

@@ -57,13 +57,13 @@ type IEntityLookupData =
 
     abstract EntityCount : int with get
 
-type ForEach<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
+type ForEachDelegate<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
 
-type ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
+type ForEachDelegate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
 
-type ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
 
-type ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
 
 [<ReferenceEquality>]
 type EntityLookupData<'T when 'T :> IComponent> =
@@ -173,7 +173,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data = data :?> EntityLookupData<'T>
             comp <- data.Components.[data.IndexLookup.[entity.Index]]
 
-    member inline this.Iterate<'T when 'T :> IComponent> (del: ForEach<'T>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T when 'T :> IComponent> (del: ForEachDelegate<'T>, useParallelism: bool) : unit =
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
@@ -190,7 +190,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> (del: ForEach<'T1, 'T2>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> (del: ForEachDelegate<'T1, 'T2>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) then
@@ -216,7 +216,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> (del: ForEach<'T1, 'T2, 'T3>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> (del: ForEachDelegate<'T1, 'T2, 'T3>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -246,7 +246,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> (del: ForEach<'T1, 'T2, 'T3, 'T4>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> (del: ForEachDelegate<'T1, 'T2, 'T3, 'T4>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -435,23 +435,23 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
         result.ToArray ()
 
-    member this.Do<'T when 'T :> IComponent> del : unit =
+    member this.ForEach<'T when 'T :> IComponent> del : unit =
         this.Iterate<'T> (del, false)
 
-    member this.Do<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
+    member this.ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
         this.Iterate<'T1, 'T2> (del, false)
 
-    member this.Do<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
+    member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
         this.Iterate<'T1, 'T2, 'T3> (del, false)
 
-    member this.Do<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> del : unit =
+    member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> del : unit =
         this.Iterate<'T1, 'T2, 'T3, 'T4> (del, false)
 
-    member this.DoParallel<'T when 'T :> IComponent> del : unit =
+    member this.ParallelForEach<'T when 'T :> IComponent> del : unit =
         this.Iterate<'T> (del, true)
 
-    member this.DoParallel<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
+    member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
         this.Iterate<'T1, 'T2> (del, true)
 
-    member this.DoParallel<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
+    member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
         this.Iterate<'T1, 'T2, 'T3> (del, true)
