@@ -122,6 +122,9 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         while queue.TryDequeue (&f) do
             f ()
 
+    member inline this.IsValidEntity (entity: Entity) =
+        not (entity.Version.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version
+
     member this.Process () =
         while
             not addComponentQueue.IsEmpty       ||
@@ -163,13 +166,13 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
     member this.TryGetInternal<'T when 'T :> IComponent> (entity: Entity, comp: byref<'T>) = 
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (typeof<'T>, &data) then
+        if this.IsValidEntity entity && lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             comp <- data.Components.[data.IndexLookup.[entity.Index]]
 
     member this.TryGetInternal<'T when 'T :> IComponent> (entity: Entity, comp: byref<IComponent>) = 
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (typeof<'T>, &data) then
+        if this.IsValidEntity entity && lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             comp <- data.Components.[data.IndexLookup.[entity.Index]]
 
@@ -284,7 +287,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     member this.AddComponent<'T when 'T :> IComponent> (entity: Entity) (comp: 'T) =
         addComponentQueue.Enqueue (fun () ->
 
-            if not (entity.Version.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version then
+            if this.IsValidEntity entity then
                 let data = this.GetEntityLookupData<'T> ()
 
                 if data.IndexLookup.[entity.Index] >= 0 then
@@ -310,7 +313,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     member this.RemoveComponent<'T when 'T :> IComponent> (entity: Entity) =
         removeComponentQueue.Enqueue (fun () ->
 
-            if not (entity.Version.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version then
+            if this.IsValidEntity entity then
                 let data = this.GetEntityLookupData<'T> ()
 
                 if data.IndexLookup.[entity.Index] >= 0 then
@@ -368,7 +371,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     member this.Destroy (entity: Entity) =
         destroyEntityQueue.Enqueue (fun () ->
 
-            if not (entity.Version.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version then
+            if this.IsValidEntity entity then
                 let removals = entityRemovals.[entity.Index]
                 removals.ForEach (fun f -> f ())
                 removals.Clear ()
