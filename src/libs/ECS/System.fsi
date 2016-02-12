@@ -13,6 +13,13 @@ type ISystem =
 module Systems =
 
     [<Sealed>]
+    type System =
+
+        interface ISystem
+
+        new : string * (Entities -> Events -> SystemUpdate) -> System
+
+    [<Sealed>]
     type EventQueue<'Event when 'Event :> IEvent> =
 
         interface ISystem

@@ -13,6 +13,16 @@ type ISystem =
 module Systems =
 
     [<Sealed>]
+    type System (name: string, f) =
+
+        member this.Name = name
+
+        interface ISystem with
+
+            member __.Init (entities, events) =
+                f entities events
+
+    [<Sealed>]
     type EventQueue<'Event when 'Event :> IEvent> (f) =
 
         interface ISystem with

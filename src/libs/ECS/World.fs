@@ -28,8 +28,4 @@ type World (maxEntityAmount) =
             for i = 0 to updates.Length - 1 do
                 updates.[i] ()
         )
-
-    member this.EntityManager = entityManager
-
-    member this.EventAggregator = eventAggregator
  
