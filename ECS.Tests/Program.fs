@@ -42,12 +42,12 @@ type TestComponent5 =
 [<RequireQualifiedAccess>]
 module Entity =
 
-    let test =
+    let test v =
         EntityPrototype.create ()
         |> EntityPrototype.add TestComponent
         |> EntityPrototype.add<TestComponent2> (fun () ->
             {
-                Value = 1234
+                Value = v
             }
         )
         |> EntityPrototype.add<TestComponent3> (fun () ->
@@ -83,7 +83,7 @@ let main argv =
     let entityProcessorHandle = world.AddSystem entityProcessor
 
     for i = 0 to 10000 - 1 do
-        entities.Spawn Entity.test
+        entities.Spawn (Entity.test i)
 
     printfn "10000 Entities"
     benchmark <| fun () ->
@@ -93,7 +93,10 @@ let main argv =
         benchmark <| fun () ->
             entities.ForEach<TestComponent, TestComponent2> (fun entity test test2 ->
                 test.Value <- 42
-                test2 <- { Value = 42 }
+            )
+
+            entities.ForEach<TestComponent, TestComponent2, TestComponent3> (fun entity test test2 test3 ->
+                test.Value <- 1234
             )
 
     printfn "Memory: %A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L

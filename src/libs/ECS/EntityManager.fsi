@@ -60,8 +60,6 @@ type EntityManager =
 
     // Component Query
 
-    member TryGet : Entity * Type -> IComponent option
-
     member TryGet<'T when 'T :> IComponent> : Entity -> 'T option
 
     member TryFind<'T when 'T :> IComponent> : (Entity -> 'T -> bool) -> (Entity * 'T) option
