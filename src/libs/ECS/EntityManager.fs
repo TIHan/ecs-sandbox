@@ -69,6 +69,7 @@ type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> ICompo
 type EntityLookupData<'T when 'T :> IComponent> =
     {
         ComponentAddedEvent: Event<ComponentAdded<'T>>
+        Active: bool []
         Entities: Entity []
         Components: 'T []
         IndexLookup: int []
@@ -87,6 +88,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
     // IMPORTANT: The first element will always be 0u. Don't break that rule. :)
     let activeVersions = Array.init maxEntityAmount (fun _ -> 0u)
+    let activeIndices = Array.zeroCreate<bool> maxEntityAmount
 
     // We don't start with index 0 and version 0 due to the possibility of creating an Entity using the default ctor and how we determine what version is active.
     let mutable nextEntityIndex = 1
@@ -153,6 +155,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data =
                 {
                     ComponentAddedEvent = EventAggregator.Unsafe.getEvent eventAggregator
+                    Active = Array.zeroCreate<bool> maxEntityAmount
                     Entities = Array.zeroCreate<Entity> maxEntityAmount
                     Components = Array.zeroCreate<'T> maxEntityAmount
                     IndexLookup = Array.init maxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
@@ -168,10 +171,15 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data = data :?> EntityLookupData<'T>
 
             let count = data.Count
+            let active = data.Active
             let entities = data.Entities
             let components = data.Components
 
-            let inline iter i = del.Invoke (entities.[i], &components.[i])
+            let inline iter i = 
+                let entity = entities.[i]
+
+                if active.[entity.Index] && activeIndices.[entity.Index] then
+                    del.Invoke (entity, &components.[i])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -193,11 +201,12 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let inline iter i =
                 let entity = entities.[i]
 
-                let comp1Index = data1.IndexLookup.[entity.Index]
-                let comp2Index = data2.IndexLookup.[entity.Index]
+                if activeIndices.[entity.Index] then
+                    let comp1Index = data1.IndexLookup.[entity.Index]
+                    let comp2Index = data2.IndexLookup.[entity.Index]
 
-                if comp1Index >= 0 && comp2Index >= 0 then
-                    del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index])
+                    if comp1Index >= 0 && comp2Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] then
+                        del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -222,12 +231,13 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let inline iter i =
                 let entity = entities.[i]
 
-                let comp1Index = data1.IndexLookup.[entity.Index]
-                let comp2Index = data2.IndexLookup.[entity.Index]
-                let comp3Index = data3.IndexLookup.[entity.Index]
+                if activeIndices.[entity.Index] then
+                    let comp1Index = data1.IndexLookup.[entity.Index]
+                    let comp2Index = data2.IndexLookup.[entity.Index]
+                    let comp3Index = data3.IndexLookup.[entity.Index]
 
-                if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 then
-                    del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index])
+                    if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] && data3.Active.[entity.Index] then
+                        del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -254,13 +264,14 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let inline iter i =
                 let entity = entities.[i]
 
-                let comp1Index = data1.IndexLookup.[entity.Index]
-                let comp2Index = data2.IndexLookup.[entity.Index]
-                let comp3Index = data3.IndexLookup.[entity.Index]
-                let comp4Index = data4.IndexLookup.[entity.Index]
+                if activeIndices.[entity.Index] then
+                    let comp1Index = data1.IndexLookup.[entity.Index]
+                    let comp2Index = data2.IndexLookup.[entity.Index]
+                    let comp3Index = data3.IndexLookup.[entity.Index]
+                    let comp4Index = data4.IndexLookup.[entity.Index]
 
-                if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && comp4Index >= 0 then
-                    del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index], &data4.Components.[comp4Index])
+                    if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && comp4Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] && data3.Active.[entity.Index] && data4.Active.[entity.Index] then
+                        del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index], &data4.Components.[comp4Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -282,6 +293,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                     entityRemovals.[entity.Index].Add (fun () -> this.RemoveComponent<'T> entity)
 
                     data.Components.[data.Count] <- comp
+                    data.Active.[entity.Index] <- true
                     data.Entities.[data.Count] <- entity
                     data.IndexLookup.[entity.Index] <- data.Count
                     data.Count <- data.Count + 1
@@ -307,6 +319,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                     let index = data.IndexLookup.[entity.Index]
                     let swappingEntity = data.Entities.[lastIndex]
 
+                    data.Active.[entity.Index] <- false
                     data.Entities.[index] <- swappingEntity
                     data.Components.[index] <- data.Components.[lastIndex]
                     data.IndexLookup.[swappingEntity.Index] <- index
@@ -344,13 +357,14 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             if maxEntityAmount <= entity.Index then
                 printfn "ECS WARNING: Unable to spawn %A. Max entity amount hit: %i." entity maxEntityAmount
             else
-                f entity
-
                 activeVersions.[entity.Index] <- entity.Version
+                activeIndices.[entity.Index] <- true
 
                 emitSpawnEntityEventQueue.Enqueue (fun () ->
                     entitySpawnedEvent.Trigger (EntitySpawned (entity))
                 )
+
+                f entity
 
         )
 
@@ -365,6 +379,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
                 finallyDestroyEntityQueue.Enqueue (fun () ->
                     activeVersions.[entity.Index] <- 0u
+                    activeIndices.[entity.Index] <- false
                 )
 
                 emitDestroyEntityEventQueue.Enqueue (fun () ->
@@ -379,9 +394,12 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
     member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if this.IsValidEntity entity && lookup.TryGetValue (typeof<'T>, &data) then
+        if this.IsValidEntity entity && activeIndices.[entity.Index] && lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
-            Some data.Components.[data.IndexLookup.[entity.Index]]
+            if data.Active.[entity.Index] then
+                Some data.Components.[data.IndexLookup.[entity.Index]]
+            else
+                None
         else
             None
 
@@ -397,7 +415,8 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 let entity = data.Entities.[i]
                 let comp = data.Components.[i]
 
-                if f entity comp then result <- (entity, comp)
+                if activeIndices.[entity.Index] && data.Active.[entity.Index] && f entity comp then 
+                    result <- (entity, comp)
         
         if obj.ReferenceEquals (result, null) then None
         else Some result

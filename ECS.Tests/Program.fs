@@ -4,10 +4,10 @@ open ECS.World
 open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 
-[<Struct>]
 type TestComponent =
-
-    val mutable Value : int
+    {
+        mutable Value: int
+    }
 
     interface IComponent
 
@@ -44,7 +44,11 @@ module Entity =
 
     let test v =
         EntityPrototype.create ()
-        |> EntityPrototype.add TestComponent
+        |> EntityPrototype.add<TestComponent> (fun () ->
+            {
+                Value = 1234
+            }
+        )
         |> EntityPrototype.add<TestComponent2> (fun () ->
             {
                 Value = v
@@ -91,12 +95,8 @@ let main argv =
 
             for i = 0 to 50 - 1 do
                 benchmark <| fun () ->
-                    entities.ForEach<TestComponent, TestComponent2> (fun entity test test2 ->
-                        test.Value <- 42
-                    )
-
                     entities.ForEach<TestComponent, TestComponent2, TestComponent3> (fun entity test test2 test3 ->
-                        test.Value <- 1234
+                        test.Value <- 42
                     )
 
             printfn "Memory: %A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L
