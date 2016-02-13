@@ -3,7 +3,7 @@
 open ECS
 
 [<Sealed>]
-type SystemHandle (f: unit -> unit) =
+type SystemHandle<'T when 'T :> ISystem> (f: unit -> unit) =
 
     member this.Update = f
 
@@ -12,20 +12,7 @@ type World (maxEntityAmount) =
     let eventAggregator = EventAggregator ()
     let entityManager = EntityManager (eventAggregator, maxEntityAmount)
 
-    member this.AddSystem (sys: ISystem) =
+    member this.AddSystem<'T when 'T :> ISystem> (sys: 'T) =
         match sys.Init (entityManager, eventAggregator) with
-        | SystemUpdate update -> SystemHandle update
-
-    member this.AddSystems (systems: ISystem seq) =
-        let systems = systems |> Array.ofSeq
-
-        let updates =
-            systems
-            |> Array.map (fun sys -> sys.Init (entityManager, eventAggregator))
-            |> Array.map (function | SystemUpdate update -> update)
-
-        SystemHandle (fun () ->
-            for i = 0 to updates.Length - 1 do
-                updates.[i] ()
-        )
+        | SystemUpdate update -> SystemHandle<'T> update
  

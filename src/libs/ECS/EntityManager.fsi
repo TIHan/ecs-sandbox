@@ -23,27 +23,49 @@ type Entity =
 
 type IComponent = interface end
 
-type ComponentAdded<'T when 'T :> IComponent> = ComponentAdded of Entity with
+[<Sealed>]
+type ComponentAdded<'T when 'T :> IComponent> =
+
+    val Entity : Entity
 
     interface IEvent
 
-type ComponentRemoved<'T when 'T :> IComponent> = ComponentRemoved of Entity with
+[<Sealed>]
+type ComponentRemoved<'T when 'T :> IComponent> = 
+
+    val Entity : Entity
 
     interface IEvent
 
-type AnyComponentAdded = AnyComponentAdded of Entity * componentType: Type with
+[<Sealed>]
+type AnyComponentAdded = 
+
+    val Entity : Entity
+
+    val ComponentType : Type
 
     interface IEvent
 
-type AnyComponentRemoved = AnyComponentRemoved of Entity * componentType: Type with
+[<Sealed>]
+type AnyComponentRemoved =
+   
+    val Entity : Entity
+
+    val ComponentType : Type
 
     interface IEvent
 
-type EntitySpawned = EntitySpawned of Entity with
+[<Sealed>]
+type EntitySpawned =
+
+    val Entity : Entity
 
     interface IEvent
 
-type EntityDestroyed = EntityDestroyed of Entity with
+[<Sealed>]
+type EntityDestroyed =
+
+    val Entity : Entity
 
     interface IEvent
 

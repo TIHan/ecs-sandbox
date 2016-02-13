@@ -1,19 +1,20 @@
 ﻿open ECS
 open ECS.World
 
+open System
 open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 
 type TestComponent =
     {
-        mutable Value: int
+        Value: int
     }
 
     interface IComponent
 
 type TestComponent2 =
     {
-        mutable Value: int
+        Value: int
     }
 
     interface IComponent
@@ -39,11 +40,11 @@ type TestComponent5 =
 
     interface IComponent
 
-[<RequireQualifiedAccess>]
-module Entity =
+module Tests =
+    open Xunit
 
     let test =
-        let v = 12
+        let v = 0
         EntityPrototype.create ()
         |> EntityPrototype.add<TestComponent> (fun () ->
             {
@@ -71,43 +72,55 @@ module Entity =
             }
         )
 
-let benchmark f =
-    let s = System.Diagnostics.Stopwatch.StartNew ()
-    f ()
-    s.Stop ()
-    printfn "Time: %A ms" s.Elapsed.TotalMilliseconds
+    let createWorld maxEntityAmount f =
+        let world = World (maxEntityAmount)
+
+        let entityProcessor = Systems.EntityProcessor ()
+
+        let entityProcessorHandle = world.AddSystem entityProcessor
+
+        let sys = Systems.System ("Test", fun entities events ->
+            SystemUpdate (fun () -> f entities events entityProcessorHandle)
+        )
+
+        (world.AddSystem sys).Update ()
+
+    [<Fact>]
+    let ``create and destroy 10k entities with 5 components, three times`` () =
+        createWorld 10000 (fun entities events entityProcessorHandle ->
+            for i = 0 to 10000 - 1 do
+                entities.Spawn test
+
+            entityProcessorHandle.Update ()
+
+            entities.ForEach<TestComponent> (fun entity test ->
+                entities.Destroy entity
+            )
+
+            entityProcessorHandle.Update ()
+
+            entities.ForEach<TestComponent> (fun _ _ ->
+                failwith "TestComponent was not deleted"
+            )
+
+            entities.ForEach<TestComponent2> (fun _ _ ->
+                failwith "TestComponent2 was not deleted"
+            )
+
+            entities.ForEach<TestComponent3> (fun _ _ ->
+                failwith "TestComponent3 was not deleted"
+            )
+
+            entities.ForEach<TestComponent4> (fun _ _ ->
+                failwith "TestComponent4 was not deleted"
+            )
+
+            entities.ForEach<TestComponent5> (fun _ _ ->
+                failwith "TestComponent5 was not deleted"
+            )
+        )
 
 [<EntryPoint>]
 let main argv = 
-    let world = World (65536)
-
-    let entityProcessor = Systems.EntityProcessor ()
-
-    let entityProcessorHandle = world.AddSystem entityProcessor
-
-    let sys = Systems.System ("Test", fun entities events ->
-        SystemUpdate (fun () ->
-            for i = 0 to 5 do
-                printfn "Spawn 10k"
-                benchmark <| fun () ->
-                    for i = 0 to 10000 - 1 do
-                        entities.Spawn (Entity.test)
-                    entityProcessorHandle.Update ()
-
-                printfn "Destroy 10k"
-                benchmark <| fun () ->
-                    entities.ForEach<TestComponent> (fun entity test ->
-                        entities.Destroy entity
-                    )
-                    entityProcessorHandle.Update ()
-                printfn "--------------"
-
-            System.GC.Collect (2, System.GCCollectionMode.Forced)
-            printfn "Memory: %A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L
-        )
-    )
-
-    (world.AddSystem sys).Update ()
-
     0
 
