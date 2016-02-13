@@ -45,6 +45,8 @@ module DataStructures =
             this.buffer.[this.count] <- item
             this.count <- this.count + 1
 
+        member inline this.LastItem = this.buffer.[this.count - 1]
+
         member inline this.SwapRemoveAt index =
             if index >= this.count then
                 failwith "Index out of bounds"
@@ -118,6 +120,7 @@ type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> ICompo
 type EntityLookupData<'T when 'T :> IComponent> =
     {
         ComponentAddedEvent: Event<ComponentAdded<'T>>
+        ComponentRemovedEvent: Event<ComponentRemoved<'T>>
         Active: bool []
         IndexLookup: int []
         Entities: Entity UnsafeResizeArray
@@ -130,13 +133,12 @@ type EntityLookupData<'T when 'T :> IComponent> =
 
 [<Sealed>]
 type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
+    let maxEntityAmount = maxEntityAmount + 1
     let lookup = Dictionary<Type, IEntityLookupData> ()
 
-    // IMPORTANT: The first element will always be 0u. Don't break that rule. :)
     let activeVersions = Array.init maxEntityAmount (fun _ -> 0u)
     let activeIndices = Array.zeroCreate<bool> maxEntityAmount
 
-    // We don't start with index 0 and version 0 due to the possibility of creating an Entity using the default ctor and how we determine what version is active.
     let mutable nextEntityIndex = 1
     let removedEntityQueue = Queue<Entity> () 
 
@@ -157,7 +159,10 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
 
     let entitySpawnedEvent : Event<EntitySpawned> = EventAggregator.Unsafe.getEvent eventAggregator
+    let entityDestroyedEvent : Event<EntityDestroyed> = EventAggregator.Unsafe.getEvent eventAggregator
+
     let anyComponentAddedEvent : Event<AnyComponentAdded> = EventAggregator.Unsafe.getEvent eventAggregator
+    let anyComponentRemovedEvent : Event<AnyComponentRemoved> = EventAggregator.Unsafe.getEvent eventAggregator 
 
     let processQueue (queue: Queue<unit -> unit>) =
         while queue.Count > 0 do
@@ -169,7 +174,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             f ()
 
     member inline this.IsValidEntity (entity: Entity) =
-        not (entity.Version.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version
+        not (entity.Index.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version
 
     member this.Process () =
         while
@@ -201,6 +206,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
             let data =
                 {
                     ComponentAddedEvent = EventAggregator.Unsafe.getEvent eventAggregator
+                    ComponentRemovedEvent = EventAggregator.Unsafe.getEvent eventAggregator
                     Active = Array.zeroCreate<bool> maxEntityAmount
                     IndexLookup = Array.init maxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
                     Entities = UnsafeResizeArray.Create 1
@@ -361,18 +367,20 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
                 if data.IndexLookup.[entity.Index] >= 0 then
                     let index = data.IndexLookup.[entity.Index]
-                    let swappingEntity = data.Entities.Buffer.[data.Entities.Count - 1]
-
-                    data.Active.[entity.Index] <- false
-                    data.IndexLookup.[entity.Index] <- -1
-                    data.IndexLookup.[swappingEntity.Index] <- index
+                    let swappingEntity = data.Entities.LastItem
 
                     data.Entities.SwapRemoveAt index
                     data.Components.SwapRemoveAt index
 
+                    data.Active.[entity.Index] <- false
+                    data.IndexLookup.[entity.Index] <- -1
+
+                    if not (entity.Index.Equals swappingEntity.Index) then
+                        data.IndexLookup.[swappingEntity.Index] <- index
+
                     emitRemoveComponentEventQueue.Enqueue (fun () ->
-                        eventAggregator.Publish (AnyComponentRemoved (entity, typeof<'T>))
-                        eventAggregator.Publish<ComponentRemoved<'T>> (ComponentRemoved (entity))
+                        anyComponentRemovedEvent.Trigger (AnyComponentRemoved (entity, typeof<'T>))
+                        data.ComponentRemovedEvent.Trigger (ComponentRemoved (entity))
                     )
                 else
                     printfn "ECS WARNING: Component, %s, does not exist on %A." typeof<'T>.Name entity
@@ -387,19 +395,18 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     member this.Spawn f =             
         spawnEntityQueue.Enqueue (fun () ->
 
-            // We don't start with index 0 and version 0 due to the possibility of creating an Entity using the default ctor and how we determine what version is active.
-            let entity =
-                if removedEntityQueue.Count > 0 then
-                    let entity = removedEntityQueue.Dequeue ()
-                    Entity (entity.Index, entity.Version + 1u)
-                else
-                    let index = nextEntityIndex
-                    nextEntityIndex <- index + 1
-                    Entity (index, 1u)
-
-            if maxEntityAmount <= entity.Index then
-                printfn "ECS WARNING: Unable to spawn %A. Max entity amount hit: %i." entity maxEntityAmount
+            if nextEntityIndex >= maxEntityAmount then
+                printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (maxEntityAmount - 1)
             else
+                let entity =
+                    if removedEntityQueue.Count > 0 then
+                        let entity = removedEntityQueue.Dequeue ()
+                        Entity (entity.Index, entity.Version + 1u)
+                    else
+                        let index = nextEntityIndex
+                        nextEntityIndex <- index + 1
+                        Entity (index, 0u)
+
                 activeVersions.[entity.Index] <- entity.Version
                 activeIndices.[entity.Index] <- true
 
