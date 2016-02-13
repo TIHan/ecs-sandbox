@@ -19,7 +19,7 @@ module DataStructures =
             mutable buffer: 'T []
         }
 
-        static member inline Create capacity =
+        static member Create capacity =
             if capacity <= 0 then
                 failwith "Capacity must be greater than 0"
 
