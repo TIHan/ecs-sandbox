@@ -1,7 +1,6 @@
 ﻿namespace ECS
 
 type Entities = EntityManager
-type Events = EventAggregator
 
 type SystemUpdate = SystemUpdate of (unit -> unit)
 
@@ -23,17 +22,17 @@ module Systems =
                 f entities events
 
     [<Sealed>]
-    type EventQueue<'Event when 'Event :> IEvent> (f) =
+    type EventQueue<'T, 'U when 'T :> IECSEvent<'U>> (f) =
 
         interface ISystem with
 
             member __.Init (entities, events) =
-                let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
+                let queue = System.Collections.Concurrent.ConcurrentQueue<'U> ()
 
                 events.Listen queue.Enqueue
 
                 SystemUpdate (fun () ->
-                    let mutable event = Unchecked.defaultof<'Event>
+                    let mutable event = Unchecked.defaultof<'U>
                     while queue.TryDequeue (&event) do
                         f entities events event
                 )

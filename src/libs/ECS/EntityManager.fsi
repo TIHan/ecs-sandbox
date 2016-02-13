@@ -26,48 +26,32 @@ type IComponent = interface end
 [<Sealed>]
 type ComponentAdded<'T when 'T :> IComponent> =
 
-    val Entity : Entity
-
-    interface IEvent
+    interface IECSEvent<Entity>
 
 [<Sealed>]
 type ComponentRemoved<'T when 'T :> IComponent> = 
 
-    val Entity : Entity
-
-    interface IEvent
+    interface IECSEvent<Entity>
 
 [<Sealed>]
 type AnyComponentAdded = 
 
-    val Entity : Entity
-
-    val ComponentType : Type
-
-    interface IEvent
+    interface IECSEvent<Entity * Type>
 
 [<Sealed>]
 type AnyComponentRemoved =
    
-    val Entity : Entity
-
-    val ComponentType : Type
-
-    interface IEvent
+    interface IECSEvent<Entity * Type>
 
 [<Sealed>]
 type EntitySpawned =
 
-    val Entity : Entity
-
-    interface IEvent
+    interface IECSEvent<Entity>
 
 [<Sealed>]
 type EntityDestroyed =
 
-    val Entity : Entity
-
-    interface IEvent
+    interface IECSEvent<Entity>
 
 type ForEachDelegate<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
 
@@ -118,4 +102,4 @@ type EntityManager =
 
     member internal Process : unit -> unit
 
-    internal new : EventAggregator * maxEntityAmount: int -> EntityManager
+    internal new : EventManager * maxEntityAmount: int -> EntityManager

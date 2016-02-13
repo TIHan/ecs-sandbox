@@ -81,62 +81,46 @@ type Entity =
 type IComponent = interface end
 
 [<Sealed>]
-type ComponentAdded<'T when 'T :> IComponent> =
+type ComponentAdded<'T when 'T :> IComponent> (entity) =
 
-    val Entity : Entity
+    interface IECSEvent<Entity> with
 
-    interface IEvent
-
-    new (entity) = { Entity = entity }
+        member this.Data = entity
 
 [<Sealed>]
-type ComponentRemoved<'T when 'T :> IComponent> =
+type ComponentRemoved<'T when 'T :> IComponent> (entity) =
 
-    val Entity : Entity
+    interface IECSEvent<Entity> with
 
-    interface IEvent
-
-    new (entity) = { Entity = entity }
+        member this.Data = entity
 
 [<Sealed>]
-type AnyComponentAdded =
+type AnyComponentAdded (entity, typ) =
 
-    val Entity : Entity
+    interface IECSEvent<Entity * Type> with
 
-    val ComponentType : Type
-
-    interface IEvent
-
-    new (entity, typ) = { Entity = entity; ComponentType = typ }
+        member this.Data = (entity, typ)
 
 [<Sealed>]
-type AnyComponentRemoved =
+type AnyComponentRemoved (entity, typ) =
 
-    val Entity : Entity
+    interface IECSEvent<Entity * Type> with
 
-    val ComponentType : Type
-
-    interface IEvent
-
-    new (entity, typ) = { Entity = entity; ComponentType = typ }
+        member this.Data = (entity, typ)
 
 [<Sealed>]
-type EntitySpawned =
+type EntitySpawned (entity) =
 
-    val Entity : Entity
+    interface IECSEvent<Entity> with
 
-    interface IEvent
-
-    new (entity) = { Entity = entity }
+        member this.Data = entity
 
 [<Sealed>]
-type EntityDestroyed =
+type EntityDestroyed (entity) =
 
-    val Entity : Entity
+     interface IECSEvent<Entity> with
 
-    interface IEvent
-
-    new (entity) = { Entity = entity }
+        member this.Data = entity
 
 type IEntityLookupData =
 
@@ -153,8 +137,8 @@ type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> ICompo
 [<ReferenceEquality>]
 type EntityLookupData<'T when 'T :> IComponent> =
     {
-        ComponentAddedEvent: Event<ComponentAdded<'T>>
-        ComponentRemovedEvent: Event<ComponentRemoved<'T>>
+        ComponentAddedEvent: Event<Entity>
+        ComponentRemovedEvent: Event<Entity>
 
         RemoveComponent: Entity -> unit
 
@@ -169,7 +153,7 @@ type EntityLookupData<'T when 'T :> IComponent> =
         member this.Entities = this.Entities
 
 [<Sealed>]
-type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
+type EntityManager (eventManager: EventManager, maxEntityAmount) =
     let maxEntityAmount = maxEntityAmount + 1
     let lookup = Dictionary<Type, IEntityLookupData> ()
 
@@ -195,11 +179,11 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
     let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
 
-    let entitySpawnedEvent : Event<EntitySpawned> = EventAggregator.Unsafe.getEvent eventAggregator
-    let entityDestroyedEvent : Event<EntityDestroyed> = EventAggregator.Unsafe.getEvent eventAggregator
+    let entitySpawnedEvent = EventManager.Unsafe.event<EntitySpawned, Entity> eventManager
+    let entityDestroyedEvent = EventManager.Unsafe.event<EntityDestroyed, Entity> eventManager
 
-    let anyComponentAddedEvent : Event<AnyComponentAdded> = EventAggregator.Unsafe.getEvent eventAggregator
-    let anyComponentRemovedEvent : Event<AnyComponentRemoved> = EventAggregator.Unsafe.getEvent eventAggregator 
+    let anyComponentAddedEvent = EventManager.Unsafe.event<AnyComponentAdded, Entity * Type> eventManager
+    let anyComponentRemovedEvent = EventManager.Unsafe.event<AnyComponentRemoved, Entity * Type> eventManager 
 
     let processQueue (queue: Queue<unit -> unit>) =
         while queue.Count > 0 do
@@ -242,8 +226,8 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         else          
             let data =
                 {
-                    ComponentAddedEvent = EventAggregator.Unsafe.getEvent eventAggregator
-                    ComponentRemovedEvent = EventAggregator.Unsafe.getEvent eventAggregator
+                    ComponentAddedEvent = EventManager.Unsafe.event<ComponentAdded<'T>, Entity> eventManager
+                    ComponentRemovedEvent = EventManager.Unsafe.event<ComponentRemoved<'T>, Entity> eventManager
 
                     RemoveComponent = fun entity -> this.RemoveComponent<'T> entity
 
@@ -390,8 +374,8 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                     data.Entities.Add entity
 
                     emitAddComponentEventQueue.Enqueue (fun () ->
-                        anyComponentAddedEvent.Trigger (AnyComponentAdded (entity, typeof<'T>))
-                        data.ComponentAddedEvent.Trigger (ComponentAdded (entity))
+                        anyComponentAddedEvent.Trigger ((entity, typeof<'T>))
+                        data.ComponentAddedEvent.Trigger ((entity))
                     )
 
             else
@@ -419,8 +403,8 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                         data.IndexLookup.[swappingEntity.Index] <- index
 
                     emitRemoveComponentEventQueue.Enqueue (fun () ->
-                        anyComponentRemovedEvent.Trigger (AnyComponentRemoved (entity, typeof<'T>))
-                        data.ComponentRemovedEvent.Trigger (ComponentRemoved (entity))
+                        anyComponentRemovedEvent.Trigger ((entity, typeof<'T>))
+                        data.ComponentRemovedEvent.Trigger ((entity))
                     )
                 else
                     printfn "ECS WARNING: Component, %s, does not exist on %A." typeof<'T>.Name entity
@@ -451,7 +435,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 activeIndices.[entity.Index] <- true
 
                 emitSpawnEntityEventQueue.Enqueue (fun () ->
-                    entitySpawnedEvent.Trigger (EntitySpawned (entity))
+                    entitySpawnedEvent.Trigger ((entity))
                 )
 
                 f entity
@@ -473,7 +457,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 )
 
                 emitDestroyEntityEventQueue.Enqueue (fun () ->
-                    entityDestroyedEvent.Trigger (EntityDestroyed (entity))
+                    entityDestroyedEvent.Trigger ((entity))
                 )
             else
                 printfn "ECS WARNING: %A is invalid. Cannot destroy." entity

@@ -1,7 +1,6 @@
 ﻿namespace ECS
 
 type Entities = EntityManager
-type Events = EventAggregator
 
 type SystemUpdate = SystemUpdate of (unit -> unit)
 
@@ -20,11 +19,11 @@ module Systems =
         new : string * (Entities -> Events -> SystemUpdate) -> System
 
     [<Sealed>]
-    type EventQueue<'Event when 'Event :> IEvent> =
+    type EventQueue<'T, 'U when 'T :> IECSEvent<'U>> =
 
         interface ISystem
 
-        new : (Entities -> Events -> 'Event -> unit) -> EventQueue<'Event>
+        new : (Entities -> Events -> 'U -> unit) -> EventQueue<'T, 'U>
 
     [<Sealed>]
     type EntityProcessor =

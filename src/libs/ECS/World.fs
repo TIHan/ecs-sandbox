@@ -9,10 +9,10 @@ type SystemHandle<'T when 'T :> ISystem> (f: unit -> unit) =
 
 [<Sealed>]
 type World (maxEntityAmount) =
-    let eventAggregator = EventAggregator ()
-    let entityManager = EntityManager (eventAggregator, maxEntityAmount)
+    let eventManager = EventManager ()
+    let entityManager = EntityManager (eventManager, maxEntityAmount)
 
     member this.AddSystem<'T when 'T :> ISystem> (sys: 'T) =
-        match sys.Init (entityManager, eventAggregator) with
+        match sys.Init (entityManager, eventManager) with
         | SystemUpdate update -> SystemHandle<'T> update
  
