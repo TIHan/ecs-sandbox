@@ -433,7 +433,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 )
 
                 emitDestroyEntityEventQueue.Enqueue (fun () ->
-                    eventAggregator.Publish (EntityDestroyed (entity))
+                    entityDestroyedEvent.Trigger (EntityDestroyed (entity))
                 )
             else
                 printfn "ECS WARNING: %A is invalid. Cannot destroy." entity
