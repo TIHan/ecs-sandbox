@@ -121,6 +121,9 @@ type EntityLookupData<'T when 'T :> IComponent> =
     {
         ComponentAddedEvent: Event<ComponentAdded<'T>>
         ComponentRemovedEvent: Event<ComponentRemoved<'T>>
+
+        RemoveComponent: Entity -> unit
+
         Active: bool []
         IndexLookup: int []
         Entities: Entity UnsafeResizeArray
@@ -142,7 +145,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
     let mutable nextEntityIndex = 1
     let removedEntityQueue = Queue<Entity> () 
 
-    let entityRemovals : ((unit -> unit) ResizeArray) [] = Array.init maxEntityAmount (fun _ -> ResizeArray ())
+    let entityRemovals : ((Entity -> unit) ResizeArray) [] = Array.init maxEntityAmount (fun _ -> ResizeArray ())
 
     let addComponentQueue = ConcurrentQueue<unit -> unit> ()
     let removeComponentQueue = ConcurrentQueue<unit -> unit> ()
@@ -207,6 +210,9 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 {
                     ComponentAddedEvent = EventAggregator.Unsafe.getEvent eventAggregator
                     ComponentRemovedEvent = EventAggregator.Unsafe.getEvent eventAggregator
+
+                    RemoveComponent = fun entity -> this.RemoveComponent<'T> entity
+
                     Active = Array.zeroCreate<bool> maxEntityAmount
                     IndexLookup = Array.init maxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
                     Entities = UnsafeResizeArray.Create 1
@@ -341,7 +347,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 if data.IndexLookup.[entity.Index] >= 0 then
                     printfn "ECS WARNING: Component, %s, already added to %A." typeof<'T>.Name entity
                 else
-                    entityRemovals.[entity.Index].Add (fun () -> this.RemoveComponent<'T> entity)
+                    entityRemovals.[entity.Index].Add (data.RemoveComponent)
 
                     data.Active.[entity.Index] <- true
                     data.IndexLookup.[entity.Index] <- data.Entities.Count
@@ -423,7 +429,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
 
             if this.IsValidEntity entity then
                 let removals = entityRemovals.[entity.Index]
-                removals.ForEach (fun f -> f ())
+                removals.ForEach (fun f -> f entity)
                 removals.Clear ()
                 removedEntityQueue.Enqueue entity  
 

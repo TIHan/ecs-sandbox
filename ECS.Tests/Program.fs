@@ -42,7 +42,8 @@ type TestComponent5 =
 [<RequireQualifiedAccess>]
 module Entity =
 
-    let test v =
+    let test =
+        let v = 12
         EntityPrototype.create ()
         |> EntityPrototype.add<TestComponent> (fun () ->
             {
@@ -86,16 +87,22 @@ let main argv =
 
     let sys = Systems.System ("Test", fun entities events ->
         SystemUpdate (fun () ->
-            for i = 0 to 3 do
+            for i = 0 to 5 do
+                printfn "Spawn 10k"
                 benchmark <| fun () ->
                     for i = 0 to 10000 - 1 do
-                        entities.Spawn (Entity.test i)
+                        entities.Spawn (Entity.test)
                     entityProcessorHandle.Update ()
+
+                printfn "Destroy 10k"
+                benchmark <| fun () ->
                     entities.ForEach<TestComponent> (fun entity test ->
                         entities.Destroy entity
                     )
                     entityProcessorHandle.Update ()
+                printfn "--------------"
 
+            System.GC.Collect (2, System.GCCollectionMode.Forced)
             printfn "Memory: %A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L
         )
     )
