@@ -9,6 +9,57 @@ open System.Runtime.InteropServices
 
 #nowarn "9"
 
+/// This is internal use only.
+module DataStructures =
+
+    [<ReferenceEquality>]
+    type UnsafeResizeArray<'T> =
+        {
+            mutable count: int
+            mutable buffer: 'T []
+        }
+
+        static member inline Create capacity =
+            if capacity <= 0 then
+                failwith "Capacity must be greater than 0"
+
+            {
+                count = 0
+                buffer = Array.zeroCreate<'T> capacity
+            }
+
+        member this.IncreaseCapacity () =
+            let newLength = uint32 this.buffer.Length * 2u
+            if newLength >= uint32 Int32.MaxValue then
+                failwith "Length is bigger than the maximum number of elements in the array"
+
+            let newBuffer = Array.zeroCreate<'T> (int newLength)
+            Array.Copy (this.buffer, newBuffer, this.count)
+            this.buffer <- newBuffer
+             
+
+        member inline this.Add item =
+            if this.count >= this.buffer.Length then
+                this.IncreaseCapacity ()
+            
+            this.buffer.[this.count] <- item
+            this.count <- this.count + 1
+
+        member inline this.SwapRemoveAt index =
+            if index >= this.count then
+                failwith "Index out of bounds"
+
+            let lastIndex = this.count - 1
+
+            this.buffer.[index] <- this.buffer.[lastIndex]
+            this.buffer.[lastIndex] <- Unchecked.defaultof<'T>
+            this.count <- lastIndex
+
+        member inline this.Count = this.count
+        member inline this.Buffer = this.buffer
+
+open DataStructures
+
 [<Struct; StructLayout (LayoutKind.Explicit)>]
 type Entity =
 
@@ -53,9 +104,7 @@ type EntityDestroyed = EntityDestroyed of Entity with
 
 type IEntityLookupData =
 
-    abstract Entities : Entity [] with get
-
-    abstract Count : int with get
+    abstract Entities : Entity UnsafeResizeArray with get
 
 type ForEachDelegate<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
 
@@ -70,17 +119,14 @@ type EntityLookupData<'T when 'T :> IComponent> =
     {
         ComponentAddedEvent: Event<ComponentAdded<'T>>
         Active: bool []
-        Entities: Entity []
-        Components: 'T []
         IndexLookup: int []
-        mutable Count: int 
+        Entities: Entity UnsafeResizeArray
+        Components: 'T UnsafeResizeArray
     }
 
     interface IEntityLookupData with
 
         member this.Entities = this.Entities
-
-        member this.Count = this.Count
 
 [<Sealed>]
 type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
@@ -156,10 +202,9 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 {
                     ComponentAddedEvent = EventAggregator.Unsafe.getEvent eventAggregator
                     Active = Array.zeroCreate<bool> maxEntityAmount
-                    Entities = Array.zeroCreate<Entity> maxEntityAmount
-                    Components = Array.zeroCreate<'T> maxEntityAmount
                     IndexLookup = Array.init maxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
-                    Count = 0
+                    Entities = UnsafeResizeArray.Create 1
+                    Components = UnsafeResizeArray.Create 1
                 }
 
             lookup.[t] <- data
@@ -170,10 +215,10 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
 
-            let count = data.Count
+            let count = data.Entities.Count
             let active = data.Active
-            let entities = data.Entities
-            let components = data.Components
+            let entities = data.Entities.Buffer
+            let components = data.Components.Buffer
 
             let inline iter i = 
                 let entity = entities.[i]
@@ -191,12 +236,12 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) then
-            let data = [|data1;data2|] |> Array.minBy (fun x -> x.Count)
+            let data = [|data1;data2|] |> Array.minBy (fun x -> x.Entities.Count)
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
 
-            let count = data.Count
-            let entities = data.Entities
+            let count = data.Entities.Count
+            let entities = data.Entities.Buffer
 
             let inline iter i =
                 let entity = entities.[i]
@@ -206,7 +251,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                     let comp2Index = data2.IndexLookup.[entity.Index]
 
                     if comp1Index >= 0 && comp2Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] then
-                        del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index])
+                        del.Invoke (entity, &data1.Components.Buffer.[comp1Index], &data2.Components.Buffer.[comp2Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -220,13 +265,13 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) && 
            lookup.TryGetValue (typeof<'T3>, &data3) then
-            let data = [|data1;data2;data3|] |> Array.minBy (fun x -> x.Count)
+            let data = [|data1;data2;data3|] |> Array.minBy (fun x -> x.Entities.Count)
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
             let data3 = data3 :?> EntityLookupData<'T3>
 
-            let count = data.Count
-            let entities = data.Entities
+            let count = data.Entities.Count
+            let entities = data.Entities.Buffer
 
             let inline iter i =
                 let entity = entities.[i]
@@ -237,7 +282,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                     let comp3Index = data3.IndexLookup.[entity.Index]
 
                     if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] && data3.Active.[entity.Index] then
-                        del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index])
+                        del.Invoke (entity, &data1.Components.Buffer.[comp1Index], &data2.Components.Buffer.[comp2Index], &data3.Components.Buffer.[comp3Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -252,14 +297,14 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         let mutable data4 = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) && 
            lookup.TryGetValue (typeof<'T3>, &data3) && lookup.TryGetValue (typeof<'T4>, &data4) then
-            let data = [|data1;data2;data3;data4|] |> Array.minBy (fun x -> x.Count)
+            let data = [|data1;data2;data3;data4|] |> Array.minBy (fun x -> x.Entities.Count)
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
             let data3 = data3 :?> EntityLookupData<'T3>
             let data4 = data4 :?> EntityLookupData<'T4>
 
-            let count = data.Count
-            let entities = data.Entities
+            let count = data.Entities.Count
+            let entities = data.Entities.Buffer
 
             let inline iter i =
                 let entity = entities.[i]
@@ -271,7 +316,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                     let comp4Index = data4.IndexLookup.[entity.Index]
 
                     if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && comp4Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] && data3.Active.[entity.Index] && data4.Active.[entity.Index] then
-                        del.Invoke (entity, &data1.Components.[comp1Index], &data2.Components.[comp2Index], &data3.Components.[comp3Index], &data4.Components.[comp4Index])
+                        del.Invoke (entity, &data1.Components.Buffer.[comp1Index], &data2.Components.Buffer.[comp2Index], &data3.Components.Buffer.[comp3Index], &data4.Components.Buffer.[comp4Index])
 
             if useParallelism
             then Parallel.For (0, count, iter) |> ignore
@@ -292,11 +337,11 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 else
                     entityRemovals.[entity.Index].Add (fun () -> this.RemoveComponent<'T> entity)
 
-                    data.Components.[data.Count] <- comp
                     data.Active.[entity.Index] <- true
-                    data.Entities.[data.Count] <- entity
-                    data.IndexLookup.[entity.Index] <- data.Count
-                    data.Count <- data.Count + 1
+                    data.IndexLookup.[entity.Index] <- data.Entities.Count
+
+                    data.Components.Add comp
+                    data.Entities.Add entity
 
                     emitAddComponentEventQueue.Enqueue (fun () ->
                         anyComponentAddedEvent.Trigger (AnyComponentAdded (entity, typeof<'T>))
@@ -315,17 +360,15 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
                 let data = this.GetEntityLookupData<'T> ()
 
                 if data.IndexLookup.[entity.Index] >= 0 then
-                    let lastIndex = data.Count - 1
                     let index = data.IndexLookup.[entity.Index]
-                    let swappingEntity = data.Entities.[lastIndex]
+                    let swappingEntity = data.Entities.Buffer.[data.Entities.Count - 1]
 
                     data.Active.[entity.Index] <- false
-                    data.Entities.[index] <- swappingEntity
-                    data.Components.[index] <- data.Components.[lastIndex]
-                    data.IndexLookup.[swappingEntity.Index] <- index
-                    data.Components.[lastIndex] <- Unchecked.defaultof<'T>
                     data.IndexLookup.[entity.Index] <- -1
-                    data.Count <- data.Count - 1
+                    data.IndexLookup.[swappingEntity.Index] <- index
+
+                    data.Entities.SwapRemoveAt index
+                    data.Components.SwapRemoveAt index
 
                     emitRemoveComponentEventQueue.Enqueue (fun () ->
                         eventAggregator.Publish (AnyComponentRemoved (entity, typeof<'T>))
@@ -397,7 +440,7 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         if this.IsValidEntity entity && activeIndices.[entity.Index] && lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             if data.Active.[entity.Index] then
-                Some data.Components.[data.IndexLookup.[entity.Index]]
+                Some data.Components.Buffer.[data.IndexLookup.[entity.Index]]
             else
                 None
         else
@@ -409,11 +452,11 @@ type EntityManager (eventAggregator: EventAggregator, maxEntityAmount) =
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
 
-            let count = data.Count
+            let count = data.Entities.Count
 
             for i = 0 to count - 1 do
-                let entity = data.Entities.[i]
-                let comp = data.Components.[i]
+                let entity = data.Entities.Buffer.[i]
+                let comp = data.Components.Buffer.[i]
 
                 if activeIndices.[entity.Index] && data.Active.[entity.Index] && f entity comp then 
                     result <- (entity, comp)

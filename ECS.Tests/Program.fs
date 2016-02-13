@@ -78,7 +78,7 @@ let benchmark f =
 
 [<EntryPoint>]
 let main argv = 
-    let world = World (65536)
+    let world = World (2049)
 
     let entityProcessor = Systems.EntityProcessor ()
 
@@ -86,18 +86,15 @@ let main argv =
 
     let sys = Systems.System ("Test", fun entities events ->
         SystemUpdate (fun () ->
-            for i = 0 to 10000 - 1 do
-                entities.Spawn (Entity.test i)
-
-            printfn "10000 Entities"
-            benchmark <| fun () ->
-                entityProcessorHandle.Update () 
-
             for i = 0 to 50 - 1 do
                 benchmark <| fun () ->
                     entities.ForEach<TestComponent, TestComponent2, TestComponent3> (fun entity test test2 test3 ->
-                        test.Value <- 42
+                        entities.Destroy entity
                     )
+                    entityProcessorHandle.Update ()
+                    for i = 0 to 2048 - 1 do
+                        entities.Spawn (Entity.test i)
+                    entityProcessorHandle.Update () 
 
             printfn "Memory: %A" <| System.GC.GetTotalMemory (false) / 1024L / 1024L
         )
