@@ -92,7 +92,7 @@ module Tests =
         let mutable entity = Entity ()
 
         let sys = Systems.System ("Test", handleEvents, fun entities events ->
-            SystemUpdate (fun () -> f entities events entityProcessorHandle)
+            f entities events entityProcessorHandle
         )
 
         (world.AddSystem sys).Update ()
