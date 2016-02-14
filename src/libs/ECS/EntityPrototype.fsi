@@ -10,7 +10,9 @@ module EntityPrototype =
 
     val empty : EntityPrototype
 
-    val add : (unit -> #IECSComponent) -> EntityPrototype -> EntityPrototype
+    val combine : EntityPrototype -> EntityPrototype -> EntityPrototype
+
+    val addComponent : (unit -> #IECSComponent) -> EntityPrototype -> EntityPrototype
 
 [<Sealed; Extension>]
 type EntityManagerExtensions =

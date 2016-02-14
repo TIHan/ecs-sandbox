@@ -5,7 +5,7 @@ open System.Runtime.CompilerServices
 [<ReferenceEquality>]
 type EntityPrototype =
     {
-        f: (Entity -> EntityManager -> unit)
+        addComponents: (Entity -> EntityManager -> unit)
     }
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -13,12 +13,17 @@ module EntityPrototype =
 
     let empty =
         {
-            f = fun _ _ -> ()
+            addComponents = fun _ _ -> ()
+        }
+
+    let combine (p1: EntityPrototype) (p2: EntityPrototype) =
+        {
+            addComponents = fun entity entities -> p1.addComponents entity entities; p2.addComponents entity entities
         }
      
-    let add (f: unit -> #IECSComponent) prototype =
+    let addComponent (f: unit -> #IECSComponent) prototype =
         { prototype with
-            f = fun entity entities -> prototype.f entity entities; entities.AddComponent entity (f ())
+            addComponents = fun entity entities -> prototype.addComponents entity entities; entities.AddComponent entity (f ())
         }
 
 [<Sealed; Extension>]
@@ -27,5 +32,5 @@ type EntityManagerExtensions private () =
     [<Extension>]
     static member Spawn (entityManager: EntityManager, prototype: EntityPrototype) =
         entityManager.Spawn (fun entity ->
-            prototype.f entity entityManager
+            prototype.addComponents entity entityManager
         )        

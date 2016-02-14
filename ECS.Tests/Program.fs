@@ -54,27 +54,27 @@ module Tests =
     let test =
         let v = 0
         EntityPrototype.empty
-        |> EntityPrototype.add<TestComponent> (fun () ->
+        |> EntityPrototype.addComponent<TestComponent> (fun () ->
             {
                 Value = v
             }
         )
-        |> EntityPrototype.add<TestComponent2> (fun () ->
+        |> EntityPrototype.addComponent<TestComponent2> (fun () ->
             {
                 Value = v
             }
         )
-        |> EntityPrototype.add<TestComponent3> (fun () ->
+        |> EntityPrototype.addComponent<TestComponent3> (fun () ->
             {
                 Value = v
             }
         )
-        |> EntityPrototype.add<TestComponent4> (fun () ->
+        |> EntityPrototype.addComponent<TestComponent4> (fun () ->
             {
                 Value = v
             }
         )
-        |> EntityPrototype.add<TestComponent5> (fun () ->
+        |> EntityPrototype.addComponent<TestComponent5> (fun () ->
             {
                 Value = v
             }
