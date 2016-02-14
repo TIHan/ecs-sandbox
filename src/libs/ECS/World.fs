@@ -3,9 +3,9 @@
 open ECS
 
 [<Sealed>]
-type SystemHandle<'T when 'T :> ISystem> (f: unit -> unit) =
+type SystemHandle<'T when 'T :> ISystem> (update: unit -> unit) =
 
-    member this.Update = f
+    member this.Update = update
 
 [<Sealed>]
 type World (maxEntityAmount) =
@@ -13,6 +13,10 @@ type World (maxEntityAmount) =
     let entityManager = EntityManager (eventManager, maxEntityAmount)
 
     member this.AddSystem<'T when 'T :> ISystem> (sys: 'T) =
+
+        sys.HandleEvents
+        |> List.iter (fun x -> x.Handle (entityManager, eventManager))
+
         match sys.Init (entityManager, eventManager) with
         | SystemUpdate update -> SystemHandle<'T> update
  

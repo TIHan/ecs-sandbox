@@ -119,3 +119,5 @@ type EntityManager =
     member internal Process : unit -> unit
 
     internal new : EventManager * maxEntityAmount: int -> EntityManager
+
+type Entities = EntityManager

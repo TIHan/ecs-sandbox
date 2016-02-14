@@ -195,11 +195,11 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
     let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
     let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
 
-    let entitySpawnedEvent = EventManager.Unsafe.event<EntitySpawned> eventManager
-    let entityDestroyedEvent = EventManager.Unsafe.event<EntityDestroyed> eventManager
+    let entitySpawnedEvent = eventManager.GetEvent<EntitySpawned> ()
+    let entityDestroyedEvent = eventManager.GetEvent<EntityDestroyed> ()
 
-    let anyComponentAddedEvent = EventManager.Unsafe.event<AnyComponentAdded> eventManager
-    let anyComponentRemovedEvent = EventManager.Unsafe.event<AnyComponentRemoved> eventManager 
+    let anyComponentAddedEvent = eventManager.GetEvent<AnyComponentAdded> ()
+    let anyComponentRemovedEvent = eventManager.GetEvent<AnyComponentRemoved> () 
 
     let processQueue (queue: Queue<unit -> unit>) =
         while queue.Count > 0 do
@@ -242,8 +242,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         else          
             let data =
                 {
-                    ComponentAddedEvent = EventManager.Unsafe.event<ComponentAdded<'T>> eventManager
-                    ComponentRemovedEvent = EventManager.Unsafe.event<ComponentRemoved<'T>> eventManager
+                    ComponentAddedEvent = eventManager.GetEvent<ComponentAdded<'T>> ()
+                    ComponentRemovedEvent = eventManager.GetEvent<ComponentRemoved<'T>> ()
 
                     RemoveComponent = fun entity -> this.RemoveComponent<'T> entity
 
@@ -435,7 +435,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
     member this.Spawn f =             
         spawnEntityQueue.Enqueue (fun () ->
 
-            if nextEntityIndex >= maxEntityAmount then
+            if removedEntityQueue.Count = 0 && nextEntityIndex >= maxEntityAmount then
                 printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (maxEntityAmount - 1)
             else
                 let entity =
@@ -545,3 +545,5 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
 
     member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
         this.Iterate<'T1, 'T2, 'T3> (del, true)
+
+type Entities = EntityManager

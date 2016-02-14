@@ -1,10 +1,22 @@
 ﻿namespace ECS
 
-type Entities = EntityManager
-
 type SystemUpdate = SystemUpdate of (unit -> unit)
 
+[<AbstractClass>]
+type HandleEvent () = 
+
+    abstract Handle : Entities * Events -> unit
+
+type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> 'T -> unit) =
+    inherit HandleEvent ()
+
+    override this.Handle (entities, events) = 
+        let event = events.GetEvent<'T> ()
+        event.Publish.Add (fun eventValue -> f entities eventValue)
+
 type ISystem =
+
+    abstract HandleEvents : HandleEvent list
 
     abstract Init : Entities * Events -> SystemUpdate
 
@@ -12,25 +24,29 @@ type ISystem =
 module Systems =
 
     [<Sealed>]
-    type System (name: string, f) =
+    type System (name: string, handleEvents, init) =
 
         member this.Name = name
 
         interface ISystem with
 
+            member __.HandleEvents = handleEvents
+
             member __.Init (entities, events) =
-                f entities events
+                init entities events
 
     [<Sealed>]
     type EventQueue<'T when 'T :> IECSEvent> (f) =
+        let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
 
         interface ISystem with
 
+            member __.HandleEvents =
+                [
+                    HandleEvent<'T> (fun _ -> queue.Enqueue)
+                ]
+
             member __.Init (entities, events) =
-                let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
-
-                events.Listen queue.Enqueue
-
                 SystemUpdate (fun () ->
                     let mutable event = Unchecked.defaultof<'T>
                     while queue.TryDequeue (&event) do
@@ -41,6 +57,8 @@ module Systems =
     type EntityProcessor () =
 
         interface ISystem with
+
+            member __.HandleEvents = []
 
             member __.Init (entities, _) =
                 SystemUpdate entities.Process
