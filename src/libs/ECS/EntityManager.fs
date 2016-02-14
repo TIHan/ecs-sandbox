@@ -78,10 +78,10 @@ type Entity =
 
     override this.ToString () = String.Format ("(Entity #{0})", this.Id)
 
-type IComponent = interface end
+type IECSComponent = interface end
 
 [<Sealed>]
-type ComponentAdded<'T when 'T :> IComponent> =
+type ComponentAdded<'T when 'T :> IECSComponent> =
 
     val Entity : Entity
 
@@ -90,7 +90,7 @@ type ComponentAdded<'T when 'T :> IComponent> =
     interface IECSEvent
 
 [<Sealed>]
-type ComponentRemoved<'T when 'T :> IComponent> =
+type ComponentRemoved<'T when 'T :> IECSComponent> =
 
     val Entity : Entity
 
@@ -142,16 +142,16 @@ type IEntityLookupData =
 
     abstract Entities : Entity UnsafeResizeArray with get
 
-type ForEachDelegate<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
+type ForEachDelegate<'T when 'T :> IECSComponent> = delegate of Entity * byref<'T> -> unit
 
-type ForEachDelegate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
+type ForEachDelegate<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
 
-type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
 
-type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
 
 [<ReferenceEquality>]
-type EntityLookupData<'T when 'T :> IComponent> =
+type EntityLookupData<'T when 'T :> IECSComponent> =
     {
         ComponentAddedEvent: Event<ComponentAdded<'T>>
         ComponentRemovedEvent: Event<ComponentRemoved<'T>>
@@ -234,7 +234,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
             processQueue            emitAddComponentEventQueue
             processQueue            emitSpawnEntityEventQueue
 
-    member this.GetEntityLookupData<'T when 'T :> IComponent> () : EntityLookupData<'T> =
+    member this.GetEntityLookupData<'T when 'T :> IECSComponent> () : EntityLookupData<'T> =
         let t = typeof<'T>
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (t, &data) then  
@@ -256,7 +256,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
             lookup.[t] <- data
             data
 
-    member inline this.Iterate<'T when 'T :> IComponent> (del: ForEachDelegate<'T>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T when 'T :> IECSComponent> (del: ForEachDelegate<'T>, useParallelism: bool) : unit =
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
@@ -278,7 +278,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> (del: ForEachDelegate<'T1, 'T2>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> (del: ForEachDelegate<'T1, 'T2>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) then
@@ -305,7 +305,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> (del: ForEachDelegate<'T1, 'T2, 'T3>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> (del: ForEachDelegate<'T1, 'T2, 'T3>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -336,7 +336,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                 for i = 0 to count - 1 do
                     iter i
 
-    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> (del: ForEachDelegate<'T1, 'T2, 'T3, 'T4>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> (del: ForEachDelegate<'T1, 'T2, 'T3, 'T4>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -372,7 +372,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
 
     // Components
 
-    member this.AddComponent<'T when 'T :> IComponent> (entity: Entity) (comp: 'T) =
+    member this.AddComponent<'T when 'T :> IECSComponent> (entity: Entity) (comp: 'T) =
         addComponentQueue.Enqueue (fun () ->
 
             if this.IsValidEntity entity then
@@ -399,7 +399,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
 
         )
 
-    member this.RemoveComponent<'T when 'T :> IComponent> (entity: Entity) =
+    member this.RemoveComponent<'T when 'T :> IECSComponent> (entity: Entity) =
         removeComponentQueue.Enqueue (fun () ->
 
             if this.IsValidEntity entity then
@@ -482,7 +482,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
 
     // Component Query
 
-    member this.TryGet<'T when 'T :> IComponent> (entity: Entity) : 'T option = 
+    member this.TryGet<'T when 'T :> IECSComponent> (entity: Entity) : 'T option = 
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if this.IsValidEntity entity && activeIndices.[entity.Index] && lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
@@ -493,7 +493,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         else
             None
 
-    member this.TryFind<'T when 'T :> IComponent> (f: Entity -> 'T -> bool) : (Entity * 'T) option =
+    member this.TryFind<'T when 'T :> IECSComponent> (f: Entity -> 'T -> bool) : (Entity * 'T) option =
         let mutable result = Unchecked.defaultof<Entity * 'T>
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if lookup.TryGetValue (typeof<'T>, &data) then
@@ -511,39 +511,39 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         if obj.ReferenceEquals (result, null) then None
         else Some result
 
-    member this.GetAll<'T when 'T :> IComponent> () : (Entity * 'T) [] =
+    member this.GetAll<'T when 'T :> IECSComponent> () : (Entity * 'T) [] =
         let result = ResizeArray<Entity * 'T> ()
 
         this.Iterate<'T> ((fun entity x -> result.Add(entity, x)), false)
 
         result.ToArray ()
 
-    member this.GetAll<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> () : (Entity * 'T1 * 'T2) [] =
+    member this.GetAll<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> () : (Entity * 'T1 * 'T2) [] =
         let result = ResizeArray<Entity * 'T1 * 'T2> ()
 
         this.Iterate<'T1, 'T2> ((fun entity x1 x2 -> result.Add(entity, x1, x2)), false)
 
         result.ToArray ()
 
-    member this.ForEach<'T when 'T :> IComponent> del : unit =
+    member this.ForEach<'T when 'T :> IECSComponent> del : unit =
         this.Iterate<'T> (del, false)
 
-    member this.ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
+    member this.ForEach<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> del : unit =
         this.Iterate<'T1, 'T2> (del, false)
 
-    member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
+    member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> del : unit =
         this.Iterate<'T1, 'T2, 'T3> (del, false)
 
-    member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> del : unit =
+    member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> del : unit =
         this.Iterate<'T1, 'T2, 'T3, 'T4> (del, false)
 
-    member this.ParallelForEach<'T when 'T :> IComponent> del : unit =
+    member this.ParallelForEach<'T when 'T :> IECSComponent> del : unit =
         this.Iterate<'T> (del, true)
 
-    member this.ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> del : unit =
+    member this.ParallelForEach<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> del : unit =
         this.Iterate<'T1, 'T2> (del, true)
 
-    member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> del : unit =
+    member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> del : unit =
         this.Iterate<'T1, 'T2, 'T3> (del, true)
 
 type Entities = EntityManager

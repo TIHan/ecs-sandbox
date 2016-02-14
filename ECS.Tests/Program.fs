@@ -10,35 +10,35 @@ type TestComponent =
         Value: int
     }
 
-    interface IComponent
+    interface IECSComponent
 
 type TestComponent2 =
     {
         Value: int
     }
 
-    interface IComponent
+    interface IECSComponent
 
 type TestComponent3 =
     {
         Value: int
     }
 
-    interface IComponent
+    interface IECSComponent
 
 type TestComponent4 =
     {
         Value: int
     }
 
-    interface IComponent
+    interface IECSComponent
 
 type TestComponent5 =
     {
         Value: int
     }
 
-    interface IComponent
+    interface IECSComponent
 
 let benchmark name f =
     printfn "Benchmark: %s" name
@@ -80,7 +80,7 @@ module Tests =
             }
         )
 
-    let createWorld maxEntityAmount handleEvents f =
+    let run maxEntityAmount handleEvents f =
         let world = World (maxEntityAmount)
 
         let entityProcessor = Systems.EntityProcessor ()
@@ -98,7 +98,7 @@ module Tests =
     [<Fact>]
     let ``when max entity amount is 10k, then create and destroy 10k entities with 5 components three times`` () =
         let count = 10000
-        createWorld count [] (fun entities events entityProcessorHandle ->
+        run count [] (fun entities events entityProcessorHandle ->
             for i = 1 to 3 do
                 for i = 0 to count - 1 do
                     entities.Spawn test
@@ -137,7 +137,8 @@ module Tests =
         let mutable entityCount = 0
         let mutable componentCount = 0
         let count = 10000
-        createWorld count 
+        let halfCount = count / 2
+        run count 
             [
 
                 HandleEvent<AnyComponentAdded> (fun _ _ ->
@@ -146,12 +147,12 @@ module Tests =
                 )
 
                 HandleEvent<EntitySpawned> (fun _ _ ->
-                    Assert.True ((componentCount = count * 5))
+                    Assert.True ((componentCount = halfCount * 5))
                     entityCount <- entityCount + 1
                 )
 
                 HandleEvent<AnyComponentRemoved> (fun _ _ ->
-                    Assert.True ((entityCount = count))
+                    Assert.True ((entityCount = halfCount))
                     componentCount <- componentCount - 1
                 )
 
@@ -162,7 +163,7 @@ module Tests =
 
             ] 
             (fun entities events entityProcessorHandle ->
-                for i = 0 to count - 1 do
+                for i = 0 to halfCount - 1 do
                     entities.Spawn test
 
                 entityProcessorHandle.Update ()
@@ -171,8 +172,20 @@ module Tests =
                     entities.Destroy entity
                 )
 
-                Assert.True ((entityCount = count))
-                Assert.True ((componentCount = count * 5))
+                for i = 0 to halfCount - 1 do
+                    entities.Spawn test
+
+                Assert.True ((entityCount = halfCount))
+                Assert.True ((componentCount = halfCount * 5))
+
+                entityProcessorHandle.Update ()
+
+                Assert.True ((entityCount = halfCount))
+                Assert.True ((componentCount = halfCount * 5))
+
+                entities.ForEach<TestComponent> (fun entity test ->
+                    entities.Destroy entity
+                )
 
                 entityProcessorHandle.Update ()
 

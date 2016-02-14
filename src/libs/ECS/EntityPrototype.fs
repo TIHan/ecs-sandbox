@@ -16,7 +16,7 @@ module EntityPrototype =
             f = fun _ _ -> ()
         }
      
-    let add (f: unit -> #IComponent) prototype =
+    let add (f: unit -> #IECSComponent) prototype =
         { prototype with
             f = fun entity entities -> prototype.f entity entities; entities.AddComponent entity (f ())
         }

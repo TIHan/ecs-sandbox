@@ -21,17 +21,17 @@ type Entity =
 
     new : int * uint32 -> Entity
 
-type IComponent = interface end
+type IECSComponent = interface end
 
 [<Sealed>]
-type ComponentAdded<'T when 'T :> IComponent> =
+type ComponentAdded<'T when 'T :> IECSComponent> =
 
     val Entity : Entity
 
     interface IECSEvent
 
 [<Sealed>]
-type ComponentRemoved<'T when 'T :> IComponent> = 
+type ComponentRemoved<'T when 'T :> IECSComponent> = 
 
     val Entity : Entity
 
@@ -69,46 +69,46 @@ type EntityDestroyed =
 
     interface IECSEvent
 
-type ForEachDelegate<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
+type ForEachDelegate<'T when 'T :> IECSComponent> = delegate of Entity * byref<'T> -> unit
 
-type ForEachDelegate<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
+type ForEachDelegate<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
 
-type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
 
-type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
 
 [<Sealed>]
 type EntityManager =
 
     // Component Query
 
-    member TryGet<'T when 'T :> IComponent> : Entity -> 'T option
+    member TryGet<'T when 'T :> IECSComponent> : Entity -> 'T option
 
-    member TryFind<'T when 'T :> IComponent> : (Entity -> 'T -> bool) -> (Entity * 'T) option
+    member TryFind<'T when 'T :> IECSComponent> : (Entity -> 'T -> bool) -> (Entity * 'T) option
 
-    member GetAll<'T when 'T :> IComponent> : unit -> (Entity * 'T) []
+    member GetAll<'T when 'T :> IECSComponent> : unit -> (Entity * 'T) []
 
-    member GetAll<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : unit -> (Entity * 'T1 * 'T2) []
+    member GetAll<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> : unit -> (Entity * 'T1 * 'T2) []
 
-    member ForEach<'T when 'T :> IComponent> : ForEachDelegate<'T> -> unit
+    member ForEach<'T when 'T :> IECSComponent> : ForEachDelegate<'T> -> unit
 
-    member ForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : ForEachDelegate<'T1, 'T2> -> unit
+    member ForEach<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> : ForEachDelegate<'T1, 'T2> -> unit
 
-    member ForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
+    member ForEach<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
 
-    member ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent and 'T4 :> IComponent> : ForEachDelegate<'T1, 'T2, 'T3, 'T4> -> unit
+    member ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> : ForEachDelegate<'T1, 'T2, 'T3, 'T4> -> unit
 
-    member ParallelForEach<'T when 'T :> IComponent> : ForEachDelegate<'T> -> unit
+    member ParallelForEach<'T when 'T :> IECSComponent> : ForEachDelegate<'T> -> unit
 
-    member ParallelForEach<'T1, 'T2 when 'T1 :> IComponent and 'T2 :> IComponent> : ForEachDelegate<'T1, 'T2> -> unit
+    member ParallelForEach<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> : ForEachDelegate<'T1, 'T2> -> unit
 
-    member ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IComponent and 'T2 :> IComponent and 'T3 :> IComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
+    member ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
 
     // Components
 
-    member internal AddComponent<'T when 'T :> IComponent> : Entity -> 'T -> unit
+    member internal AddComponent<'T when 'T :> IECSComponent> : Entity -> 'T -> unit
 
-    member internal RemoveComponent<'T when 'T :> IComponent> : Entity -> unit
+    member internal RemoveComponent<'T when 'T :> IECSComponent> : Entity -> unit
 
     // Entites
 

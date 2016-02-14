@@ -14,7 +14,7 @@ type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> 'T -> unit) =
         let event = events.GetEvent<'T> ()
         event.Publish.Add (fun eventValue -> f entities eventValue)
 
-type ISystem =
+type IECSSystem =
 
     abstract HandleEvents : HandleEvent list
 
@@ -28,7 +28,7 @@ module Systems =
 
         member this.Name = name
 
-        interface ISystem with
+        interface IECSSystem with
 
             member __.HandleEvents = handleEvents
 
@@ -39,7 +39,7 @@ module Systems =
     type EventQueue<'T when 'T :> IECSEvent> (f) =
         let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
 
-        interface ISystem with
+        interface IECSSystem with
 
             member __.HandleEvents =
                 [
@@ -56,7 +56,7 @@ module Systems =
     [<Sealed>]
     type EntityProcessor () =
 
-        interface ISystem with
+        interface IECSSystem with
 
             member __.HandleEvents = []
 

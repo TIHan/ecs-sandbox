@@ -12,7 +12,7 @@ type HandleEvent<'T when 'T :> IECSEvent> =
 
     new : (Entities -> 'T -> unit) -> HandleEvent<'T>
 
-type ISystem =
+type IECSSystem =
 
     abstract HandleEvents : HandleEvent list
 
@@ -24,20 +24,20 @@ module Systems =
     [<Sealed>]
     type System =
 
-        interface ISystem
+        interface IECSSystem
 
         new : string * HandleEvent list * (Entities -> Events -> SystemUpdate) -> System
 
     [<Sealed>]
     type EventQueue<'T when 'T :> IECSEvent> =
 
-        interface ISystem
+        interface IECSSystem
 
         new : (Entities -> 'T -> unit) -> EventQueue<'T>
 
     [<Sealed>]
     type EntityProcessor =
 
-        interface ISystem
+        interface IECSSystem
 
         new : unit -> EntityProcessor
