@@ -51,32 +51,34 @@ let benchmark name f =
 module Tests =
     open Xunit
 
-    let test =
-        let v = 0
+    let test1Only =
         EntityPrototype.empty
         |> EntityPrototype.addComponent<TestComponent> (fun () ->
             {
-                Value = v
+                Value = 0
             }
         )
+
+    let test =
+        test1Only
         |> EntityPrototype.addComponent<TestComponent2> (fun () ->
             {
-                Value = v
+                Value = 0
             }
         )
         |> EntityPrototype.addComponent<TestComponent3> (fun () ->
             {
-                Value = v
+                Value = 0
             }
         )
         |> EntityPrototype.addComponent<TestComponent4> (fun () ->
             {
-                Value = v
+                Value = 0
             }
         )
         |> EntityPrototype.addComponent<TestComponent5> (fun () ->
             {
-                Value = v
+                Value = 0
             }
         )
 
@@ -96,7 +98,7 @@ module Tests =
         (world.AddSystem sys).Update ()
 
     [<Fact>]
-    let ``when max entity amount is 10k, then create and destroy 10k entities with 5 components three times`` () =
+    let ``when max entity amount is 10k, then creating and destroying 10k entities with 5 components three times will not fail`` () =
         let count = 10000
         run count [] (fun entities events entityProcessorHandle ->
             for i = 1 to 3 do
@@ -133,7 +135,7 @@ module Tests =
         )
 
     [<Fact>]
-    let ``when spawning and destroying entities, events happen in the right order`` () =
+    let ``when spawning and destroying entities, then events happen in the right order`` () =
         let mutable entityCount = 0
         let mutable componentCount = 0
         let count = 10000
@@ -199,11 +201,92 @@ module Tests =
                     Assert.Equal (componentCount, 0)
             )
 
+    [<Fact>]
+    let ``when an added component event is handled, then component exists`` () =
+        let mutable componentExists = false
+        run 1
+            [
+                HandleEvent<ComponentAdded<TestComponent>> (fun entities event ->
+                    match entities.TryGet<TestComponent> event.Entity with
+                    | Some _ -> componentExists <- true
+                    | _ -> ()
+                )
+            ]
+            (
+                fun entities events entityProcessorHandle ->
+                    entities.Spawn test1Only
+
+                    entityProcessorHandle.Update ()
+
+                    Assert.True (componentExists)
+
+            )
+
+    [<Fact>]
+    let ``when a removed component event is handled, then component doesn't exist`` () =
+        let mutable componentExists = true
+        run 1
+            [
+                HandleEvent<ComponentAdded<TestComponent>> (fun entities event ->
+                    match entities.TryGet<TestComponent> event.Entity with
+                    | Some _ -> componentExists <- true
+                    | _ -> ()
+
+                    entities.Destroy event.Entity
+                )
+
+                HandleEvent<ComponentRemoved<TestComponent>> (fun entities event ->
+                    match entities.TryGet<TestComponent> event.Entity with
+                    | None -> componentExists <- false
+                    | _ -> ()
+                )
+            ]
+            (
+                fun entities events entityProcessorHandle ->
+                    entities.Spawn test1Only
+
+                    entityProcessorHandle.Update ()
+
+                    Assert.False (componentExists)
+
+            )
+    
+    [<Fact>]
+    let ``when an added component event is handled, then destroying the entity and spawning a different one will not fail`` () =
+        run 1
+            [
+                HandleEvent<ComponentAdded<TestComponent5>> (fun entities event ->
+                    entities.Destroy event.Entity
+                    entities.Spawn test1Only
+                )
+            ]
+            (
+                fun entities events entityProcessorHandle ->
+                    entities.Spawn test
+
+                    entityProcessorHandle.Update ()
+
+                    entities.ForEach<TestComponent5> (fun _ _ ->
+                        failwith "TestComponent not deleted"
+                    )
+
+                    let mutable isNewEntitySpawned = false
+                    entities.ForEach<TestComponent> (fun _ _ ->
+                        isNewEntitySpawned <- true
+                    )
+
+                    Assert.True (isNewEntitySpawned)
+
+            )
+
 [<EntryPoint>]
 let main argv = 
 
-    Tests.``when max entity amount is 10k, then create and destroy 10k entities with 5 components three times`` ()
-    Tests.``when spawning and destroying entities, events happen in the right order`` ()
+    Tests.``when max entity amount is 10k, then creating and destroying 10k entities with 5 components three times will not fail`` ()
+    Tests.``when spawning and destroying entities, then events happen in the right order`` ()
+    Tests.``when an added component event is handled, then component exists`` ()
+    Tests.``when a removed component event is handled, then component doesn't exist`` ()
+    Tests.``when an added component event is handled, then destroying the entity and spawning a different one will not fail`` ()
 
     printfn "Finished."
     0

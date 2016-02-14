@@ -221,18 +221,27 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
             not destroyEntityQueue.IsEmpty
                 do
 
+            // ******************************************
+            // ************* Entity and Component Removal
+            // ******************************************
             processConcurrentQueue  destroyEntityQueue
             processConcurrentQueue  removeComponentQueue
 
             processQueue            finallyDestroyEntityQueue
 
+            processQueue            emitRemoveComponentEventQueue
+            processQueue            emitDestroyEntityEventQueue
+            // ******************************************
+
+            // ******************************************
+            // ************** Entity and Component Adding
+            // ******************************************
             processConcurrentQueue  spawnEntityQueue
             processConcurrentQueue  addComponentQueue
 
-            processQueue            emitRemoveComponentEventQueue
-            processQueue            emitDestroyEntityEventQueue
             processQueue            emitAddComponentEventQueue
             processQueue            emitSpawnEntityEventQueue
+            // ******************************************
 
     member this.GetEntityLookupData<'T when 'T :> IECSComponent> () : EntityLookupData<'T> =
         let t = typeof<'T>
