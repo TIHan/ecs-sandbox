@@ -26,32 +26,48 @@ type IComponent = interface end
 [<Sealed>]
 type ComponentAdded<'T when 'T :> IComponent> =
 
-    interface IECSEvent<Entity>
+    val Entity : Entity
+
+    interface IECSEvent
 
 [<Sealed>]
 type ComponentRemoved<'T when 'T :> IComponent> = 
 
-    interface IECSEvent<Entity>
+    val Entity : Entity
+
+    interface IECSEvent
 
 [<Sealed>]
 type AnyComponentAdded = 
 
-    interface IECSEvent<Entity * Type>
+    val Entity : Entity
+
+    val ComponentType : Type
+
+    interface IECSEvent
 
 [<Sealed>]
 type AnyComponentRemoved =
    
-    interface IECSEvent<Entity * Type>
+    val Entity : Entity
+
+    val ComponentType : Type
+
+    interface IECSEvent
 
 [<Sealed>]
 type EntitySpawned =
 
-    interface IECSEvent<Entity>
+    val Entity : Entity
+
+    interface IECSEvent
 
 [<Sealed>]
 type EntityDestroyed =
 
-    interface IECSEvent<Entity>
+    val Entity : Entity
+
+    interface IECSEvent
 
 type ForEachDelegate<'T when 'T :> IComponent> = delegate of Entity * byref<'T> -> unit
 

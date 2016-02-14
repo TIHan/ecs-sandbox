@@ -1,17 +1,15 @@
 ﻿namespace ECS
 
-type IECSEvent<'T> =
-
-    abstract Data : 'T
+type IECSEvent = interface end
 
 [<Sealed>]
 type EventManager =
 
     internal new : unit -> EventManager
 
-    member Listen<'T, 'U when 'T :> IECSEvent<'U>> : ('U -> unit) -> unit
+    member Listen<'T when 'T :> IECSEvent> : ('T -> unit) -> unit
 
-    member Publish : #IECSEvent<_> -> unit
+    member Publish : #IECSEvent -> unit
 
 type Events = EventManager
 
@@ -21,4 +19,4 @@ module EventManager =
 
     module Unsafe =
 
-        val event<'T, 'U when 'T :> IECSEvent<'U>> : Events -> Event<'U>
+        val event<'T when 'T :> IECSEvent> : EventManager -> Event<'T>

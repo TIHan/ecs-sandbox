@@ -81,46 +81,62 @@ type Entity =
 type IComponent = interface end
 
 [<Sealed>]
-type ComponentAdded<'T when 'T :> IComponent> (entity) =
+type ComponentAdded<'T when 'T :> IComponent> =
 
-    interface IECSEvent<Entity> with
+    val Entity : Entity
 
-        member this.Data = entity
+    new (entity) = { Entity = entity }
 
-[<Sealed>]
-type ComponentRemoved<'T when 'T :> IComponent> (entity) =
-
-    interface IECSEvent<Entity> with
-
-        member this.Data = entity
+    interface IECSEvent
 
 [<Sealed>]
-type AnyComponentAdded (entity, typ) =
+type ComponentRemoved<'T when 'T :> IComponent> =
 
-    interface IECSEvent<Entity * Type> with
+    val Entity : Entity
 
-        member this.Data = (entity, typ)
+    new (entity) = { Entity = entity }
 
-[<Sealed>]
-type AnyComponentRemoved (entity, typ) =
-
-    interface IECSEvent<Entity * Type> with
-
-        member this.Data = (entity, typ)
+    interface IECSEvent
 
 [<Sealed>]
-type EntitySpawned (entity) =
+type AnyComponentAdded =
 
-    interface IECSEvent<Entity> with
+    val Entity : Entity
 
-        member this.Data = entity
+    val ComponentType : Type
+
+    new (entity, typ) = { Entity = entity; ComponentType = typ }
+
+    interface IECSEvent
 
 [<Sealed>]
-type EntityDestroyed (entity) =
+type AnyComponentRemoved =
 
-     interface IECSEvent<Entity> with
+    val Entity : Entity
 
-        member this.Data = entity
+    val ComponentType : Type
+
+    new (entity, typ) = { Entity = entity; ComponentType = typ }
+
+    interface IECSEvent
+
+[<Sealed>]
+type EntitySpawned =
+
+    val Entity : Entity
+
+    new (entity) = { Entity = entity }
+
+    interface IECSEvent
+
+[<Sealed>]
+type EntityDestroyed =
+
+    val Entity : Entity
+
+    new (entity) = { Entity = entity }
+
+    interface IECSEvent
 
 type IEntityLookupData =
 
@@ -137,8 +153,8 @@ type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IComponent and 'T2 :> ICompo
 [<ReferenceEquality>]
 type EntityLookupData<'T when 'T :> IComponent> =
     {
-        ComponentAddedEvent: Event<Entity>
-        ComponentRemovedEvent: Event<Entity>
+        ComponentAddedEvent: Event<ComponentAdded<'T>>
+        ComponentRemovedEvent: Event<ComponentRemoved<'T>>
 
         RemoveComponent: Entity -> unit
 
@@ -179,11 +195,11 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
     let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
     let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
 
-    let entitySpawnedEvent = EventManager.Unsafe.event<EntitySpawned, Entity> eventManager
-    let entityDestroyedEvent = EventManager.Unsafe.event<EntityDestroyed, Entity> eventManager
+    let entitySpawnedEvent = EventManager.Unsafe.event<EntitySpawned> eventManager
+    let entityDestroyedEvent = EventManager.Unsafe.event<EntityDestroyed> eventManager
 
-    let anyComponentAddedEvent = EventManager.Unsafe.event<AnyComponentAdded, Entity * Type> eventManager
-    let anyComponentRemovedEvent = EventManager.Unsafe.event<AnyComponentRemoved, Entity * Type> eventManager 
+    let anyComponentAddedEvent = EventManager.Unsafe.event<AnyComponentAdded> eventManager
+    let anyComponentRemovedEvent = EventManager.Unsafe.event<AnyComponentRemoved> eventManager 
 
     let processQueue (queue: Queue<unit -> unit>) =
         while queue.Count > 0 do
@@ -226,8 +242,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         else          
             let data =
                 {
-                    ComponentAddedEvent = EventManager.Unsafe.event<ComponentAdded<'T>, Entity> eventManager
-                    ComponentRemovedEvent = EventManager.Unsafe.event<ComponentRemoved<'T>, Entity> eventManager
+                    ComponentAddedEvent = EventManager.Unsafe.event<ComponentAdded<'T>> eventManager
+                    ComponentRemovedEvent = EventManager.Unsafe.event<ComponentRemoved<'T>> eventManager
 
                     RemoveComponent = fun entity -> this.RemoveComponent<'T> entity
 
@@ -374,8 +390,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                     data.Entities.Add entity
 
                     emitAddComponentEventQueue.Enqueue (fun () ->
-                        anyComponentAddedEvent.Trigger ((entity, typeof<'T>))
-                        data.ComponentAddedEvent.Trigger ((entity))
+                        anyComponentAddedEvent.Trigger (AnyComponentAdded (entity, typeof<'T>))
+                        data.ComponentAddedEvent.Trigger (ComponentAdded<'T> (entity))
                     )
 
             else
@@ -403,8 +419,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                         data.IndexLookup.[swappingEntity.Index] <- index
 
                     emitRemoveComponentEventQueue.Enqueue (fun () ->
-                        anyComponentRemovedEvent.Trigger ((entity, typeof<'T>))
-                        data.ComponentRemovedEvent.Trigger ((entity))
+                        anyComponentRemovedEvent.Trigger (AnyComponentRemoved (entity, typeof<'T>))
+                        data.ComponentRemovedEvent.Trigger (ComponentRemoved<'T> (entity))
                     )
                 else
                     printfn "ECS WARNING: Component, %s, does not exist on %A." typeof<'T>.Name entity
@@ -435,7 +451,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                 activeIndices.[entity.Index] <- true
 
                 emitSpawnEntityEventQueue.Enqueue (fun () ->
-                    entitySpawnedEvent.Trigger ((entity))
+                    entitySpawnedEvent.Trigger (EntitySpawned (entity))
                 )
 
                 f entity
@@ -457,7 +473,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                 )
 
                 emitDestroyEntityEventQueue.Enqueue (fun () ->
-                    entityDestroyedEvent.Trigger ((entity))
+                    entityDestroyedEvent.Trigger (EntityDestroyed (entity))
                 )
             else
                 printfn "ECS WARNING: %A is invalid. Cannot destroy." entity

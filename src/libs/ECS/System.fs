@@ -22,19 +22,19 @@ module Systems =
                 f entities events
 
     [<Sealed>]
-    type EventQueue<'T, 'U when 'T :> IECSEvent<'U>> (f) =
+    type EventQueue<'T when 'T :> IECSEvent> (f) =
 
         interface ISystem with
 
             member __.Init (entities, events) =
-                let queue = System.Collections.Concurrent.ConcurrentQueue<'U> ()
+                let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
 
                 events.Listen queue.Enqueue
 
                 SystemUpdate (fun () ->
-                    let mutable event = Unchecked.defaultof<'U>
+                    let mutable event = Unchecked.defaultof<'T>
                     while queue.TryDequeue (&event) do
-                        f entities events event
+                        f entities event
                 )
 
     [<Sealed>]

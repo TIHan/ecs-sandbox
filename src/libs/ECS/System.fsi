@@ -19,11 +19,11 @@ module Systems =
         new : string * (Entities -> Events -> SystemUpdate) -> System
 
     [<Sealed>]
-    type EventQueue<'T, 'U when 'T :> IECSEvent<'U>> =
+    type EventQueue<'T when 'T :> IECSEvent> =
 
         interface ISystem
 
-        new : (Entities -> Events -> 'U -> unit) -> EventQueue<'T, 'U>
+        new : (Entities -> 'T -> unit) -> EventQueue<'T>
 
     [<Sealed>]
     type EntityProcessor =
