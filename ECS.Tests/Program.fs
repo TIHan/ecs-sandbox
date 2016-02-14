@@ -53,7 +53,7 @@ module Tests =
 
     let test =
         let v = 0
-        EntityPrototype.create ()
+        EntityPrototype.empty
         |> EntityPrototype.add<TestComponent> (fun () ->
             {
                 Value = v
@@ -142,55 +142,61 @@ module Tests =
             [
 
                 HandleEvent<AnyComponentAdded> (fun _ _ ->
-                    Assert.True ((entityCount = 0))
+                    Assert.Equal (entityCount, 0)
                     componentCount <- componentCount + 1
                 )
 
                 HandleEvent<EntitySpawned> (fun _ _ ->
-                    Assert.True ((componentCount = halfCount * 5))
+                    Assert.Equal (componentCount, halfCount * 5)
                     entityCount <- entityCount + 1
                 )
 
                 HandleEvent<AnyComponentRemoved> (fun _ _ ->
-                    Assert.True ((entityCount = halfCount))
+                    Assert.Equal (entityCount, halfCount)
                     componentCount <- componentCount - 1
                 )
 
                 HandleEvent<EntityDestroyed> (fun _ _ ->
-                    Assert.True ((componentCount = 0))
+                    Assert.Equal (componentCount, 0)
                     entityCount <- entityCount - 1
                 )
 
             ] 
-            (fun entities events entityProcessorHandle ->
-                for i = 0 to halfCount - 1 do
-                    entities.Spawn test
+            (
+                fun entities events entityProcessorHandle ->
+                    // Queue to spawn 5000 entities
+                    for i = 0 to halfCount - 1 do
+                        entities.Spawn test
 
-                entityProcessorHandle.Update ()
+                    // Process the queued 5000 entities
+                    entityProcessorHandle.Update ()
 
-                entities.ForEach<TestComponent> (fun entity test ->
-                    entities.Destroy entity
-                )
+                    // Queue to destroy those 5000 entities
+                    entities.ForEach<TestComponent> (fun entity test ->
+                        entities.Destroy entity
+                    )
 
-                for i = 0 to halfCount - 1 do
-                    entities.Spawn test
+                    // Also queue another 5000 entities
+                    for i = 0 to halfCount - 1 do
+                        entities.Spawn test
 
-                Assert.True ((entityCount = halfCount))
-                Assert.True ((componentCount = halfCount * 5))
+                    Assert.Equal (entityCount, halfCount)
+                    Assert.Equal (componentCount, halfCount * 5)
 
-                entityProcessorHandle.Update ()
+                    // Process the destroy and spawn queued entities
+                    entityProcessorHandle.Update ()
 
-                Assert.True ((entityCount = halfCount))
-                Assert.True ((componentCount = halfCount * 5))
+                    Assert.Equal (entityCount, halfCount)
+                    Assert.Equal (componentCount, halfCount * 5)
 
-                entities.ForEach<TestComponent> (fun entity test ->
-                    entities.Destroy entity
-                )
+                    entities.ForEach<TestComponent> (fun entity test ->
+                        entities.Destroy entity
+                    )
 
-                entityProcessorHandle.Update ()
+                    entityProcessorHandle.Update ()
 
-                Assert.True ((entityCount = 0))
-                Assert.True ((componentCount = 0))
+                    Assert.Equal (entityCount, 0)
+                    Assert.Equal (componentCount, 0)
             )
 
 [<EntryPoint>]
@@ -198,6 +204,7 @@ let main argv =
 
     Tests.``when max entity amount is 10k, then create and destroy 10k entities with 5 components three times`` ()
     Tests.``when spawning and destroying entities, events happen in the right order`` ()
-    
+
+    printfn "Finished."
     0
 

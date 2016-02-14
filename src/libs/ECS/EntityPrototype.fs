@@ -11,7 +11,7 @@ type EntityPrototype =
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module EntityPrototype =
 
-    let create () =
+    let empty =
         {
             f = fun _ _ -> ()
         }

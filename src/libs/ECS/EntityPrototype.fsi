@@ -8,7 +8,7 @@ type EntityPrototype
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module EntityPrototype =
 
-    val create : unit -> EntityPrototype
+    val empty : EntityPrototype
 
     val add : (unit -> #IECSComponent) -> EntityPrototype -> EntityPrototype
 
