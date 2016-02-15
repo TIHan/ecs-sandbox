@@ -1,21 +1,21 @@
 ﻿namespace ECS
 
-type SystemUpdate = SystemUpdate of (Entities -> Events -> unit)
-
 [<AbstractClass>]
 type HandleEvent () = 
 
     abstract Handle : Entities * Events -> unit
 
-type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> 'T -> unit) =
+type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> Events -> 'T -> unit) =
     inherit HandleEvent ()
 
     override this.Handle (entities, events) = 
-        events.GetEvent<'T>().Publish.Add (fun event -> f entities event)
+        events.GetEvent<'T>().Publish.Add (fun event -> f entities events event)
 
 type IECSSystem =
 
-    abstract Init : HandleEvent list * SystemUpdate
+    abstract HandleEvents : HandleEvent list
+
+    abstract Update : Entities * Events -> unit
 
 [<RequireQualifiedAccess>]
 module Systems =
@@ -27,33 +27,32 @@ module Systems =
 
         interface IECSSystem with
 
-            member __.Init = (handleEvents, SystemUpdate update)
+            member __.HandleEvents = handleEvents
+
+            member __.Update (entities, events) =
+                update entities events
 
     [<Sealed>]
     type EventQueue<'T when 'T :> IECSEvent> (f) =
+        let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
 
         interface IECSSystem with
 
-            member __.Init =
-                let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
-                (
-                    [
-                        HandleEvent<'T> (fun _ -> queue.Enqueue)
-                    ],
-                    SystemUpdate (fun entities _ ->
-                        let mutable event = Unchecked.defaultof<'T>
-                        while queue.TryDequeue (&event) do
-                            f entities event
-                    )
-                )
+            member __.HandleEvents =
+                [
+                    HandleEvent<'T> (fun _ _ -> queue.Enqueue)
+                ]
+
+            member __.Update (entities, events) =
+                let mutable event = Unchecked.defaultof<'T>
+                while queue.TryDequeue (&event) do
+                    f entities events event
 
     [<Sealed>]
     type EntityProcessor () =
 
         interface IECSSystem with
 
-            member __.Init =
-                (
-                    [],
-                    SystemUpdate (fun entities _ -> entities.Process ())
-                )
+            member __.HandleEvents = []
+
+            member __.Update (entities, _) = entities.Process ()

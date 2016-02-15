@@ -1,20 +1,20 @@
 ﻿namespace ECS
 
-type SystemUpdate = SystemUpdate of (Entities -> Events -> unit)
-
 [<AbstractClass>]
-type HandleEvent = 
+type HandleEvent =
 
     abstract internal Handle : Entities * Events -> unit
 
 type HandleEvent<'T when 'T :> IECSEvent> =
     inherit HandleEvent
 
-    new : (Entities -> 'T -> unit) -> HandleEvent<'T>
+    new : (Entities -> Events -> 'T -> unit) -> HandleEvent<'T>
 
 type IECSSystem =
 
-    abstract Init : HandleEvent list * SystemUpdate
+    abstract HandleEvents : HandleEvent list
+
+    abstract Update : Entities * Events -> unit
 
 [<RequireQualifiedAccess>]
 module Systems =
@@ -31,7 +31,7 @@ module Systems =
 
         interface IECSSystem
 
-        new : (Entities -> 'T -> unit) -> EventQueue<'T>
+        new : (Entities -> Events -> 'T -> unit) -> EventQueue<'T>
 
     [<Sealed>]
     type EntityProcessor =
