@@ -143,22 +143,22 @@ module Tests =
         run count 
             [
 
-                HandleEvent<AnyComponentAdded> (fun _ _ _ ->
+                HandleEvent<AnyComponentAdded> (fun _ _ ->
                     Assert.Equal (entityCount, 0)
                     componentCount <- componentCount + 1
                 )
 
-                HandleEvent<EntitySpawned> (fun _ _ _ ->
+                HandleEvent<EntitySpawned> (fun _ _ ->
                     Assert.Equal (componentCount, halfCount * 5)
                     entityCount <- entityCount + 1
                 )
 
-                HandleEvent<AnyComponentRemoved> (fun _ _ _ ->
+                HandleEvent<AnyComponentRemoved> (fun _ _ ->
                     Assert.Equal (entityCount, halfCount)
                     componentCount <- componentCount - 1
                 )
 
-                HandleEvent<EntityDestroyed> (fun _ _ _ ->
+                HandleEvent<EntityDestroyed> (fun _ _ ->
                     Assert.Equal (componentCount, 0)
                     entityCount <- entityCount - 1
                 )
@@ -206,7 +206,7 @@ module Tests =
         let mutable componentExists = false
         run 1
             [
-                HandleEvent<ComponentAdded<TestComponent>> (fun entities _ event ->
+                HandleEvent<ComponentAdded<TestComponent>> (fun entities event ->
                     match entities.TryGet<TestComponent> event.Entity with
                     | Some _ -> componentExists <- true
                     | _ -> ()
@@ -227,7 +227,7 @@ module Tests =
         let mutable componentExists = true
         run 1
             [
-                HandleEvent<ComponentAdded<TestComponent>> (fun entities _ event ->
+                HandleEvent<ComponentAdded<TestComponent>> (fun entities event ->
                     match entities.TryGet<TestComponent> event.Entity with
                     | Some _ -> componentExists <- true
                     | _ -> ()
@@ -235,7 +235,7 @@ module Tests =
                     entities.Destroy event.Entity
                 )
 
-                HandleEvent<ComponentRemoved<TestComponent>> (fun entities _ event ->
+                HandleEvent<ComponentRemoved<TestComponent>> (fun entities event ->
                     match entities.TryGet<TestComponent> event.Entity with
                     | None -> componentExists <- false
                     | _ -> ()
@@ -255,7 +255,7 @@ module Tests =
     let ``when an added component event is handled, then destroying the entity and spawning a different one will not fail`` () =
         run 1
             [
-                HandleEvent<ComponentAdded<TestComponent5>> (fun entities _ event ->
+                HandleEvent<ComponentAdded<TestComponent5>> (fun entities event ->
                     entities.Destroy event.Entity
                     entities.Spawn test1Only
                 )

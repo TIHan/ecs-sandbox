@@ -8,13 +8,13 @@ type HandleEvent =
 type HandleEvent<'T when 'T :> IECSEvent> =
     inherit HandleEvent
 
-    new : (Entities -> Events -> 'T -> unit) -> HandleEvent<'T>
+    new : (Entities -> ('T -> unit)) -> HandleEvent<'T>
 
 type IECSSystem =
 
     abstract HandleEvents : HandleEvent list
 
-    abstract Update : Entities * Events -> unit
+    abstract Update : Entities -> Events -> unit
 
 [<RequireQualifiedAccess>]
 module Systems =
@@ -31,7 +31,7 @@ module Systems =
 
         interface IECSSystem
 
-        new : (Entities -> Events -> 'T -> unit) -> EventQueue<'T>
+        new : (Entities -> 'T -> unit) -> EventQueue<'T>
 
     [<Sealed>]
     type EntityProcessor =

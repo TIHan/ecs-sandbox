@@ -5,17 +5,18 @@ type HandleEvent () =
 
     abstract Handle : Entities * Events -> unit
 
-type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> Events -> 'T -> unit) =
+type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> ('T -> unit)) =
     inherit HandleEvent ()
 
     override this.Handle (entities, events) = 
-        events.GetEvent<'T>().Publish.Add (fun event -> f entities events event)
+        let handle = f entities
+        events.GetEvent<'T>().Publish.Add handle
 
 type IECSSystem =
 
     abstract HandleEvents : HandleEvent list
 
-    abstract Update : Entities * Events -> unit
+    abstract Update : Entities -> Events -> unit
 
 [<RequireQualifiedAccess>]
 module Systems =
@@ -29,7 +30,7 @@ module Systems =
 
             member __.HandleEvents = handleEvents
 
-            member __.Update (entities, events) =
+            member __.Update entities events =
                 update entities events
 
     [<Sealed>]
@@ -40,13 +41,13 @@ module Systems =
 
             member __.HandleEvents =
                 [
-                    HandleEvent<'T> (fun _ _ -> queue.Enqueue)
+                    HandleEvent<'T> (fun _ -> queue.Enqueue)
                 ]
 
-            member __.Update (entities, events) =
+            member __.Update entities _ =
                 let mutable event = Unchecked.defaultof<'T>
                 while queue.TryDequeue (&event) do
-                    f entities events event
+                    f entities event
 
     [<Sealed>]
     type EntityProcessor () =
@@ -55,4 +56,4 @@ module Systems =
 
             member __.HandleEvents = []
 
-            member __.Update (entities, _) = entities.Process ()
+            member __.Update entities _ = entities.Process ()

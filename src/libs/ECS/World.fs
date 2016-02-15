@@ -16,5 +16,5 @@ type World (maxEntityAmount) =
         sys.HandleEvents
         |> List.iter (fun x -> x.Handle (entityManager, eventManager))
 
-        SystemHandle<'T> (fun () -> sys.Update (entityManager, eventManager))
+        SystemHandle<'T> (fun () -> sys.Update entityManager eventManager)
  
