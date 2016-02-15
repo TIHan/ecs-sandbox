@@ -3,12 +3,12 @@
 [<AbstractClass>]
 type HandleEvent () = 
 
-    abstract Handle : Entities * Events -> unit
+    abstract Handle : Entities -> Events -> unit
 
 type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> ('T -> unit)) =
     inherit HandleEvent ()
 
-    override this.Handle (entities, events) = 
+    override this.Handle entities events = 
         let handle = f entities
         events.GetEvent<'T>().Publish.Add handle
 

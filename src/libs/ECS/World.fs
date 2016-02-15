@@ -14,7 +14,7 @@ type World (maxEntityAmount) =
 
     member this.AddSystem<'T when 'T :> IECSSystem> (sys: 'T) =
         sys.HandleEvents
-        |> List.iter (fun x -> x.Handle (entityManager, eventManager))
+        |> List.iter (fun x -> x.Handle entityManager eventManager)
 
         SystemHandle<'T> (fun () -> sys.Update entityManager eventManager)
  

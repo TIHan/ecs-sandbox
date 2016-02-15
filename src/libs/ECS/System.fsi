@@ -3,7 +3,7 @@
 [<AbstractClass>]
 type HandleEvent =
 
-    abstract internal Handle : Entities * Events -> unit
+    abstract internal Handle : Entities -> Events -> unit
 
 type HandleEvent<'T when 'T :> IECSEvent> =
     inherit HandleEvent
