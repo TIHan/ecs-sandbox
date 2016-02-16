@@ -8,24 +8,13 @@ type SystemHandle<'T when 'T :> IECSSystem> (update: unit -> unit) =
     member this.Update = update
 
 [<Sealed>]
-type SystemHandle<'T, 'D1 when 'T :> IECSSystem<'D1>> (update: 'D1 -> unit) =
-
-    member this.Update = update
-
-[<Sealed>]
 type World (maxEntityAmount) =
-    let eventManager = EventManager ()
-    let entityManager = EntityManager (eventManager, maxEntityAmount)
+    let eventManager = EventManager.Create ()
+    let entityManager = EntityManager.Create (eventManager, maxEntityAmount)
 
     member this.AddSystem<'T when 'T :> IECSSystem> (sys: 'T) =
         sys.HandleEvents
         |> List.iter (fun x -> x.Handle entityManager eventManager)
 
         SystemHandle<'T> (fun () -> sys.Update entityManager eventManager)
-
-    member this.AddSystem<'T, 'D1 when 'T :> IECSSystem<'D1>> (sys: 'T) =
-        sys.HandleEvents
-        |> List.iter (fun x -> x.Handle entityManager eventManager)
-
-        SystemHandle<'T, 'D1> (sys.Update entityManager eventManager) 
  

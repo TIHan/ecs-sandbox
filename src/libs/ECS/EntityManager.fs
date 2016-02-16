@@ -168,106 +168,166 @@ type EntityLookupData<'T when 'T :> IECSComponent> =
 
         member this.Entities = this.Entities
 
-[<Sealed>]
-type EntityManager (eventManager: EventManager, maxEntityAmount) =
-    let maxEntityAmount = maxEntityAmount + 1
-    let lookup = Dictionary<Type, IEntityLookupData> ()
+[<ReferenceEquality>]
+type EntityManager =
+    {
+        EventManager: EventManager
 
-    let activeVersions = Array.init maxEntityAmount (fun _ -> 0u)
-    let activeIndices = Array.zeroCreate<bool> maxEntityAmount
+        MaxEntityAmount: int
+        Lookup: Dictionary<Type, IEntityLookupData>
 
-    let mutable nextEntityIndex = 1
-    let removedEntityQueue = Queue<Entity> () 
+        ActiveVersions: uint32 []
+        ActiveIndices: bool []
 
-    let entityRemovals : ((Entity -> unit) ResizeArray) [] = Array.init maxEntityAmount (fun _ -> ResizeArray ())
+        mutable nextEntityIndex: int
+        RemovedEntityQueue: Queue<Entity>
 
-    let addComponentQueue = ConcurrentQueue<unit -> unit> ()
-    let removeComponentQueue = ConcurrentQueue<unit -> unit> ()
+        EntityRemovals: ((Entity -> unit) ResizeArray) []
 
-    let spawnEntityQueue = ConcurrentQueue<unit -> unit> ()
-    let destroyEntityQueue = ConcurrentQueue<unit -> unit> ()
+        AddComponentQueue: ConcurrentQueue<unit -> unit>
+        RemoveComponentQueue: ConcurrentQueue<unit -> unit>
 
-    let finallyDestroyEntityQueue = Queue<unit -> unit> ()
+        SpawnEntityQueue: ConcurrentQueue<unit -> unit>
+        DestroyEntityQueue: ConcurrentQueue<unit -> unit>
 
-    let emitAddComponentEventQueue = Queue<unit -> unit> ()
-    let emitRemoveComponentEventQueue = Queue<unit -> unit> ()
+        FinallyDestroyEntityQueue: Queue<unit -> unit>
 
-    let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
-    let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
+        EmitAddComponentEventQueue: Queue<unit -> unit>
+        EmitRemoveComponentEventQueue: Queue<unit -> unit>
 
-    let entitySpawnedEvent = eventManager.GetEvent<EntitySpawned> ()
-    let entityDestroyedEvent = eventManager.GetEvent<EntityDestroyed> ()
+        EmitSpawnEntityEventQueue: Queue<unit -> unit>
+        EmitDestroyEntityEventQueue: Queue<unit -> unit>
 
-    let anyComponentAddedEvent = eventManager.GetEvent<AnyComponentAdded> ()
-    let anyComponentRemovedEvent = eventManager.GetEvent<AnyComponentRemoved> () 
+        EntitySpawnedEvent: Event<EntitySpawned>
+        EntityDestroyedEvent: Event<EntityDestroyed>
 
-    let processQueue (queue: Queue<unit -> unit>) =
+        AnyComponentAddedEvent: Event<AnyComponentAdded>
+        AnyComponentRemovedEvent: Event<AnyComponentRemoved>
+    }
+
+    static member Create (eventManager: EventManager, maxEntityAmount) =
+        let maxEntityAmount = maxEntityAmount + 1
+        let lookup = Dictionary<Type, IEntityLookupData> ()
+
+        let activeVersions = Array.init maxEntityAmount (fun _ -> 0u)
+        let activeIndices = Array.zeroCreate<bool> maxEntityAmount
+
+        let mutable nextEntityIndex = 1
+        let removedEntityQueue = Queue<Entity> () 
+
+        let entityRemovals : ((Entity -> unit) ResizeArray) [] = Array.init maxEntityAmount (fun _ -> ResizeArray ())
+
+        let addComponentQueue = ConcurrentQueue<unit -> unit> ()
+        let removeComponentQueue = ConcurrentQueue<unit -> unit> ()
+
+        let spawnEntityQueue = ConcurrentQueue<unit -> unit> ()
+        let destroyEntityQueue = ConcurrentQueue<unit -> unit> ()
+
+        let finallyDestroyEntityQueue = Queue<unit -> unit> ()
+
+        let emitAddComponentEventQueue = Queue<unit -> unit> ()
+        let emitRemoveComponentEventQueue = Queue<unit -> unit> ()
+
+        let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
+        let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
+
+        let entitySpawnedEvent = eventManager.GetEvent<EntitySpawned> ()
+        let entityDestroyedEvent = eventManager.GetEvent<EntityDestroyed> ()
+
+        let anyComponentAddedEvent = eventManager.GetEvent<AnyComponentAdded> ()
+        let anyComponentRemovedEvent = eventManager.GetEvent<AnyComponentRemoved> ()
+
+        {
+            EventManager = eventManager
+            MaxEntityAmount = maxEntityAmount
+            Lookup = lookup
+            ActiveVersions = activeVersions
+            ActiveIndices = activeIndices
+            nextEntityIndex = nextEntityIndex
+            RemovedEntityQueue = removedEntityQueue
+            EntityRemovals = entityRemovals
+            AddComponentQueue = addComponentQueue
+            RemoveComponentQueue = removeComponentQueue
+            SpawnEntityQueue = spawnEntityQueue
+            DestroyEntityQueue = destroyEntityQueue
+            FinallyDestroyEntityQueue = finallyDestroyEntityQueue
+            EmitAddComponentEventQueue = emitAddComponentEventQueue
+            EmitRemoveComponentEventQueue = emitRemoveComponentEventQueue
+            EmitSpawnEntityEventQueue = emitSpawnEntityEventQueue
+            EmitDestroyEntityEventQueue = emitDestroyEntityEventQueue
+            EntitySpawnedEvent = entitySpawnedEvent
+            EntityDestroyedEvent = entityDestroyedEvent
+            AnyComponentAddedEvent = anyComponentAddedEvent
+            AnyComponentRemovedEvent = anyComponentRemovedEvent
+        }
+
+    member inline this.ProcessQueue (queue: Queue<unit -> unit>) =
         while queue.Count > 0 do
             queue.Dequeue () ()
 
-    let processConcurrentQueue (queue: ConcurrentQueue<unit -> unit>) =
+    member inline this.ProcessConcurrentQueue (queue: ConcurrentQueue<unit -> unit>) =
         let mutable f = Unchecked.defaultof<unit -> unit>
         while queue.TryDequeue (&f) do
             f ()
 
     member inline this.IsValidEntity (entity: Entity) =
-        not (entity.Index.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version
+        not (entity.Index.Equals 0u) && this.ActiveVersions.[entity.Index].Equals entity.Version
 
     member this.Process () =
         while
-            not addComponentQueue.IsEmpty       ||
-            not removeComponentQueue.IsEmpty    ||
-            not spawnEntityQueue.IsEmpty        ||
-            not destroyEntityQueue.IsEmpty
+            not this.AddComponentQueue.IsEmpty          ||
+            not this.RemoveComponentQueue.IsEmpty       ||
+            not this.SpawnEntityQueue.IsEmpty           ||
+            not this.DestroyEntityQueue.IsEmpty
                 do
 
             // ******************************************
-            // ************* Entity and Component Removal
+            // ************ Entity and Component Removing
             // ******************************************
-            processConcurrentQueue  destroyEntityQueue
-            processConcurrentQueue  removeComponentQueue
+            this.ProcessConcurrentQueue  this.DestroyEntityQueue
+            this.ProcessConcurrentQueue  this.RemoveComponentQueue
 
-            processQueue            finallyDestroyEntityQueue
+            this.ProcessQueue            this.FinallyDestroyEntityQueue
 
-            processQueue            emitRemoveComponentEventQueue
-            processQueue            emitDestroyEntityEventQueue
+            this.ProcessQueue            this.EmitRemoveComponentEventQueue
+            this.ProcessQueue            this.EmitDestroyEntityEventQueue
             // ******************************************
 
             // ******************************************
             // ************** Entity and Component Adding
             // ******************************************
-            processConcurrentQueue  spawnEntityQueue
-            processConcurrentQueue  addComponentQueue
+            this.ProcessConcurrentQueue  this.SpawnEntityQueue
+            this.ProcessConcurrentQueue  this.AddComponentQueue
 
-            processQueue            emitAddComponentEventQueue
-            processQueue            emitSpawnEntityEventQueue
+            this.ProcessQueue            this.EmitAddComponentEventQueue
+            this.ProcessQueue            this.EmitSpawnEntityEventQueue
             // ******************************************
 
     member this.GetEntityLookupData<'T when 'T :> IECSComponent> () : EntityLookupData<'T> =
         let t = typeof<'T>
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (t, &data) then  
+        if this.Lookup.TryGetValue (t, &data) then  
             data :?> EntityLookupData<'T>
         else          
             let data =
                 {
-                    ComponentAddedEvent = eventManager.GetEvent<ComponentAdded<'T>> ()
-                    ComponentRemovedEvent = eventManager.GetEvent<ComponentRemoved<'T>> ()
+                    ComponentAddedEvent = this.EventManager.GetEvent<ComponentAdded<'T>> ()
+                    ComponentRemovedEvent = this.EventManager.GetEvent<ComponentRemoved<'T>> ()
 
                     RemoveComponent = fun entity -> this.RemoveComponent<'T> entity
 
-                    Active = Array.zeroCreate<bool> maxEntityAmount
-                    IndexLookup = Array.init maxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
+                    Active = Array.zeroCreate<bool> this.MaxEntityAmount
+                    IndexLookup = Array.init this.MaxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
                     Entities = UnsafeResizeArray.Create 1
                     Components = UnsafeResizeArray.Create 1
                 }
 
-            lookup.[t] <- data
+            this.Lookup.[t] <- data
             data
 
     member inline this.Iterate<'T when 'T :> IECSComponent> (del: ForEachDelegate<'T>, useParallelism: bool) : unit =
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (typeof<'T>, &data) then
+        if this.Lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
 
             let count = data.Entities.Count
@@ -278,7 +338,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
             let inline iter i = 
                 let entity = entities.[i]
 
-                if active.[entity.Index] && activeIndices.[entity.Index] then
+                if active.[entity.Index] && this.ActiveIndices.[entity.Index] then
                     del.Invoke (entity, &components.[i])
 
             if useParallelism
@@ -290,7 +350,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
     member inline this.Iterate<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> (del: ForEachDelegate<'T1, 'T2>, useParallelism: bool) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) then
+        if this.Lookup.TryGetValue (typeof<'T1>, &data1) && this.Lookup.TryGetValue (typeof<'T2>, &data2) then
             let data = [|data1;data2|] |> Array.minBy (fun x -> x.Entities.Count)
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
@@ -301,7 +361,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
             let inline iter i =
                 let entity = entities.[i]
 
-                if activeIndices.[entity.Index] then
+                if this.ActiveIndices.[entity.Index] then
                     let comp1Index = data1.IndexLookup.[entity.Index]
                     let comp2Index = data2.IndexLookup.[entity.Index]
 
@@ -318,8 +378,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) && 
-           lookup.TryGetValue (typeof<'T3>, &data3) then
+        if this.Lookup.TryGetValue (typeof<'T1>, &data1) && this.Lookup.TryGetValue (typeof<'T2>, &data2) && 
+           this.Lookup.TryGetValue (typeof<'T3>, &data3) then
             let data = [|data1;data2;data3|] |> Array.minBy (fun x -> x.Entities.Count)
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
@@ -331,7 +391,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
             let inline iter i =
                 let entity = entities.[i]
 
-                if activeIndices.[entity.Index] then
+                if this.ActiveIndices.[entity.Index] then
                     let comp1Index = data1.IndexLookup.[entity.Index]
                     let comp2Index = data2.IndexLookup.[entity.Index]
                     let comp3Index = data3.IndexLookup.[entity.Index]
@@ -350,8 +410,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
         let mutable data4 = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (typeof<'T1>, &data1) && lookup.TryGetValue (typeof<'T2>, &data2) && 
-           lookup.TryGetValue (typeof<'T3>, &data3) && lookup.TryGetValue (typeof<'T4>, &data4) then
+        if this.Lookup.TryGetValue (typeof<'T1>, &data1) && this.Lookup.TryGetValue (typeof<'T2>, &data2) && 
+           this.Lookup.TryGetValue (typeof<'T3>, &data3) && this.Lookup.TryGetValue (typeof<'T4>, &data4) then
             let data = [|data1;data2;data3;data4|] |> Array.minBy (fun x -> x.Entities.Count)
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
@@ -364,7 +424,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
             let inline iter i =
                 let entity = entities.[i]
 
-                if activeIndices.[entity.Index] then
+                if this.ActiveIndices.[entity.Index] then
                     let comp1Index = data1.IndexLookup.[entity.Index]
                     let comp2Index = data2.IndexLookup.[entity.Index]
                     let comp3Index = data3.IndexLookup.[entity.Index]
@@ -382,7 +442,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
     // Components
 
     member this.AddComponent<'T when 'T :> IECSComponent> (entity: Entity) (comp: 'T) =
-        addComponentQueue.Enqueue (fun () ->
+        this.AddComponentQueue.Enqueue (fun () ->
 
             if this.IsValidEntity entity then
                 let data = this.GetEntityLookupData<'T> ()
@@ -390,7 +450,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                 if data.IndexLookup.[entity.Index] >= 0 then
                     printfn "ECS WARNING: Component, %s, already added to %A." typeof<'T>.Name entity
                 else
-                    entityRemovals.[entity.Index].Add (data.RemoveComponent)
+                    this.EntityRemovals.[entity.Index].Add (data.RemoveComponent)
 
                     data.Active.[entity.Index] <- true
                     data.IndexLookup.[entity.Index] <- data.Entities.Count
@@ -398,8 +458,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                     data.Components.Add comp
                     data.Entities.Add entity
 
-                    emitAddComponentEventQueue.Enqueue (fun () ->
-                        anyComponentAddedEvent.Trigger (AnyComponentAdded (entity, typeof<'T>))
+                    this.EmitAddComponentEventQueue.Enqueue (fun () ->
+                        this.AnyComponentAddedEvent.Trigger (AnyComponentAdded (entity, typeof<'T>))
                         data.ComponentAddedEvent.Trigger (ComponentAdded<'T> (entity))
                     )
 
@@ -409,7 +469,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         )
 
     member this.RemoveComponent<'T when 'T :> IECSComponent> (entity: Entity) =
-        removeComponentQueue.Enqueue (fun () ->
+        this.RemoveComponentQueue.Enqueue (fun () ->
 
             if this.IsValidEntity entity then
                 let data = this.GetEntityLookupData<'T> ()
@@ -427,8 +487,8 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                     if not (entity.Index.Equals swappingEntity.Index) then
                         data.IndexLookup.[swappingEntity.Index] <- index
 
-                    emitRemoveComponentEventQueue.Enqueue (fun () ->
-                        anyComponentRemovedEvent.Trigger (AnyComponentRemoved (entity, typeof<'T>))
+                    this.EmitRemoveComponentEventQueue.Enqueue (fun () ->
+                        this.AnyComponentRemovedEvent.Trigger (AnyComponentRemoved (entity, typeof<'T>))
                         data.ComponentRemovedEvent.Trigger (ComponentRemoved<'T> (entity))
                     )
                 else
@@ -442,25 +502,25 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
     // Entities
 
     member this.Spawn f =             
-        spawnEntityQueue.Enqueue (fun () ->
+        this.SpawnEntityQueue.Enqueue (fun () ->
 
-            if removedEntityQueue.Count = 0 && nextEntityIndex >= maxEntityAmount then
-                printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (maxEntityAmount - 1)
+            if this.RemovedEntityQueue.Count = 0 && this.nextEntityIndex >= this.MaxEntityAmount then
+                printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (this.MaxEntityAmount - 1)
             else
                 let entity =
-                    if removedEntityQueue.Count > 0 then
-                        let entity = removedEntityQueue.Dequeue ()
+                    if this.RemovedEntityQueue.Count > 0 then
+                        let entity = this.RemovedEntityQueue.Dequeue ()
                         Entity (entity.Index, entity.Version + 1u)
                     else
-                        let index = nextEntityIndex
-                        nextEntityIndex <- index + 1
+                        let index = this.nextEntityIndex
+                        this.nextEntityIndex <- index + 1
                         Entity (index, 0u)
 
-                activeVersions.[entity.Index] <- entity.Version
-                activeIndices.[entity.Index] <- true
+                this.ActiveVersions.[entity.Index] <- entity.Version
+                this.ActiveIndices.[entity.Index] <- true
 
-                emitSpawnEntityEventQueue.Enqueue (fun () ->
-                    entitySpawnedEvent.Trigger (EntitySpawned (entity))
+                this.EmitSpawnEntityEventQueue.Enqueue (fun () ->
+                    this.EntitySpawnedEvent.Trigger (EntitySpawned (entity))
                 )
 
                 f entity
@@ -468,21 +528,21 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
         )
 
     member this.Destroy (entity: Entity) =
-        destroyEntityQueue.Enqueue (fun () ->
+        this.DestroyEntityQueue.Enqueue (fun () ->
 
             if this.IsValidEntity entity then
-                let removals = entityRemovals.[entity.Index]
+                let removals = this.EntityRemovals.[entity.Index]
                 removals.ForEach (fun f -> f entity)
                 removals.Clear ()
-                removedEntityQueue.Enqueue entity  
+                this.RemovedEntityQueue.Enqueue entity  
 
-                finallyDestroyEntityQueue.Enqueue (fun () ->
-                    activeVersions.[entity.Index] <- 0u
-                    activeIndices.[entity.Index] <- false
+                this.FinallyDestroyEntityQueue.Enqueue (fun () ->
+                    this.ActiveVersions.[entity.Index] <- 0u
+                    this.ActiveIndices.[entity.Index] <- false
                 )
 
-                emitDestroyEntityEventQueue.Enqueue (fun () ->
-                    entityDestroyedEvent.Trigger (EntityDestroyed (entity))
+                this.EmitDestroyEntityEventQueue.Enqueue (fun () ->
+                    this.EntityDestroyedEvent.Trigger (EntityDestroyed (entity))
                 )
             else
                 printfn "ECS WARNING: %A is invalid. Cannot destroy." entity
@@ -493,7 +553,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
 
     member this.TryGet<'T when 'T :> IECSComponent> (entity: Entity) : 'T option = 
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if this.IsValidEntity entity && activeIndices.[entity.Index] && lookup.TryGetValue (typeof<'T>, &data) then
+        if this.IsValidEntity entity && this.ActiveIndices.[entity.Index] && this.Lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
             if data.Active.[entity.Index] then
                 Some data.Components.Buffer.[data.IndexLookup.[entity.Index]]
@@ -505,7 +565,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
     member this.TryFind<'T when 'T :> IECSComponent> (f: Entity -> 'T -> bool) : (Entity * 'T) option =
         let mutable result = Unchecked.defaultof<Entity * 'T>
         let mutable data = Unchecked.defaultof<IEntityLookupData>
-        if lookup.TryGetValue (typeof<'T>, &data) then
+        if this.Lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
 
             let count = data.Entities.Count
@@ -514,7 +574,7 @@ type EntityManager (eventManager: EventManager, maxEntityAmount) =
                 let entity = data.Entities.Buffer.[i]
                 let comp = data.Components.Buffer.[i]
 
-                if activeIndices.[entity.Index] && data.Active.[entity.Index] && f entity comp then 
+                if this.ActiveIndices.[entity.Index] && data.Active.[entity.Index] && f entity comp then 
                     result <- (entity, comp)
         
         if obj.ReferenceEquals (result, null) then None

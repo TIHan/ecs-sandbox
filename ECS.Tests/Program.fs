@@ -95,18 +95,13 @@ module Tests =
 
         (world.AddSystem sys).Update ()
 
-    let runDeltaTime maxEntityAmount handleEvents deltaTime f =
-        let world = World (maxEntityAmount)
-
-        let entityProcessor = Systems.EntityProcessor ()
-
-        let entityProcessorHandle = world.AddSystem entityProcessor
-
-        let sys = Systems.System<float32> ("Test", handleEvents, fun entities events deltaTime ->
-            f entities events entityProcessorHandle deltaTime
-        )
-
-        (world.AddSystem sys).Update (deltaTime)
+    module World =
+        type private Time =
+            {
+                mutable DeltaTime: float32
+            }
+        
+            interface IECSComponent
 
     [<Fact>]
     let ``when max entity amount is 10k, then creating and destroying 10k entities with 5 components three times will not fail`` () =
@@ -292,9 +287,7 @@ module Tests =
 
     [<Fact>]
     let ``when a system with a float32 delta time value is required, the value is valid`` () =
-        runDeltaTime 1 [] 0.25f (fun entities event entityProcessorHandle deltaTime ->
-            Assert.Equal (0.25f, deltaTime)
-        )
+        ()
 
 [<EntryPoint>]
 let main argv = 

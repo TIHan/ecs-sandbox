@@ -7,12 +7,12 @@ type IECSEvent = interface end
 [<Sealed>]
 type EventManager =
 
+    static member internal Create : unit -> EventManager
+
     /// Publishes an event to underlying subscribers.
     member Publish : #IECSEvent -> unit
 
     member internal GetEvent<'T when 'T :> IECSEvent> : unit -> Event<'T>
-
-    internal new : unit -> EventManager
 
 /// Responsible for publishing events.
 type Events = EventManager

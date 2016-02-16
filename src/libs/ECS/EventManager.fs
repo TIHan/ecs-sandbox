@@ -5,16 +5,23 @@ open System.Collections.Concurrent
 
 type IECSEvent = interface end
 
-[<Sealed>]
-type EventManager () =
-    let lookup = ConcurrentDictionary<Type, obj> ()
+[<ReferenceEquality>]
+type EventManager  =
+    {
+        Lookup: ConcurrentDictionary<Type, obj>
+    }
 
-    member __.Publish (event: 'T when 'T :> IECSEvent) =
+    static member Create () =
+        {
+            Lookup = ConcurrentDictionary<Type, obj> ()
+        }
+
+    member this.Publish (event: 'T when 'T :> IECSEvent) =
         let mutable value = Unchecked.defaultof<obj>
-        if lookup.TryGetValue (typeof<'T>, &value) then
+        if this.Lookup.TryGetValue (typeof<'T>, &value) then
             (value :?> Event<'T>).Trigger event
 
-    member __.GetEvent<'T when 'T :> IECSEvent> () =
-       lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj)) :?> Event<'T>
+    member this.GetEvent<'T when 'T :> IECSEvent> () =
+       this.Lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj)) :?> Event<'T>
 
 type Events = EventManager

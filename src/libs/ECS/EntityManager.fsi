@@ -89,6 +89,8 @@ type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IEC
 [<Sealed>]
 type EntityManager =
 
+    static member internal Create : EventManager * maxEntityCount: int -> EntityManager
+
     // Component Query
 
     member TryGet<'T when 'T :> IECSComponent> : Entity -> 'T option
@@ -126,7 +128,5 @@ type EntityManager =
     member Destroy : Entity -> unit
 
     member internal Process : unit -> unit
-
-    internal new : EventManager * maxEntityAmount: int -> EntityManager
 
 type Entities = EntityManager
