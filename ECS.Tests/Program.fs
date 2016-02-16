@@ -89,13 +89,24 @@ module Tests =
 
         let entityProcessorHandle = world.AddSystem entityProcessor
 
-        let mutable entity = Entity ()
-
         let sys = Systems.System ("Test", handleEvents, fun entities events ->
             f entities events entityProcessorHandle
         )
 
         (world.AddSystem sys).Update ()
+
+    let runDeltaTime maxEntityAmount handleEvents deltaTime f =
+        let world = World (maxEntityAmount)
+
+        let entityProcessor = Systems.EntityProcessor ()
+
+        let entityProcessorHandle = world.AddSystem entityProcessor
+
+        let sys = Systems.System<float32> ("Test", handleEvents, fun entities events deltaTime ->
+            f entities events entityProcessorHandle deltaTime
+        )
+
+        (world.AddSystem sys).Update (deltaTime)
 
     [<Fact>]
     let ``when max entity amount is 10k, then creating and destroying 10k entities with 5 components three times will not fail`` () =
@@ -279,14 +290,23 @@ module Tests =
 
             )
 
+    [<Fact>]
+    let ``when a system with a float32 delta time value is required, the value is valid`` () =
+        runDeltaTime 1 [] 0.25f (fun entities event entityProcessorHandle deltaTime ->
+            Assert.Equal (0.25f, deltaTime)
+        )
+
 [<EntryPoint>]
 let main argv = 
+
+    printfn "Starting tests."
 
     Tests.``when max entity amount is 10k, then creating and destroying 10k entities with 5 components three times will not fail`` ()
     Tests.``when spawning and destroying entities, then events happen in the right order`` ()
     Tests.``when an added component event is handled, then component exists`` ()
     Tests.``when a removed component event is handled, then component doesn't exist`` ()
     Tests.``when an added component event is handled, then destroying the entity and spawning a different one will not fail`` ()
+    Tests.``when a system with a float32 delta time value is required, the value is valid`` () 
 
     printfn "Finished."
     0

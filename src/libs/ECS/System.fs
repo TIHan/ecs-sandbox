@@ -5,7 +5,7 @@ type HandleEvent () =
 
     abstract Handle : Entities -> Events -> unit
 
-type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> ('T -> unit)) =
+type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> 'T -> unit) =
     inherit HandleEvent ()
 
     override this.Handle entities events = 
@@ -17,6 +17,12 @@ type IECSSystem =
     abstract HandleEvents : HandleEvent list
 
     abstract Update : Entities -> Events -> unit
+
+type IECSSystem<'D1> =
+   
+    abstract HandleEvents : HandleEvent list
+
+    abstract Update : Entities -> Events -> 'D1 -> unit
 
 [<RequireQualifiedAccess>]
 module Systems =
@@ -34,6 +40,18 @@ module Systems =
                 update entities events
 
     [<Sealed>]
+    type System<'D1> (name: string, handleEvents, update) =
+
+        member this.Name = name
+
+        interface IECSSystem<'D1> with
+
+            member __.HandleEvents = handleEvents
+
+            member __.Update entities events dep1 =
+                update entities events dep1
+
+    [<Sealed>]
     type EventQueue<'T when 'T :> IECSEvent> (f) =
         let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
 
@@ -48,6 +66,22 @@ module Systems =
                 let mutable event = Unchecked.defaultof<'T>
                 while queue.TryDequeue (&event) do
                     f entities event
+
+    [<Sealed>]
+    type EventQueue<'T, 'D1 when 'T :> IECSEvent> (f) =
+        let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
+
+        interface IECSSystem<'D1> with
+
+            member __.HandleEvents =
+                [
+                    HandleEvent<'T> (fun _ -> queue.Enqueue)
+                ]
+
+            member __.Update entities _ dep1 =
+                let mutable event = Unchecked.defaultof<'T>
+                while queue.TryDequeue (&event) do
+                    f entities dep1 event
 
     [<Sealed>]
     type EntityProcessor () =
