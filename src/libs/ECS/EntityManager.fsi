@@ -5,6 +5,7 @@ open System.Runtime.InteropServices
 
 #nowarn "9"
 
+/// Unique to the world.
 [<Struct; StructLayout (LayoutKind.Explicit)>]
 type Entity =
 
@@ -21,8 +22,10 @@ type Entity =
 
     new : int * uint32 -> Entity
 
+/// A marker for component data.
 type IECSComponent = interface end
 
+/// Published when a component was added to an existing entity.
 [<Sealed>]
 type ComponentAdded<'T when 'T :> IECSComponent> =
 
@@ -30,6 +33,7 @@ type ComponentAdded<'T when 'T :> IECSComponent> =
 
     interface IECSEvent
 
+/// Published when a component was removed from an exsting entity.
 [<Sealed>]
 type ComponentRemoved<'T when 'T :> IECSComponent> = 
 
@@ -37,6 +41,7 @@ type ComponentRemoved<'T when 'T :> IECSComponent> =
 
     interface IECSEvent
 
+/// Published when any component was added to an existing entity.
 [<Sealed>]
 type AnyComponentAdded = 
 
@@ -46,6 +51,7 @@ type AnyComponentAdded =
 
     interface IECSEvent
 
+/// Published when any component was removed from an existing entity.
 [<Sealed>]
 type AnyComponentRemoved =
    
@@ -55,6 +61,7 @@ type AnyComponentRemoved =
 
     interface IECSEvent
 
+/// Published when an entity has spawned.
 [<Sealed>]
 type EntitySpawned =
 
@@ -62,6 +69,7 @@ type EntitySpawned =
 
     interface IECSEvent
 
+/// Published when an entity was destroyed.
 [<Sealed>]
 type EntityDestroyed =
 
@@ -77,6 +85,7 @@ type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComp
 
 type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
 
+/// Responsible for querying/adding/removing components and spawning/destroying entities.
 [<Sealed>]
 type EntityManager =
 
