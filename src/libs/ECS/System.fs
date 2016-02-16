@@ -12,48 +12,50 @@ type HandleEvent<'T when 'T :> IECSEvent> (f: Entities -> 'T -> unit) =
         let handle = f entities
         events.GetEvent<'T>().Publish.Add handle
 
-type IECSSystem =
+type IECSSystem<'UpdateData> =
 
     abstract HandleEvents : HandleEvent list
 
-    abstract Update : Entities -> Events -> unit
+    abstract Init : Entities -> Events -> ('UpdateData -> unit)
 
 [<RequireQualifiedAccess>]
 module Systems =
 
     [<Sealed>]
-    type System (name: string, handleEvents, update) =
+    type System<'UpdateData> (name: string, handleEvents, init) =
 
         member this.Name = name
 
-        interface IECSSystem with
+        interface IECSSystem<'UpdateData> with
 
             member __.HandleEvents = handleEvents
 
-            member __.Update entities events =
-                update entities events
+            member __.Init entities events =
+                init entities events
 
     [<Sealed>]
-    type EventQueue<'T when 'T :> IECSEvent> (f) =
-        let queue = System.Collections.Concurrent.ConcurrentQueue<'T> ()
+    type EventQueue<'UpdateData, 'Event when 'Event :> IECSEvent> (f) =
+        let queue = System.Collections.Concurrent.ConcurrentQueue<'Event> ()
 
-        interface IECSSystem with
+        interface IECSSystem<'UpdateData> with
 
             member __.HandleEvents =
                 [
-                    HandleEvent<'T> (fun _ -> queue.Enqueue)
+                    HandleEvent<'Event> (fun _ -> queue.Enqueue)
                 ]
 
-            member __.Update entities _ =
-                let mutable event = Unchecked.defaultof<'T>
-                while queue.TryDequeue (&event) do
-                    f entities event
+            member __.Init entities _ =
+                let f = f entities
+                fun t ->
+                    let mutable event = Unchecked.defaultof<'Event>
+                    while queue.TryDequeue (&event) do
+                        f t event
 
     [<Sealed>]
     type EntityProcessor () =
 
-        interface IECSSystem with
+        interface IECSSystem<unit> with
 
             member __.HandleEvents = []
 
-            member __.Update entities _ = entities.Process ()
+            member __.Init entities _ = entities.Process

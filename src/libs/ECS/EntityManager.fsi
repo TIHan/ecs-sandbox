@@ -129,4 +129,5 @@ type EntityManager =
 
     member internal Process : unit -> unit
 
+/// Responsible for querying/adding/removing components and spawning/destroying entities.
 type Entities = EntityManager

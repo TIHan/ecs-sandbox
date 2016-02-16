@@ -206,6 +206,9 @@ type EntityManager =
     }
 
     static member Create (eventManager: EventManager, maxEntityAmount) =
+        if maxEntityAmount <= 0 then
+            failwith "Max entity amount must be greater than 0."
+
         let maxEntityAmount = maxEntityAmount + 1
         let lookup = Dictionary<Type, IEntityLookupData> ()
 

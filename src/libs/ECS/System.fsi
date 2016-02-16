@@ -13,35 +13,38 @@ type HandleEvent<'T when 'T :> IECSEvent> =
     new : (Entities -> 'T -> unit) -> HandleEvent<'T>
 
 /// Behavior that processes entities and the entities' components.
-type IECSSystem =
+/// The init method returns a function; that function is what gets called to update the system.
+type IECSSystem<'UpdateData> =
 
     abstract HandleEvents : HandleEvent list
 
-    abstract Update : Entities -> Events -> unit
+    abstract Init : Entities -> Events -> ('UpdateData -> unit)
 
 [<RequireQualifiedAccess>]
 module Systems =
 
-    /// Basic, non-typed system.
+    /// Basic system.
     [<Sealed>]
-    type System =
+    type System<'UpdateData> =
 
-        interface IECSSystem
+        member Name : string
 
-        new : string * HandleEvent list * (Entities -> Events -> unit) -> System
+        interface IECSSystem<'UpdateData>
+
+        new : string * HandleEvent list * (Entities -> Events -> 'UpdateData -> unit) -> System<'UpdateData>
 
     /// Queues the specified event type by listening to it. When update is called, it calls the lambda passed through the constructor.
     [<Sealed>]
-    type EventQueue<'T when 'T :> IECSEvent> =
+    type EventQueue<'UpdateData, 'Event when 'Event :> IECSEvent> =
 
-        interface IECSSystem
+        interface IECSSystem<'UpdateData>
 
-        new : (Entities -> 'T -> unit) -> EventQueue<'T>
+        new : (Entities -> 'UpdateData -> 'Event -> unit) -> EventQueue<'UpdateData, 'Event>
 
     /// Processes entities to see if any need to be destroyed/spawned and components added/removed.
     [<Sealed>]
     type EntityProcessor =
 
-        interface IECSSystem
+        interface IECSSystem<unit>
 
         new : unit -> EntityProcessor

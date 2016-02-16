@@ -3,13 +3,13 @@
 open ECS
 
 [<Sealed>]
-type SystemHandle<'T when 'T :> IECSSystem> =
+type SystemHandle<'T, 'UpdateData when 'T :> IECSSystem<'UpdateData>> =
 
-    member Update : (unit -> unit)
+    member Update : ('UpdateData -> unit)
 
 [<Sealed>]
 type World =
 
     new : maxEntityAmount: int -> World
    
-    member AddSystem<'T when 'T :> IECSSystem> : 'T -> SystemHandle<'T>
+    member AddSystem<'T, 'UpdateData when 'T :> IECSSystem<'UpdateData>> : 'T -> SystemHandle<'T, 'UpdateData>

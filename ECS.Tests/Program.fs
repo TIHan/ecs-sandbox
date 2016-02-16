@@ -89,19 +89,11 @@ module Tests =
 
         let entityProcessorHandle = world.AddSystem entityProcessor
 
-        let sys = Systems.System ("Test", handleEvents, fun entities events ->
+        let sys = Systems.System ("Test", handleEvents, fun entities events () ->
             f entities events entityProcessorHandle
         )
 
         (world.AddSystem sys).Update ()
-
-    module World =
-        type private Time =
-            {
-                mutable DeltaTime: float32
-            }
-        
-            interface IECSComponent
 
     [<Fact>]
     let ``when max entity amount is 10k, then creating and destroying 10k entities with 5 components three times will not fail`` () =
@@ -113,7 +105,10 @@ module Tests =
 
                 entityProcessorHandle.Update ()
 
+                let mutable entityCount = 0
+
                 entities.ForEach<TestComponent> (fun entity test ->
+                    entityCount <- entityCount + 1
                     entities.Destroy entity
                 )
 
@@ -138,6 +133,8 @@ module Tests =
                 entities.ForEach<TestComponent5> (fun _ _ ->
                     failwith "TestComponent5 was not deleted"
                 )
+
+                Assert.Equal (entityCount, count)
         )
 
     [<Fact>]
@@ -219,7 +216,7 @@ module Tests =
                 )
             ]
             (
-                fun entities events entityProcessorHandle ->
+                fun entities events entityProcessorHandle -> 
                     entities.Spawn test1Only
 
                     entityProcessorHandle.Update ()
@@ -287,7 +284,15 @@ module Tests =
 
     [<Fact>]
     let ``when a system with a float32 delta time value is required, the value is valid`` () =
-        ()
+        let world = World (1)
+
+        let expectedDeltaTime = 0.25f
+
+        let sys = Systems.System<float32> ("Test DeltaTime", [], fun entities events deltaTime ->
+            Assert.Equal (deltaTime, expectedDeltaTime)
+        )
+
+        (world.AddSystem sys).Update (0.25f)
 
 [<EntryPoint>]
 let main argv = 
