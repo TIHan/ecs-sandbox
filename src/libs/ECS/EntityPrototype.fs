@@ -1,4 +1,4 @@
-﻿namespace ECS
+﻿namespace BeyondGames.Ecs
 
 open System.Runtime.CompilerServices
 
@@ -21,7 +21,7 @@ module EntityPrototype =
             addComponents = fun entity entities -> p1.addComponents entity entities; p2.addComponents entity entities
         }
      
-    let addComponent (f: unit -> #IECSComponent) prototype =
+    let addComponent (f: unit -> #IEntityComponent) prototype =
         { prototype with
             addComponents = fun entity entities -> prototype.addComponents entity entities; entities.AddComponent entity (f ())
         }

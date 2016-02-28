@@ -1,4 +1,4 @@
-﻿namespace ECS
+﻿namespace BeyondGames.Ecs
 
 open System.Runtime.CompilerServices
 
@@ -12,7 +12,7 @@ module EntityPrototype =
 
     val combine : EntityPrototype -> EntityPrototype -> EntityPrototype
 
-    val addComponent : (unit -> #IECSComponent) -> EntityPrototype -> EntityPrototype
+    val addComponent<'T when 'T :> IEntityComponent and 'T : not struct> : (unit -> 'T) -> EntityPrototype -> EntityPrototype
 
 [<Sealed; Extension>]
 type EntityManagerExtensions =

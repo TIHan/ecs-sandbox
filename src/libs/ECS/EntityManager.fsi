@@ -1,4 +1,4 @@
-﻿namespace ECS
+﻿namespace BeyondGames.Ecs
 
 open System
 open System.Runtime.InteropServices
@@ -23,67 +23,74 @@ type Entity =
     new : int * uint32 -> Entity
 
 /// A marker for component data.
-type IECSComponent = interface end
+type IEntityComponent = interface end
 
-/// Published when a component was added to an existing entity.
-[<Sealed>]
-type ComponentAdded<'T when 'T :> IECSComponent> =
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module Events = 
 
-    val Entity : Entity
+    /// Published when a component was added to an existing entity.
+    [<Sealed>]
+    type ComponentAdded<'T when 'T :> IEntityComponent and 'T : not struct> =
 
-    interface IECSEvent
+        val Entity : Entity
 
-/// Published when a component was removed from an exsting entity.
-[<Sealed>]
-type ComponentRemoved<'T when 'T :> IECSComponent> = 
+        interface IEntityEvent
 
-    val Entity : Entity
+    /// Published when a component was removed from an exsting entity.
+    [<Sealed>]
+    type ComponentRemoved<'T when 'T :> IEntityComponent and 'T : not struct> = 
 
-    interface IECSEvent
+        val Entity : Entity
 
-/// Published when any component was added to an existing entity.
-[<Sealed>]
-type AnyComponentAdded = 
+        interface IEntityEvent
 
-    val Entity : Entity
+    /// Published when any component was added to an existing entity.
+    [<Sealed>]
+    type AnyComponentAdded = 
 
-    val ComponentType : Type
+        val Entity : Entity
 
-    interface IECSEvent
+        val ComponentType : Type
 
-/// Published when any component was removed from an existing entity.
-[<Sealed>]
-type AnyComponentRemoved =
-   
-    val Entity : Entity
+        interface IEntityEvent
 
-    val ComponentType : Type
+    /// Published when any component was removed from an existing entity.
+    [<Sealed>]
+    type AnyComponentRemoved =
+       
+        val Entity : Entity
 
-    interface IECSEvent
+        val ComponentType : Type
 
-/// Published when an entity has spawned.
-[<Sealed>]
-type EntitySpawned =
+        interface IEntityEvent
 
-    val Entity : Entity
+    /// Published when an entity has spawned.
+    [<Sealed>]
+    type EntitySpawned =
 
-    interface IECSEvent
+        val Entity : Entity
 
-/// Published when an entity was destroyed.
-[<Sealed>]
-type EntityDestroyed =
+        interface IEntityEvent
 
-    val Entity : Entity
+    /// Published when an entity was destroyed.
+    [<Sealed>]
+    type EntityDestroyed =
 
-    interface IECSEvent
+        val Entity : Entity
 
-type ForEachDelegate<'T when 'T :> IECSComponent> = delegate of Entity * byref<'T> -> unit
+        interface IEntityEvent
 
-type ForEachDelegate<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> -> unit
+type ForEachDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> unit
 
-type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
+type ForEachDelegate<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> = Entity -> 'T1 -> 'T2 -> unit//delegate of Entity * byref<'T1> * byref<'T2> -> unit
 
-type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
+type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
+
+type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
+
+type TryFindDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> bool
+
+type TryGetDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> unit
 
 /// Responsible for querying/adding/removing components and spawning/destroying entities.
 [<Sealed>]
@@ -93,33 +100,29 @@ type EntityManager =
 
     // Component Query
 
-    member TryGet<'T when 'T :> IECSComponent> : Entity -> 'T option
+    member TryGet<'T when 'T :> IEntityComponent and 'T : not struct> : Entity * TryGetDelegate<'T> -> bool
 
-    member TryFind<'T when 'T :> IECSComponent> : (Entity -> 'T -> bool) -> (Entity * 'T) option
+    member TryFind<'T when 'T :> IEntityComponent and 'T : not struct> : TryFindDelegate<'T> * TryGetDelegate<'T> -> bool
 
-    member GetAll<'T when 'T :> IECSComponent> : unit -> (Entity * 'T) []
+    member ForEach<'T when 'T :> IEntityComponent and 'T : not struct> : ForEachDelegate<'T> -> unit
 
-    member GetAll<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> : unit -> (Entity * 'T1 * 'T2) []
+    member ForEach<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> : ForEachDelegate<'T1, 'T2> -> unit
 
-    member ForEach<'T when 'T :> IECSComponent> : ForEachDelegate<'T> -> unit
+    member ForEach<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
 
-    member ForEach<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> : ForEachDelegate<'T1, 'T2> -> unit
+    member ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> : ForEachDelegate<'T1, 'T2, 'T3, 'T4> -> unit
 
-    member ForEach<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
+    member ParallelForEach<'T when 'T :> IEntityComponent and 'T : not struct> : ForEachDelegate<'T> -> unit
 
-    member ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent and 'T4 :> IECSComponent> : ForEachDelegate<'T1, 'T2, 'T3, 'T4> -> unit
+    member ParallelForEach<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> : ForEachDelegate<'T1, 'T2> -> unit
 
-    member ParallelForEach<'T when 'T :> IECSComponent> : ForEachDelegate<'T> -> unit
-
-    member ParallelForEach<'T1, 'T2 when 'T1 :> IECSComponent and 'T2 :> IECSComponent> : ForEachDelegate<'T1, 'T2> -> unit
-
-    member ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IECSComponent and 'T2 :> IECSComponent and 'T3 :> IECSComponent> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
+    member ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
 
     // Components
 
-    member internal AddComponent<'T when 'T :> IECSComponent> : Entity -> 'T -> unit
+    member internal AddComponent<'T when 'T :> IEntityComponent and 'T : not struct> : Entity -> 'T -> unit
 
-    member internal RemoveComponent<'T when 'T :> IECSComponent> : Entity -> unit
+    member internal RemoveComponent<'T when 'T :> IEntityComponent and 'T : not struct> : Entity -> unit
 
     // Entites
 
@@ -131,3 +134,19 @@ type EntityManager =
 
 /// Responsible for querying/adding/removing components and spawning/destroying entities.
 type Entities = EntityManager
+
+[<Sealed>]
+type Aspect<'T when 'T :> IEntityComponent and 'T : not struct> =
+
+    member ForEach : ForEachDelegate<'T> -> unit
+
+[<Sealed>]
+type Aspect<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> =
+
+    member ForEach : ForEachDelegate<'T1, 'T2> -> unit
+
+type EntityManager with
+
+    member GetAspect<'T when 'T :> IEntityComponent and 'T : not struct> : unit -> Aspect<'T>
+
+    member GetAspect<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> : unit -> Aspect<'T1, 'T2>

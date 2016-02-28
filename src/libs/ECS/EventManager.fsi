@@ -1,7 +1,7 @@
-﻿namespace ECS
+﻿namespace BeyondGames.Ecs
 
 /// A marker for event data.
-type IECSEvent = interface end
+type IEntityEvent = interface end
 
 /// Responsible for publishing events.
 [<Sealed>]
@@ -10,9 +10,9 @@ type EventManager =
     static member internal Create : unit -> EventManager
 
     /// Publishes an event to underlying subscribers.
-    member Publish : #IECSEvent -> unit
+    member Publish : #IEntityEvent -> unit
 
-    member internal GetEvent<'T when 'T :> IECSEvent> : unit -> Event<'T>
+    member internal GetEvent<'T when 'T :> IEntityEvent> : unit -> Event<'T>
 
 /// Responsible for publishing events.
 type Events = EventManager

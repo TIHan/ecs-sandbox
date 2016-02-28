@@ -1,15 +1,20 @@
-﻿namespace ECS.World
+﻿namespace BeyondGames.Ecs.World
 
-open ECS
+open System
+open BeyondGames.Ecs
 
 [<Sealed>]
-type SystemHandle<'T, 'UpdateData when 'T :> IECSSystem<'UpdateData>> =
+type SystemHandle<'UpdateData> =
 
-    member Update : ('UpdateData -> unit)
+    member Update : 'UpdateData -> unit
+
+    member Dispose : unit -> unit
+
+    interface IDisposable
 
 [<Sealed>]
 type World =
 
     new : maxEntityAmount: int -> World
    
-    member AddSystem<'T, 'UpdateData when 'T :> IECSSystem<'UpdateData>> : 'T -> SystemHandle<'T, 'UpdateData>
+    member AddSystem<'T, 'UpdateData when 'T :> IEntitySystem<'UpdateData>> : 'T -> SystemHandle<'UpdateData>

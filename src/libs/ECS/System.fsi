@@ -1,50 +1,52 @@
-﻿namespace ECS
+﻿namespace BeyondGames.Ecs
+
+open System
 
 /// A base handle to an event.
 [<AbstractClass>]
-type HandleEvent =
+type EntityEvent =
 
-    abstract internal Handle : Entities -> Events -> unit
+    abstract internal Handle : Entities -> Events -> IDisposable
 
 /// A handle to an event.
-type HandleEvent<'T when 'T :> IECSEvent> =
-    inherit HandleEvent
+[<Sealed; Class>]
+type EntityEvent<'T when 'T :> IEntityEvent> =
+    inherit EntityEvent
 
-    new : (Entities -> 'T -> unit) -> HandleEvent<'T>
+[<AutoOpen>]
+module EntityEventOperators =
+
+    val handle<'T when 'T :> IEntityEvent> : (Entities -> 'T -> unit) -> EntityEvent<'T>
+
+type IEntitySystemShutdown =
+
+    abstract Shutdown : unit -> unit
 
 /// Behavior that processes entities and the entities' components.
 /// The init method returns a function; that function is what gets called to update the system.
-type IECSSystem<'UpdateData> =
+type IEntitySystem<'UpdateData> =
 
-    abstract HandleEvents : HandleEvent list
+    abstract Events : EntityEvent list
 
-    abstract Init : Entities -> Events -> ('UpdateData -> unit)
+    abstract Initialize : Entities -> Events -> ('UpdateData -> unit)
 
 [<RequireQualifiedAccess>]
-module Systems =
+module EntitySystems =
 
     /// Basic system.
     [<Sealed>]
-    type System<'UpdateData> =
+    type EntitySystem<'UpdateData> =
 
         member Name : string
 
-        interface IECSSystem<'UpdateData>
+        interface IEntitySystem<'UpdateData>
 
-        new : string * HandleEvent list * (Entities -> Events -> 'UpdateData -> unit) -> System<'UpdateData>
-
-    /// Queues the specified event type by listening to it. When update is called, it calls the lambda passed through the constructor.
-    [<Sealed>]
-    type EventQueue<'UpdateData, 'Event when 'Event :> IECSEvent> =
-
-        interface IECSSystem<'UpdateData>
-
-        new : (Entities -> 'UpdateData -> 'Event -> unit) -> EventQueue<'UpdateData, 'Event>
+        new : string * EntityEvent list * (Entities -> Events -> 'UpdateData -> unit) -> EntitySystem<'UpdateData>
 
     /// Processes entities to see if any need to be destroyed/spawned and components added/removed.
     [<Sealed>]
     type EntityProcessor =
 
-        interface IECSSystem<unit>
+        interface IEntitySystem<unit>
 
         new : unit -> EntityProcessor
