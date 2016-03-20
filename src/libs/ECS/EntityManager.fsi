@@ -1,96 +1,108 @@
-﻿namespace BeyondGames.Ecs
+﻿namespace FSharp.ECS
 
 open System
 open System.Runtime.InteropServices
 
 #nowarn "9"
 
-/// Unique to the world.
+/// Construct that is an unique identifier to the world.
 [<Struct; StructLayout (LayoutKind.Explicit)>]
 type Entity =
 
+    /// Internally used to index entity data in the Entity Manager.
     [<FieldOffset (0)>]
     val Index : int
 
-    /// Version of the Entity in relation to its index. 
+    /// Version of the entity in relation to its index. 
     /// Re-using the index, will increment the version by one. Doing this repeatly, for example, 60 times a second, it will take more than two years to overflow.
     [<FieldOffset (4)>]
     val Version : uint32
 
+    /// A union, combining index and version. Useful for logging entities.
     [<FieldOffset (0); DefaultValue>]
     val Id : uint64
 
-    new : int * uint32 -> Entity
+    /// Checks to see if this Entity is zero-ed out.
+    member IsZero : bool
 
 /// A marker for component data.
 type IEntityComponent = interface end
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+/// Similar to Entity, but is typed on a specific component.
+/// Can make querying for the specific component of the given entity faster (no dictionary lookup).
+[<Sealed>]
+type EntityRef<'T when 'T :> IEntityComponent and 'T : not struct> =
+
+    /// The Entity that refers to EntityRef.
+    member Entity : Entity
+
+/// Defines what entities with the specified component type that Entity Manager is interested in.
+/// Can make querying for the entities faster (no dictionary lookup).
+[<Sealed>]
+type Aspect<'T when 'T :> IEntityComponent and 'T : not struct>
+
+/// Common events published by the Entity Manager.
 module Events = 
 
     /// Published when a component was added to an existing entity.
     [<Sealed>]
     type ComponentAdded<'T when 'T :> IEntityComponent and 'T : not struct> =
 
-        val Entity : Entity
+        /// The entity the component was added to.
+        member Entity : Entity
 
-        interface IEntityEvent
+        interface IEntitySystemEvent
 
     /// Published when a component was removed from an exsting entity.
     [<Sealed>]
     type ComponentRemoved<'T when 'T :> IEntityComponent and 'T : not struct> = 
 
-        val Entity : Entity
+        /// The entity the component was removed from.
+        member Entity : Entity
 
-        interface IEntityEvent
+        interface IEntitySystemEvent
 
     /// Published when any component was added to an existing entity.
     [<Sealed>]
     type AnyComponentAdded = 
 
-        val Entity : Entity
+        /// The entity the component was added to.
+        member Entity : Entity
 
-        val ComponentType : Type
+        /// The component type.
+        member ComponentType : Type
 
-        interface IEntityEvent
+        interface IEntitySystemEvent
 
     /// Published when any component was removed from an existing entity.
     [<Sealed>]
     type AnyComponentRemoved =
        
-        val Entity : Entity
+        /// The entity the component was removed from.
+        member Entity : Entity
 
-        val ComponentType : Type
+        /// The component type.
+        member ComponentType : Type
 
-        interface IEntityEvent
+        interface IEntitySystemEvent
 
     /// Published when an entity has spawned.
     [<Sealed>]
     type EntitySpawned =
 
-        val Entity : Entity
+        /// The entity spawned.
+        member Entity : Entity
 
-        interface IEntityEvent
+        interface IEntitySystemEvent
 
     /// Published when an entity was destroyed.
     [<Sealed>]
     type EntityDestroyed =
 
-        val Entity : Entity
+        /// The entity destroyed.
+        member Entity : Entity
 
-        interface IEntityEvent
-
-type ForEachDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> unit
-
-type ForEachDelegate<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> = Entity -> 'T1 -> 'T2 -> unit//delegate of Entity * byref<'T1> * byref<'T2> -> unit
-
-type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
-
-type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
-
-type TryFindDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> bool
-
-type TryGetDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> unit
+        interface IEntitySystemEvent
 
 /// Responsible for querying/adding/removing components and spawning/destroying entities.
 [<Sealed>]
@@ -98,25 +110,50 @@ type EntityManager =
 
     static member internal Create : EventManager * maxEntityCount: int -> EntityManager
 
-    // Component Query
+    //************************************************************************************************************************
 
-    member TryGet<'T when 'T :> IEntityComponent and 'T : not struct> : Entity * TryGetDelegate<'T> -> bool
+    /// Attempts to find an EntityRef of component type 'T.
+    member TryGetEntityRef<'T when 'T :> IEntityComponent and 'T : not struct> : Entity -> EntityRef<'T> option
 
-    member TryFind<'T when 'T :> IEntityComponent and 'T : not struct> : TryFindDelegate<'T> * TryGetDelegate<'T> -> bool
+    /// Gets an Aspect of component type 'T.
+    member GetAspect<'T when 'T :> IEntityComponent and 'T : not struct> : unit -> Aspect<'T>
 
-    member ForEach<'T when 'T :> IEntityComponent and 'T : not struct> : ForEachDelegate<'T> -> unit
+    //************************************************************************************************************************
 
-    member ForEach<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> : ForEachDelegate<'T1, 'T2> -> unit
+    /// Attempts to find a component of type 'T based on the specified Entity.
+    member TryGet<'T when 'T :> IEntityComponent and 'T : not struct> : Entity -> 'T option
 
-    member ForEach<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
+    /// Attempts to find a component of type 'T based on the specified EntityRef.
+    member TryGet<'T when 'T :> IEntityComponent and 'T : not struct> : EntityRef<'T> -> 'T option
 
-    member ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> : ForEachDelegate<'T1, 'T2, 'T3, 'T4> -> unit
+    /// Attempts to find a component of type 'T based on the specified Aspect and Entity.
+    member TryGet<'T when 'T :> IEntityComponent and 'T : not struct> : Aspect<'T> * Entity -> 'T option
 
-    member ParallelForEach<'T when 'T :> IEntityComponent and 'T : not struct> : ForEachDelegate<'T> -> unit
+    /// Checks to see if the Entity is valid.
+    member IsValid : Entity -> bool
 
-    member ParallelForEach<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> : ForEachDelegate<'T1, 'T2> -> unit
+    /// Checks to see if the Entity is valid and has a component of type 'T.
+    member HasComponent<'T when 'T :> IEntityComponent and 'T : not struct> : Entity -> bool
 
-    member ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> : ForEachDelegate<'T1, 'T2, 'T3> -> unit
+    //************************************************************************************************************************
+
+    /// Attempts to find a component of type 'T and its corresponding Entity based on the criteria.
+    member TryFind<'T when 'T :> IEntityComponent and 'T : not struct> : predicate: (Entity -> 'T -> bool) -> (Entity * 'T) option
+
+    /// Iterate entities that have a component of type 'T.
+    member ForEach<'T when 'T :> IEntityComponent and 'T : not struct> : (Entity -> 'T -> unit) -> unit
+
+    /// Iterate entities that have a component of type 'T on the Aspect.
+    member ForEach<'T when 'T :> IEntityComponent and 'T : not struct> : Aspect<'T> * (Entity -> 'T -> unit) -> unit
+
+    /// Iterate entities that have components of type 'T1 and 'T2.
+    member ForEach<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> : (Entity -> 'T1 -> 'T2 -> unit) -> unit
+
+    /// Iterate entities that have components of type 'T1, 'T2, and 'T3.
+    member ForEach<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> : (Entity -> 'T1 -> 'T2 -> 'T3 -> unit) -> unit
+
+    /// Iterate entities that have components of type 'T1, 'T2, 'T3, and 'T4.
+    member ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> : (Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit) -> unit
 
     // Components
 
@@ -126,27 +163,7 @@ type EntityManager =
 
     // Entites
 
-    member internal Spawn : (Entity -> unit) -> unit
+    member internal Spawn : (Entity -> unit) -> Entity
 
+    /// Defers to destroy the specified Entity.
     member Destroy : Entity -> unit
-
-    member internal Process : unit -> unit
-
-/// Responsible for querying/adding/removing components and spawning/destroying entities.
-type Entities = EntityManager
-
-[<Sealed>]
-type Aspect<'T when 'T :> IEntityComponent and 'T : not struct> =
-
-    member ForEach : ForEachDelegate<'T> -> unit
-
-[<Sealed>]
-type Aspect<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> =
-
-    member ForEach : ForEachDelegate<'T1, 'T2> -> unit
-
-type EntityManager with
-
-    member GetAspect<'T when 'T :> IEntityComponent and 'T : not struct> : unit -> Aspect<'T>
-
-    member GetAspect<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> : unit -> Aspect<'T1, 'T2>

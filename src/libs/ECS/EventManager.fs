@@ -1,9 +1,9 @@
-﻿namespace BeyondGames.Ecs
+﻿namespace FSharp.ECS
 
 open System
 open System.Collections.Concurrent
 
-type IEntityEvent = interface end
+type IEntitySystemEvent = interface end
 
 [<ReferenceEquality>]
 type EventManager  =
@@ -16,12 +16,10 @@ type EventManager  =
             Lookup = ConcurrentDictionary<Type, obj> ()
         }
 
-    member this.Publish (event: 'T when 'T :> IEntityEvent) =
+    member this.Publish (event: 'T when 'T :> IEntitySystemEvent and 'T : not struct) =
         let mutable value = Unchecked.defaultof<obj>
         if this.Lookup.TryGetValue (typeof<'T>, &value) then
             (value :?> Event<'T>).Trigger event
 
-    member this.GetEvent<'T when 'T :> IEntityEvent> () =
+    member this.GetEvent<'T when 'T :> IEntitySystemEvent> () =
        this.Lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj)) :?> Event<'T>
-
-type Events = EventManager

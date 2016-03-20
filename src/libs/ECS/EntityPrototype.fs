@@ -1,6 +1,4 @@
-﻿namespace BeyondGames.Ecs
-
-open System.Runtime.CompilerServices
+﻿namespace FSharp.ECS
 
 [<ReferenceEquality>]
 type EntityPrototype =
@@ -26,11 +24,12 @@ module EntityPrototype =
             addComponents = fun entity entities -> prototype.addComponents entity entities; entities.AddComponent entity (f ())
         }
 
-[<Sealed; Extension>]
-type EntityManagerExtensions private () =
+[<AutoOpen>]
+module EntityManagerExtensions =
 
-    [<Extension>]
-    static member Spawn (entityManager: EntityManager, prototype: EntityPrototype) =
-        entityManager.Spawn (fun entity ->
-            prototype.addComponents entity entityManager
-        )        
+    type EntityManager with
+
+        member this.Spawn (prototype: EntityPrototype) =
+            this.Spawn (fun entity ->
+                prototype.addComponents entity this
+            )     

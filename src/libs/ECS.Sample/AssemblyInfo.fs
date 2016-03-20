@@ -1,8 +1,8 @@
-﻿namespace ECS.Tests
+﻿namespace ECS.Sample
 open System.Reflection
 open System.Runtime.CompilerServices
 
-[<assembly: AssemblyTitle("ECS.Tests")>]
+[<assembly: AssemblyTitle("ECS.Sample")>]
 [<assembly: AssemblyDescription("")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("")>]

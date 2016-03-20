@@ -1,52 +1,54 @@
-﻿namespace BeyondGames.Ecs
+﻿namespace FSharp.ECS
 
 open System
 
-/// A base handle to an event.
 [<AbstractClass>]
-type EntityEvent =
+type internal EntitySystemEvent =
 
-    abstract internal Handle : Entities -> Events -> IDisposable
+    abstract internal Handle : EventManager -> IDisposable
 
-/// A handle to an event.
-[<Sealed; Class>]
-type EntityEvent<'T when 'T :> IEntityEvent> =
-    inherit EntityEvent
+type internal InitializeResult<'Update> =
+    | Update of name: string * ('Update -> unit)
+    | Merged of name: string * IEntitySystem<'Update> list
+    | NoResult
 
-[<AutoOpen>]
-module EntityEventOperators =
+and internal IEntitySystem<'Update> =
 
-    val handle<'T when 'T :> IEntityEvent> : (Entities -> 'T -> unit) -> EntityEvent<'T>
-
-type IEntitySystemShutdown =
+    abstract Events : EntitySystemEvent list
 
     abstract Shutdown : unit -> unit
 
-/// Behavior that processes entities and the entities' components.
-/// The init method returns a function; that function is what gets called to update the system.
-type IEntitySystem<'UpdateData> =
+    abstract Initialize : EntityManager -> EventManager -> InitializeResult<'Update>
 
-    abstract Events : EntityEvent list
+/// Construct that is responsible for behaviour.
+type EntitySystem<'Update> = internal EntitySystem of (unit -> IEntitySystem<'Update>)
 
-    abstract Initialize : Entities -> Events -> ('UpdateData -> unit)
-
+/// Contains functions that help compose Entity Systems.
 [<RequireQualifiedAccess>]
-module EntitySystems =
+module EntitySystem =
 
-    /// Basic system.
-    [<Sealed>]
-    type EntitySystem<'UpdateData> =
+    /// Creates an Entity System that will execute the given lambda lazily on initialization.
+    /// This is useful for expressing Entity Systems that have their own state.
+    val build : (unit -> EntitySystem<'Update>) -> EntitySystem<'Update>
 
-        member Name : string
+    /// Takes a list of Entity Systems and merges them into one.
+    val merge : name: string -> EntitySystem<'Update> list -> EntitySystem<'Update>
 
-        interface IEntitySystem<'UpdateData>
+/// Contains Entity System primitives to build more complex Entity Systems.
+module Systems =
 
-        new : string * EntityEvent list * (Entities -> Events -> 'UpdateData -> unit) -> EntitySystem<'UpdateData>
+    /// Basic system that performs an update.
+    /// Partially applies the given lambda on initialization before the update function gets evaluated.
+    val system : name: string -> update: (EntityManager -> EventManager -> ('Update -> unit)) -> EntitySystem<'Update>
 
-    /// Processes entities to see if any need to be destroyed/spawned and components added/removed.
-    [<Sealed>]
-    type EntityProcessor =
+    /// Event Listener system that handles the specified event immediately.
+    /// This should only be used in a handful of cases.
+    val eventListener<'Update, 'Event when 'Event :> IEntitySystemEvent and 'Event : not struct> : ('Event -> unit) -> EntitySystem<'Update>
 
-        interface IEntitySystem<unit>
+    /// Event Queue system that handles the specified event by placing it into a queue.
+    /// The queue will be processed on update. Thread safe.
+    /// Partially applies the given lambda on initialization before the update function gets evaluated.
+    val eventQueue<'Update, 'Event when 'Event :> IEntitySystemEvent and 'Event : not struct> : (EntityManager -> EventManager -> ('Update -> 'Event -> unit)) -> EntitySystem<'Update>
 
-        new : unit -> EntityProcessor
+    /// Shutdown system that executes the given lambda when a system has been called to shutdown.
+    val shutdown<'Update> : (unit -> unit) -> EntitySystem<'Update>

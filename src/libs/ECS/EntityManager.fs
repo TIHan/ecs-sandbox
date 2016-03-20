@@ -1,4 +1,4 @@
-﻿namespace BeyondGames.Ecs
+﻿namespace FSharp.ECS
 
 open System
 open System.Reflection
@@ -76,88 +76,65 @@ type Entity =
 
     new (index, version) = { Index = index; Version = version }
 
-    override this.ToString () = String.Format ("(Entity #{0})", this.Id)
+    member this.IsZero = this.Id = 0UL
+
+    override this.ToString () = String.Format ("(Entity #{0}.{1})", this.Index, this.Version)
 
 type IEntityComponent = interface end
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Events =
 
-    [<Sealed>]
-    type ComponentAdded<'T when 'T :> IEntityComponent and 'T : not struct> =
+    type ComponentAdded<'T when 'T :> IEntityComponent and 'T : not struct> = 
+        { entity: Entity }
 
-        val Entity : Entity
+        member this.Entity = this.entity
 
-        new (entity) = { Entity = entity }
+        interface IEntitySystemEvent
 
-        interface IEntityEvent
+    type ComponentRemoved<'T when 'T :> IEntityComponent and 'T : not struct> = 
+        { entity: Entity }
 
-    [<Sealed>]
-    type ComponentRemoved<'T when 'T :> IEntityComponent and 'T : not struct> =
+        member this.Entity = this.entity
 
-        val Entity : Entity
+        interface IEntitySystemEvent
 
-        new (entity) = { Entity = entity }
-
-        interface IEntityEvent
-
-    [<Sealed>]
     type AnyComponentAdded =
+        { entity: Entity; componentType: Type }
 
-        val Entity : Entity
+        member this.Entity = this.entity
 
-        val ComponentType : Type
+        member this.ComponentType = this.componentType
 
-        new (entity, typ) = { Entity = entity; ComponentType = typ }
+        interface IEntitySystemEvent
 
-        interface IEntityEvent
-
-    [<Sealed>]
     type AnyComponentRemoved =
+        { entity: Entity; componentType: Type }
 
-        val Entity : Entity
+        member this.Entity = this.entity
 
-        val ComponentType : Type
+        member this.ComponentType = this.componentType
 
-        new (entity, typ) = { Entity = entity; ComponentType = typ }
+        interface IEntitySystemEvent
 
-        interface IEntityEvent
-
-    [<Sealed>]
     type EntitySpawned =
+        { entity: Entity }
 
-        val Entity : Entity
+        member this.Entity = this.entity
 
-        new (entity) = { Entity = entity }
+        interface IEntitySystemEvent
 
-        interface IEntityEvent
-
-    [<Sealed>]
     type EntityDestroyed =
+        { entity: Entity }
 
-        val Entity : Entity
+        member this.Entity = this.entity
 
-        new (entity) = { Entity = entity }
-
-        interface IEntityEvent
+        interface IEntitySystemEvent
 
 open Events
 
 type IEntityLookupData =
 
     abstract Entities : Entity UnsafeResizeArray with get
-
-type ForEachDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> unit
-
-type ForEachDelegate<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> = Entity -> 'T1 -> 'T2 -> unit//delegate of Entity * byref<'T1> * byref<'T2> -> unit
-
-type ForEachDelegate<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> -> unit
-
-type ForEachDelegate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> = delegate of Entity * byref<'T1> * byref<'T2> * byref<'T3> * byref<'T4> -> unit
-
-type TryFindDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> bool
-
-type TryGetDelegate<'T when 'T :> IEntityComponent and 'T : not struct> = delegate of Entity * byref<'T> -> unit
 
 [<ReferenceEquality>]
 type EntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> =
@@ -166,7 +143,6 @@ type EntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> =
         ComponentRemovedEvent: Event<ComponentRemoved<'T>>
 
         RemoveComponent: Entity -> unit
-        RemoveComponentNow: Entity -> unit
 
         Active: bool []
         IndexLookup: int []
@@ -178,52 +154,54 @@ type EntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> =
 
         member this.Entities = this.Entities
 
-module AspectIterations =
+type EntityRef<'T when 'T :> IEntityComponent and 'T : not struct> =
+    {
+        entity: Entity
+        data: EntityLookupData<'T>
+    }
 
-    let inline iter<'T when 'T :> IEntityComponent and 'T : not struct> (del: ForEachDelegate<'T>) useParallelism (data: EntityLookupData<'T>) (activeIndices: bool []) =
-        let count = data.Entities.Count
-        let active = data.Active
-        let entities = data.Entities.Buffer
-        let components = data.Components.Buffer
+    member this.Entity = this.entity
 
-        let inline iter i = 
-            let entity = entities.[i]
+    override this.ToString () = String.Format ("(Entity #{0}) (Component #{1})", this.Entity.Id, typeof<'T>.Name)
 
-            if active.[entity.Index] && activeIndices.[entity.Index] then
-                del.Invoke (entity, &components.[i])
+type Aspect<'T when 'T :> IEntityComponent and 'T : not struct> =
+    {
+        Data: EntityLookupData<'T>
+    }
 
-        if useParallelism
-        then Parallel.For (0, count, iter) |> ignore
-        else
-            for i = 0 to count - 1 do
-                iter i
+module Internal =
+   
+    [<Literal>]
+    let ThreadError = "You cannot perform this Entity Manager action on a different thread."
 
-    let inline iter2<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> (del: ForEachDelegate<'T1, 'T2>) useParallelism (data: IEntityLookupData) (data1: EntityLookupData<'T1>) (data2: EntityLookupData<'T2>) (activeIndices: bool []) : unit =
-        let count = data.Entities.Count
-        let entities = data.Entities.Buffer
+    let inline iter<'T when 'T :> IEntityComponent and 'T : not struct> (f: Entity -> 'T -> unit) (data: EntityLookupData<'T>) (activeIndices: bool []) =
 
         let inline iter i =
-            let entity = entities.[i]
+            let entity = data.Entities.Buffer.[i]
+
+            if data.Active.[entity.Index] && activeIndices.[entity.Index] then
+                f entity data.Components.Buffer.[i]
+
+        for i = 0 to data.Entities.Count - 1 do iter i
+
+    let inline iter2<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> (f: Entity -> 'T1 -> 'T2 -> unit) (data: IEntityLookupData) (data1: EntityLookupData<'T1>) (data2: EntityLookupData<'T2>) (activeIndices: bool []) : unit =
+
+        let inline iter i =
+            let entity = data.Entities.Buffer.[i]
 
             if activeIndices.[entity.Index] then
                 let comp1Index = data1.IndexLookup.[entity.Index]
                 let comp2Index = data2.IndexLookup.[entity.Index]
 
                 if comp1Index >= 0 && comp2Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] then
-                    del entity data1.Components.Buffer.[comp1Index] data2.Components.Buffer.[comp2Index]
+                    f entity data1.Components.Buffer.[comp1Index] data2.Components.Buffer.[comp2Index]
 
-        if useParallelism
-        then Parallel.For (0, count, iter) |> ignore
-        else
-            for i = 0 to count - 1 do
-                iter i
+        for i = 0 to data.Entities.Count - 1 do iter i
 
-    let inline iter3<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> (del: ForEachDelegate<'T1, 'T2, 'T3>) useParallelism (data: IEntityLookupData) (data1: EntityLookupData<'T1>) (data2: EntityLookupData<'T2>) (data3: EntityLookupData<'T3>) (activeIndices: bool []) : unit =
-        let count = data.Entities.Count
-        let entities = data.Entities.Buffer
+    let inline iter3<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> unit) (data: IEntityLookupData) (data1: EntityLookupData<'T1>) (data2: EntityLookupData<'T2>) (data3: EntityLookupData<'T3>) (activeIndices: bool []) : unit =
 
         let inline iter i =
-            let entity = entities.[i]
+            let entity = data.Entities.Buffer.[i]
 
             if activeIndices.[entity.Index] then
                 let comp1Index = data1.IndexLookup.[entity.Index]
@@ -231,20 +209,14 @@ module AspectIterations =
                 let comp3Index = data3.IndexLookup.[entity.Index]
 
                 if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] && data3.Active.[entity.Index] then
-                    del.Invoke (entity, &data1.Components.Buffer.[comp1Index], &data2.Components.Buffer.[comp2Index], &data3.Components.Buffer.[comp3Index])
+                    f entity data1.Components.Buffer.[comp1Index] data2.Components.Buffer.[comp2Index] data3.Components.Buffer.[comp3Index]
 
-        if useParallelism
-        then Parallel.For (0, count, iter) |> ignore
-        else
-            for i = 0 to count - 1 do
-                iter i
+        for i = 0 to data.Entities.Count - 1 do iter i
 
-    let inline iter4<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> (del: ForEachDelegate<'T1, 'T2, 'T3, 'T4>) useParallelism (data: IEntityLookupData) (data1: EntityLookupData<'T1>) (data2: EntityLookupData<'T2>) (data3: EntityLookupData<'T3>) (data4: EntityLookupData<'T4>) (activeIndices: bool []) : unit =
-        let count = data.Entities.Count
-        let entities = data.Entities.Buffer
+    let inline iter4<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> (f: Entity -> 'T1 -> 'T2 -> 'T3 -> 'T4 -> unit) (data: IEntityLookupData) (data1: EntityLookupData<'T1>) (data2: EntityLookupData<'T2>) (data3: EntityLookupData<'T3>) (data4: EntityLookupData<'T4>) (activeIndices: bool []) : unit =
 
         let inline iter i =
-            let entity = entities.[i]
+            let entity = data.Entities.Buffer.[i]
 
             if activeIndices.[entity.Index] then
                 let comp1Index = data1.IndexLookup.[entity.Index]
@@ -253,13 +225,32 @@ module AspectIterations =
                 let comp4Index = data4.IndexLookup.[entity.Index]
 
                 if comp1Index >= 0 && comp2Index >= 0 && comp3Index >= 0 && comp4Index >= 0 && data1.Active.[entity.Index] && data2.Active.[entity.Index] && data3.Active.[entity.Index] && data4.Active.[entity.Index] then
-                    del.Invoke (entity, &data1.Components.Buffer.[comp1Index], &data2.Components.Buffer.[comp2Index], &data3.Components.Buffer.[comp3Index], &data4.Components.Buffer.[comp4Index])
+                    f entity data1.Components.Buffer.[comp1Index] data2.Components.Buffer.[comp2Index] data3.Components.Buffer.[comp3Index] data4.Components.Buffer.[comp4Index]
 
-        if useParallelism
-        then Parallel.For (0, count, iter) |> ignore
+        for i = 0 to data.Entities.Count - 1 do iter i
+
+    let inline isValidEntity (entity: Entity) (activeVersions: uint32 []) =
+        not (entity.Index.Equals 0u) && activeVersions.[entity.Index].Equals entity.Version
+
+    let inline tryGet<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) (data: EntityLookupData<'T>) (activeVersions: uint32 []) =
+        if isValidEntity entity activeVersions then
+            let index = data.IndexLookup.[entity.Index]
+            if index >= 0 then
+                Some data.Components.Buffer.[index]
+            else
+                None
         else
-            for i = 0 to count - 1 do
-                iter i
+            None
+
+    let inline tryGetEntityRef<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) (data: EntityLookupData<'T>) (activeVersions: uint32 []) =
+        if isValidEntity entity activeVersions then
+            let index = data.IndexLookup.[entity.Index]
+            if index >= 0 then
+                Some ({ entity = entity; data = data })
+            else
+                None
+        else
+            None
 
 [<ReferenceEquality>]
 type EntityManager =
@@ -277,23 +268,19 @@ type EntityManager =
 
         EntityRemovals: ((Entity -> unit) ResizeArray) []
 
-        AddComponentQueue: ConcurrentQueue<unit -> unit>
-        RemoveComponentQueue: ConcurrentQueue<unit -> unit>
-
-        SpawnEntityQueue: ConcurrentQueue<unit -> unit>
-        DestroyEntityQueue: ConcurrentQueue<Entity>
-
-        EmitAddComponentEventQueue: Queue<unit -> unit>
-        EmitRemoveComponentEventQueue: Queue<unit -> unit>
-
-        EmitSpawnEntityEventQueue: Queue<unit -> unit>
-        EmitDestroyEntityEventQueue: Queue<unit -> unit>
-
         EntitySpawnedEvent: Event<EntitySpawned>
         EntityDestroyedEvent: Event<EntityDestroyed>
 
         AnyComponentAddedEvent: Event<AnyComponentAdded>
         AnyComponentRemovedEvent: Event<AnyComponentRemoved>
+
+        ThreadId: int
+
+        mutable CurrentIterations: int
+        PendingEntityRemovalQueue: Queue<Entity>
+        PendingComponentRemovalQueue: Queue<Entity * (Entity -> unit)>
+        PendingComponentAdditionsQueue: Queue<Entity * (Entity -> unit)>
+        PendingComponentAdditionQueue: Queue<unit -> unit>
     }
 
     static member Create (eventManager: EventManager, maxEntityAmount) =
@@ -311,18 +298,6 @@ type EntityManager =
 
         let entityRemovals : ((Entity -> unit) ResizeArray) [] = Array.init maxEntityAmount (fun _ -> ResizeArray ())
 
-        let addComponentQueue = ConcurrentQueue<unit -> unit> ()
-        let removeComponentQueue = ConcurrentQueue<unit -> unit> ()
-
-        let spawnEntityQueue = ConcurrentQueue<unit -> unit> ()
-        let destroyEntityQueue = ConcurrentQueue<Entity> ()
-
-        let emitAddComponentEventQueue = Queue<unit -> unit> ()
-        let emitRemoveComponentEventQueue = Queue<unit -> unit> ()
-
-        let emitSpawnEntityEventQueue = Queue<unit -> unit> ()
-        let emitDestroyEntityEventQueue = Queue<unit -> unit> ()
-
         let entitySpawnedEvent = eventManager.GetEvent<EntitySpawned> ()
         let entityDestroyedEvent = eventManager.GetEvent<EntityDestroyed> ()
 
@@ -338,62 +313,39 @@ type EntityManager =
             nextEntityIndex = nextEntityIndex
             RemovedEntityQueue = removedEntityQueue
             EntityRemovals = entityRemovals
-            AddComponentQueue = addComponentQueue
-            RemoveComponentQueue = removeComponentQueue
-            SpawnEntityQueue = spawnEntityQueue
-            DestroyEntityQueue = destroyEntityQueue
-            EmitAddComponentEventQueue = emitAddComponentEventQueue
-            EmitRemoveComponentEventQueue = emitRemoveComponentEventQueue
-            EmitSpawnEntityEventQueue = emitSpawnEntityEventQueue
-            EmitDestroyEntityEventQueue = emitDestroyEntityEventQueue
             EntitySpawnedEvent = entitySpawnedEvent
             EntityDestroyedEvent = entityDestroyedEvent
             AnyComponentAddedEvent = anyComponentAddedEvent
             AnyComponentRemovedEvent = anyComponentRemovedEvent
+            ThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId
+            CurrentIterations = 0
+            PendingEntityRemovalQueue = Queue ()
+            PendingComponentRemovalQueue = Queue ()
+            PendingComponentAdditionsQueue = Queue ()
+            PendingComponentAdditionQueue = Queue ()
         }
-
-    member inline this.ProcessQueue (queue: Queue<unit -> unit>) =
-        while queue.Count > 0 do
-            queue.Dequeue () ()
-
-    member inline this.ProcessConcurrentQueue (queue: ConcurrentQueue<unit -> unit>) =
-        let mutable f = Unchecked.defaultof<unit -> unit>
-        while queue.TryDequeue (&f) do
-            f ()
 
     member inline this.IsValidEntity (entity: Entity) =
         not (entity.Index.Equals 0u) && this.ActiveVersions.[entity.Index].Equals entity.Version
 
-    member this.Process () =
-        while
-            not this.AddComponentQueue.IsEmpty          ||
-            not this.RemoveComponentQueue.IsEmpty       ||
-            not this.SpawnEntityQueue.IsEmpty           ||
-            not this.DestroyEntityQueue.IsEmpty
-                do
+    member inline this.ResolvePendingQueues () =
+        if this.CurrentIterations = 0 then
 
-            // ******************************************
-            // ************ Entity and Component Removing
-            // ******************************************
-            let mutable entity = Unchecked.defaultof<Entity>
-            while this.DestroyEntityQueue.TryDequeue (&entity) do
-                this.DestoryNow entity
+            while this.PendingEntityRemovalQueue.Count > 0 do
+                let entity = this.PendingEntityRemovalQueue.Dequeue ()
+                this.Destroy entity
 
-            this.ProcessConcurrentQueue  this.RemoveComponentQueue
+            while this.PendingComponentRemovalQueue.Count > 0 do
+                let entity, remove = this.PendingComponentRemovalQueue.Dequeue ()
+                remove entity
 
-            this.ProcessQueue            this.EmitRemoveComponentEventQueue
-            this.ProcessQueue            this.EmitDestroyEntityEventQueue
-            // ******************************************
+            while this.PendingComponentAdditionsQueue.Count > 0 do
+                let entity, f = this.PendingComponentAdditionsQueue.Dequeue ()
+                f entity
 
-            // ******************************************
-            // ************** Entity and Component Adding
-            // ******************************************
-            this.ProcessConcurrentQueue  this.SpawnEntityQueue
-            this.ProcessConcurrentQueue  this.AddComponentQueue
-
-            this.ProcessQueue            this.EmitAddComponentEventQueue
-            this.ProcessQueue            this.EmitSpawnEntityEventQueue
-            // ******************************************
+            while this.PendingComponentAdditionQueue.Count > 0 do
+                let action = this.PendingComponentAdditionQueue.Dequeue ()
+                action ()
 
     member this.GetEntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> () : EntityLookupData<'T> =
         let t = typeof<'T>
@@ -408,7 +360,6 @@ type EntityManager =
                         ComponentRemovedEvent = this.EventManager.GetEvent<ComponentRemoved<'T>> ()
 
                         RemoveComponent = fun entity -> this.RemoveComponent<'T> entity
-                        RemoveComponentNow = fun entity -> this.RemoveComponentNow<'T> entity
 
                         Active = Array.zeroCreate<bool> this.MaxEntityAmount
                         IndexLookup = Array.init this.MaxEntityAmount (fun _ -> -1) // -1 means that no component exists for that entity
@@ -420,22 +371,22 @@ type EntityManager =
 
             this.Lookup.GetOrAdd(t, factory) :?> EntityLookupData<'T>
 
-    member inline this.Iterate<'T when 'T :> IEntityComponent and 'T : not struct> (del: ForEachDelegate<'T>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T when 'T :> IEntityComponent and 'T : not struct> (f) : unit =
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if this.Lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
-            AspectIterations.iter del useParallelism data this.ActiveIndices
+            Internal.iter f data this.ActiveIndices
 
-    member inline this.Iterate<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> (del: ForEachDelegate<'T1, 'T2>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> (f) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         if this.Lookup.TryGetValue (typeof<'T1>, &data1) && this.Lookup.TryGetValue (typeof<'T2>, &data2) then
             let data = [|data1;data2|] |> Array.minBy (fun x -> x.Entities.Count)
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
-            AspectIterations.iter2 del useParallelism data data1 data2 this.ActiveIndices
+            Internal.iter2 f data data1 data2 this.ActiveIndices
 
-    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> (del: ForEachDelegate<'T1, 'T2, 'T3>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> (f) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -445,9 +396,9 @@ type EntityManager =
             let data1 = data1 :?> EntityLookupData<'T1>
             let data2 = data2 :?> EntityLookupData<'T2>
             let data3 = data3 :?> EntityLookupData<'T3>
-            AspectIterations.iter3 del useParallelism data data1 data2 data3 this.ActiveIndices
+            Internal.iter3 f data data1 data2 data3 this.ActiveIndices
 
-    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> (del: ForEachDelegate<'T1, 'T2, 'T3, 'T4>, useParallelism: bool) : unit =
+    member inline this.Iterate<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> (f) : unit =
         let mutable data1 = Unchecked.defaultof<IEntityLookupData>
         let mutable data2 = Unchecked.defaultof<IEntityLookupData>
         let mutable data3 = Unchecked.defaultof<IEntityLookupData>
@@ -459,20 +410,25 @@ type EntityManager =
             let data2 = data2 :?> EntityLookupData<'T2>
             let data3 = data3 :?> EntityLookupData<'T3>
             let data4 = data4 :?> EntityLookupData<'T4>
-            AspectIterations.iter4 del useParallelism data data1 data2 data3 data4 this.ActiveIndices
+            Internal.iter4 f data data1 data2 data3 data4 this.ActiveIndices
 
     // Components
 
     member this.AddComponent<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) (comp: 'T) =
-        this.AddComponentQueue.Enqueue (fun () ->
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
 
+        if this.CurrentIterations > 0 then
+            let data = this.GetEntityLookupData<'T> ()
+            this.PendingComponentAdditionQueue.Enqueue (fun () -> this.AddComponent entity comp)
+        else
             if this.IsValidEntity entity then
                 let data = this.GetEntityLookupData<'T> ()
 
                 if data.IndexLookup.[entity.Index] >= 0 then
                     printfn "ECS WARNING: Component, %s, already added to %A." typeof<'T>.Name entity
                 else
-                    this.EntityRemovals.[entity.Index].Add (data.RemoveComponentNow)
+                    this.EntityRemovals.[entity.Index].Add (data.RemoveComponent)
 
                     data.Active.[entity.Index] <- true
                     data.IndexLookup.[entity.Index] <- data.Entities.Count
@@ -480,196 +436,239 @@ type EntityManager =
                     data.Components.Add comp
                     data.Entities.Add entity
 
-                    this.EmitAddComponentEventQueue.Enqueue (fun () ->
-                        this.AnyComponentAddedEvent.Trigger (AnyComponentAdded (entity, typeof<'T>))
-                        data.ComponentAddedEvent.Trigger (ComponentAdded<'T> (entity))
-                    )
-
+                    this.AnyComponentAddedEvent.Trigger ({ entity = entity; componentType = typeof<'T> })
+                    data.ComponentAddedEvent.Trigger ({ entity = entity })
             else
                 printfn "ECS WARNING: %A is invalid. Cannot add component, %s." entity typeof<'T>.Name
 
-        )
-
-    member this.RemoveComponentNow<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) =
-        if this.IsValidEntity entity then
-            let data = this.GetEntityLookupData<'T> ()
-
-            if data.IndexLookup.[entity.Index] >= 0 then
-                let index = data.IndexLookup.[entity.Index]
-                let swappingEntity = data.Entities.LastItem
-
-                data.Entities.SwapRemoveAt index
-                data.Components.SwapRemoveAt index
-
-                data.Active.[entity.Index] <- false
-                data.IndexLookup.[entity.Index] <- -1
-
-                if not (entity.Index.Equals swappingEntity.Index) then
-                    data.IndexLookup.[swappingEntity.Index] <- index
-
-                this.EmitRemoveComponentEventQueue.Enqueue (fun () ->
-                    this.AnyComponentRemovedEvent.Trigger (AnyComponentRemoved (entity, typeof<'T>))
-                    data.ComponentRemovedEvent.Trigger (ComponentRemoved<'T> (entity))
-                )
-            else
-                printfn "ECS WARNING: Component, %s, does not exist on %A." typeof<'T>.Name entity
-
-        else
-            printfn "ECS WARNING: %A is invalid. Cannot remove component, %s." entity typeof<'T>.Name
-
     member this.RemoveComponent<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) =
-        this.RemoveComponentQueue.Enqueue (fun () -> this.RemoveComponentNow<'T> (entity))
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
 
-    // Entities
+        if this.CurrentIterations > 0 then
+            let data = this.GetEntityLookupData<'T> ()
+            this.PendingComponentRemovalQueue.Enqueue ((entity, data.RemoveComponent))
+        else
+            if this.IsValidEntity entity then
+                let data = this.GetEntityLookupData<'T> ()
 
-    member this.Spawn f =             
-        this.SpawnEntityQueue.Enqueue (fun () ->
+                if data.IndexLookup.[entity.Index] >= 0 then
+                    let index = data.IndexLookup.[entity.Index]
+                    let swappingEntity = data.Entities.LastItem
 
-            if this.RemovedEntityQueue.Count = 0 && this.nextEntityIndex >= this.MaxEntityAmount then
-                printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (this.MaxEntityAmount - 1)
+                    data.Entities.SwapRemoveAt index
+                    data.Components.SwapRemoveAt index
+
+                    data.Active.[entity.Index] <- false
+                    data.IndexLookup.[entity.Index] <- -1
+
+                    if not (entity.Index.Equals swappingEntity.Index) then
+                        data.IndexLookup.[swappingEntity.Index] <- index
+
+                    this.AnyComponentRemovedEvent.Trigger ({ entity = entity; componentType = typeof<'T> })
+                    data.ComponentRemovedEvent.Trigger ({ entity = entity })
+                else
+                    printfn "ECS WARNING: Component, %s, does not exist on %A." typeof<'T>.Name entity
+
             else
-                let entity =
-                    if this.RemovedEntityQueue.Count > 0 then
-                        let entity = this.RemovedEntityQueue.Dequeue ()
-                        Entity (entity.Index, entity.Version + 1u)
-                    else
-                        let index = this.nextEntityIndex
-                        this.nextEntityIndex <- index + 1
-                        Entity (index, 0u)
+                printfn "ECS WARNING: %A is invalid. Cannot remove component, %s." entity typeof<'T>.Name
 
-                this.ActiveVersions.[entity.Index] <- entity.Version
-                this.ActiveIndices.[entity.Index] <- true
+    member this.Spawn f =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+                         
+        if this.RemovedEntityQueue.Count = 0 && this.nextEntityIndex >= this.MaxEntityAmount then
+            printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (this.MaxEntityAmount - 1)
+            Entity ()
+        else
+            let entity =
+                if this.RemovedEntityQueue.Count > 0 then
+                    let entity = this.RemovedEntityQueue.Dequeue ()
+                    Entity (entity.Index, entity.Version + 1u)
+                else
+                    let index = this.nextEntityIndex
+                    this.nextEntityIndex <- index + 1
+                    Entity (index, 1u)
 
-                this.EmitSpawnEntityEventQueue.Enqueue (fun () ->
-                    this.EntitySpawnedEvent.Trigger (EntitySpawned (entity))
-                )
+            this.ActiveVersions.[entity.Index] <- entity.Version
+            this.ActiveIndices.[entity.Index] <- true
 
+            this.EntitySpawnedEvent.Trigger ({ entity = entity })
+
+            if this.CurrentIterations > 0 then
+                this.PendingComponentAdditionsQueue.Enqueue ((entity, f))
+            else
                 f entity
 
-        )
-       
-    member this.DestoryNow (entity: Entity) =
-        if this.IsValidEntity entity then
-            let removals = this.EntityRemovals.[entity.Index]
-            removals.ForEach (fun f -> f entity)
-            removals.Clear ()
-            this.RemovedEntityQueue.Enqueue entity  
-
-            this.ActiveVersions.[entity.Index] <- 0u
-            this.ActiveIndices.[entity.Index] <- false
-
-            this.EmitDestroyEntityEventQueue.Enqueue (fun () ->
-                this.EntityDestroyedEvent.Trigger (EntityDestroyed (entity))
-            )
-        else
-            printfn "ECS WARNING: %A is invalid. Cannot destroy." entity
+            entity
 
     member this.Destroy (entity: Entity) =
-        this.DestroyEntityQueue.Enqueue (entity)  
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        if this.CurrentIterations > 0 then
+            this.PendingEntityRemovalQueue.Enqueue entity
+        else
+            if this.IsValidEntity entity then
+                let removals = this.EntityRemovals.[entity.Index]
+                removals.ForEach (fun f -> f entity)
+                removals.Clear ()
+                this.RemovedEntityQueue.Enqueue entity  
+
+                this.ActiveVersions.[entity.Index] <- 0u
+                this.ActiveIndices.[entity.Index] <- false
+
+                this.EntityDestroyedEvent.Trigger ({ entity = entity })
+            else
+                printfn "ECS WARNING: %A is invalid. Cannot destroy." entity
 
     // Component Query
 
-    member this.TryGet<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity, result: TryGetDelegate<'T>) : bool =
-        if this.IsValidEntity entity then
-            let mutable data = Unchecked.defaultof<IEntityLookupData>
-            if this.Lookup.TryGetValue (typeof<'T>, &data) then
-                let data = data :?> EntityLookupData<'T>
+    //************************************************************************************************************************
 
-                let index = data.IndexLookup.[entity.Index]
-                if index >= 0 then
-                    result.Invoke (entity, &data.Components.Buffer.[index])
-                    true
-                else
-                    false
-            else
-                false
+    member this.TryGetEntityRef<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) : EntityRef<'T> option =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        let mutable data = Unchecked.defaultof<IEntityLookupData>
+        if this.Lookup.TryGetValue (typeof<'T>, &data) then
+            Internal.tryGetEntityRef<'T> entity (downcast data) this.ActiveVersions
+        else
+            None
+
+    member this.GetAspect<'T when 'T :> IEntityComponent and 'T : not struct> () : Aspect<'T> =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        let data = this.GetEntityLookupData<'T> ()
+        {
+            Data = data
+        }
+
+    //************************************************************************************************************************
+
+    member this.TryGet<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) : 'T option =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        let mutable data = Unchecked.defaultof<IEntityLookupData>
+        if this.Lookup.TryGetValue (typeof<'T>, &data) then
+            Internal.tryGet<'T> entity (downcast data) this.ActiveVersions
+        else
+            None
+
+    member this.TryGet (entityRef: EntityRef<'T>) =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        Internal.tryGet<'T> entityRef.entity entityRef.data this.ActiveVersions
+
+    member this.TryGet (aspect: Aspect<'T>, entity: Entity) =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        Internal.tryGet<'T> entity aspect.Data this.ActiveVersions
+
+    member this.IsValid entity =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        this.IsValidEntity entity
+
+    member this.HasComponent<'T when 'T :> IEntityComponent and 'T : not struct> (entity: Entity) =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        let mutable data = Unchecked.defaultof<IEntityLookupData>
+        if this.Lookup.TryGetValue (typeof<'T>, &data) then
+            let data = data :?> EntityLookupData<'T>
+            data.Active.[entity.Index]
         else
             false
+    
 
+    //************************************************************************************************************************
 
-    member this.TryFind<'T when 'T :> IEntityComponent and 'T : not struct> (predicate: TryFindDelegate<'T>, result: TryGetDelegate<'T>) : bool =
+    member this.TryFind<'T when 'T :> IEntityComponent and 'T : not struct> (predicate: (Entity -> 'T -> bool)) : (Entity * 'T) option =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
         let mutable data = Unchecked.defaultof<IEntityLookupData>
         if this.Lookup.TryGetValue (typeof<'T>, &data) then
             let data = data :?> EntityLookupData<'T>
 
-            let count = data.Entities.Count
+            this.CurrentIterations <- this.CurrentIterations + 1
 
-            let rec tryFind isFound = function
-                | i when i >= count -> isFound
+            let rec tryFind result = function
+                | i when i >= data.Entities.Count -> result
                 | i ->
                     let entity = data.Entities.Buffer.[i]
 
-                    if this.ActiveIndices.[entity.Index] && data.Active.[entity.Index] && predicate.Invoke (entity, &data.Components.Buffer.[i]) then 
-                        result.Invoke (entity, &data.Components.Buffer.[i])
-                        tryFind true count
+                    if this.ActiveIndices.[entity.Index] && data.Active.[entity.Index] && predicate entity data.Components.Buffer.[i] then 
+                        tryFind (Some (entity, data.Components.Buffer.[i])) data.Entities.Count
                     else
-                        tryFind false (i + 1)
+                        tryFind result (i + 1)
 
-            tryFind false 0
+            let result = tryFind None 0
+
+            this.CurrentIterations <- this.CurrentIterations - 1
+            this.ResolvePendingQueues ()
+
+            result
         else
-            false
+            None
 
-    member this.ForEach<'T when 'T :> IEntityComponent and 'T : not struct> f : unit =
-        this.Iterate<'T> (f, false)
+    member this.ForEach<'T when 'T :> IEntityComponent and 'T : not struct> (f: Entity -> 'T -> unit) : unit =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        this.CurrentIterations <- this.CurrentIterations + 1
+
+        this.Iterate<'T> (f)
+
+        this.CurrentIterations <- this.CurrentIterations - 1
+        this.ResolvePendingQueues ()
+
+    member this.ForEach<'T when 'T :> IEntityComponent and 'T : not struct> (aspect: Aspect<'T>, f: Entity -> 'T -> unit) =
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        this.CurrentIterations <- this.CurrentIterations + 1
+
+        Internal.iter f aspect.Data this.ActiveIndices
+
+        this.CurrentIterations <- this.CurrentIterations - 1
+        this.ResolvePendingQueues ()
 
     member this.ForEach<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> f : unit =
-        this.Iterate<'T1, 'T2> (f, false)
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        this.CurrentIterations <- this.CurrentIterations + 1
+
+        this.Iterate<'T1, 'T2> (f)
+
+        this.CurrentIterations <- this.CurrentIterations - 1
+        this.ResolvePendingQueues ()
 
     member this.ForEach<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> f : unit =
-        this.Iterate<'T1, 'T2, 'T3> (f, false)
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
+
+        this.CurrentIterations <- this.CurrentIterations + 1
+
+        this.Iterate<'T1, 'T2, 'T3> (f)
+
+        this.CurrentIterations <- this.CurrentIterations - 1
+        this.ResolvePendingQueues ()
 
     member this.ForEach<'T1, 'T2, 'T3, 'T4 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T4 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct and 'T4 : not struct> f : unit =
-        this.Iterate<'T1, 'T2, 'T3, 'T4> (f, false)
+        if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
+            failwith Internal.ThreadError
 
-    member this.ParallelForEach<'T when 'T :> IEntityComponent and 'T : not struct> f : unit =
-        this.Iterate<'T> (f, true)
+        this.CurrentIterations <- this.CurrentIterations + 1
 
-    member this.ParallelForEach<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> f : unit =
-        this.Iterate<'T1, 'T2> (f, true)
+        this.Iterate<'T1, 'T2, 'T3, 'T4> (f)
 
-    member this.ParallelForEach<'T1, 'T2, 'T3 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T3 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct and 'T3 : not struct> f : unit =
-        this.Iterate<'T1, 'T2, 'T3> (f, true)
-
-type Entities = EntityManager
-
-[<ReferenceEquality>]
-type Aspect<'T when 'T :> IEntityComponent and 'T : not struct> =
-    {
-        Data: EntityLookupData<'T>
-        EntityManager: EntityManager
-    }
-
-    member this.ForEach (f) =
-        AspectIterations.iter f false this.Data this.EntityManager.ActiveIndices
-
-[<ReferenceEquality>]
-type Aspect<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> =
-    {
-        Data: IEntityLookupData
-        Data1: EntityLookupData<'T1>
-        Data2: EntityLookupData<'T2>
-        EntityManager: EntityManager
-    }
-
-    member this.ForEach (f) =
-        AspectIterations.iter2 f false this.Data this.Data1 this.Data2 this.EntityManager.ActiveIndices
-
-type EntityManager with
-
-    member this.GetAspect<'T when 'T :> IEntityComponent and 'T : not struct> () : Aspect<'T> =
-        let data = this.GetEntityLookupData<'T> ()
-        {
-            Data = data
-            EntityManager = this
-        }
-
-    member this.GetAspect<'T1, 'T2 when 'T1 :> IEntityComponent and 'T2 :> IEntityComponent and 'T1 : not struct and 'T2 : not struct> () =
-        let data1 = this.GetEntityLookupData<'T1> ()
-        let data2 = this.GetEntityLookupData<'T2> ()
-        let data = [|data1 :> IEntityLookupData; data2 :> IEntityLookupData|] |> Array.minBy (fun x -> x.Entities.Count)
-        {
-            Data = data
-            Data1 = data1
-            Data2 = data2
-            EntityManager = this
-        }
+        this.CurrentIterations <- this.CurrentIterations - 1
+        this.ResolvePendingQueues ()

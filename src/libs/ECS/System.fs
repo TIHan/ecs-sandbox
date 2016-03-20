@@ -1,55 +1,159 @@
-﻿namespace BeyondGames.Ecs
+﻿namespace FSharp.ECS
 
 open System
 
 [<AbstractClass>]
-type EntityEvent () = 
+type EntitySystemEvent () = 
 
-    abstract Handle : Entities -> Events -> IDisposable
-
-[<Sealed>]
-type EntityEvent<'T when 'T :> IEntityEvent> (f: Entities -> 'T -> unit) =
-    inherit EntityEvent ()
-
-    override this.Handle entities events = 
-        let handle = f entities
-        events.GetEvent<'T>().Publish.Subscribe handle
+    abstract Handle : EventManager -> IDisposable
 
 [<AutoOpen>]
 module EntityEventOperators =
 
-    let handle<'T when 'T :> IEntityEvent> = EntityEvent<'T>
+    let handle<'T when 'T :> IEntitySystemEvent> (f: 'T -> unit) = 
+        {
+            new EntitySystemEvent () with
 
-type IEntitySystemShutdown =
+                override this.Handle eventManager =
+                    eventManager.GetEvent<'T>().Publish.Subscribe (f)
+        }
+
+type InitializeResult<'Update> =
+    | Update of name: string * ('Update -> unit)
+    | Merged of name: string * IEntitySystem<'Update> list
+    | NoResult
+
+and IEntitySystem<'Update> =
+
+    abstract Events : EntitySystemEvent list
 
     abstract Shutdown : unit -> unit
 
-type IEntitySystem<'UpdateData> =
+    abstract Initialize : EntityManager -> EventManager -> InitializeResult<'Update>
 
-    abstract Events : EntityEvent list
-
-    abstract Initialize : Entities -> Events -> ('UpdateData -> unit)
+type EntitySystem<'Update> = EntitySystem of (unit -> IEntitySystem<'Update>)
 
 [<RequireQualifiedAccess>]
-module EntitySystems =
+module EntitySystem =
 
-    [<Sealed>]
-    type EntitySystem<'UpdateData> (name: string, events, init) =
+    let build (f: unit -> EntitySystem<_>) =
+        EntitySystem (fun () ->
+            match f () with
+            | EntitySystem g -> g ()
+        )
 
-        member this.Name = name
+    let merge name (systems: EntitySystem<'T> list) =
+        EntitySystem (
+            fun () ->
+                let systems =
+                    systems
+                    |> List.map (fun (EntitySystem sysCtor) -> sysCtor ())
+                {
+                    new IEntitySystem<'T> with
 
-        interface IEntitySystem<'UpdateData> with
+                        member this.Events  =
+                            systems
+                            |> List.map (fun sys -> sys.Events)
+                            |> List.reduce (@)
 
-            member __.Events = events
+                        member this.Shutdown () =
+                            systems
+                            |> List.iter (fun sys -> sys.Shutdown ())
 
-            member __.Initialize entities events =
-                init entities events
+                        member this.Initialize entityManager eventManager =
+                            Merged (name, systems)
+                }
+        )
 
-    [<Sealed>]
-    type EntityProcessor () =
+module Systems =
 
-        interface IEntitySystem<unit> with
+    let system name init =
+        EntitySystem (fun () -> 
+            {
+                new IEntitySystem<'Update> with
 
-            member __.Events = []
+                    member this.Events = []
 
-            member __.Initialize entities _ = entities.Process
+                    member this.Shutdown () = ()
+
+                    member this.Initialize entityManager eventManager =
+                        Update (name, init entityManager eventManager)
+            }
+        )
+
+    let eventListener<'Update, 'Event when 'Event :> IEntitySystemEvent and 'Event : not struct> f =
+        EntitySystem (fun () ->
+            {
+                new IEntitySystem<'Update> with
+
+                    member this.Events = [ handle<'Event> f ]
+
+                    member this.Shutdown () = ()
+
+                    member this.Initialize _ _ = NoResult
+            }
+        )
+
+    let getTypeName (t: Type) =
+        let name = t.Name
+        let index = name.IndexOf ('`')
+        if index = -1 then name else name.Substring (0, index)
+
+    let getTypeNameWithTypeArgNames (t: Type) =
+        let rec getTypeArgNames (t: Type) typeArgNames = function
+            | [] -> 
+                let name = getTypeName t
+                let typeArgNames = typeArgNames |> List.rev
+
+                match typeArgNames with
+                | [] -> name
+                | _ ->
+                    sprintf "%s<%s>" name
+                        (
+                            typeArgNames
+                            |> List.reduce (fun x y -> x + ", " + y)
+                        )
+
+            | (typeArg: Type) :: typeArgs ->
+                let typeArgName = 
+                    getTypeArgNames typeArg [] (typeArg.GenericTypeArguments |> List.ofArray)
+
+                getTypeArgNames t (typeArgName :: typeArgNames) typeArgs
+
+        getTypeArgNames t [] (t.GenericTypeArguments |> List.ofArray)
+
+    let eventQueue<'Update, 'Event when 'Event :> IEntitySystemEvent and 'Event : not struct> f =
+        EntitySystem (fun () ->
+            let name = sprintf "Event Queue of `%s`" (getTypeNameWithTypeArgNames typeof<'Event>)
+            let queue = System.Collections.Concurrent.ConcurrentQueue ()
+            {
+                new IEntitySystem<'Update> with
+
+                    member this.Events = [ handle<'Event> queue.Enqueue ]
+
+                    member this.Shutdown () = ()
+
+                    member this.Initialize entityManager eventManager =
+                        let f = f entityManager eventManager
+                        Update (
+                            name,
+                            fun data ->
+                                let mutable event = Unchecked.defaultof<'Event>
+                                while queue.TryDequeue (&event) do
+                                    f data event
+                        )
+            }
+        )
+
+    let shutdown<'Update> f =
+        EntitySystem (fun () ->
+            {
+                new IEntitySystem<'Update> with
+
+                    member this.Events = []
+
+                    member this.Shutdown () = f ()
+
+                    member this.Initialize _ _ = NoResult
+            }
+        )

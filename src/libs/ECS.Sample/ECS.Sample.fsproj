@@ -3,10 +3,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{470D7960-D989-457F-A95E-DD5A8C687653}</ProjectGuid>
+    <ProjectGuid>{BA9B40D5-B85A-42CC-83D7-9868367D8026}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ECS.Tests</RootNamespace>
-    <AssemblyName>ECS.Tests</AssemblyName>
+    <RootNamespace>ECS.Sample</RootNamespace>
+    <AssemblyName>ECS.Sample</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -20,7 +20,7 @@
     </PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugSymbols>false</DebugSymbols>
+    <DebugSymbols>true</DebugSymbols>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release</OutputPath>
     <DefineConstants>
@@ -33,36 +33,24 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <Reference Include="FSharp.Core" />
-    <Reference Include="xunit.abstractions">
-      <HintPath>..\packages\xunit.abstractions.2.0.0\lib\net35\xunit.abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="xunit.core">
-      <HintPath>..\packages\xunit.extensibility.core.2.1.0\lib\portable-net45+win8+wp8+wpa81\xunit.core.dll</HintPath>
-    </Reference>
-    <Reference Include="xunit.execution.desktop">
-      <HintPath>..\packages\xunit.extensibility.execution.2.1.0\lib\net45\xunit.execution.desktop.dll</HintPath>
-    </Reference>
-    <Reference Include="xunit.assert">
-      <HintPath>..\packages\xunit.assert.2.1.0\lib\portable-net45+win8+wp8+wpa81\xunit.assert.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.1\Framework\v4.0\Microsoft.FSharp.Targets" />
-  <Import Project="..\packages\xunit.core.2.1.0\build\portable-net45+win8+wp8+wpa81\xunit.core.props" Condition="Exists('..\packages\xunit.core.2.1.0\build\portable-net45+win8+wp8+wpa81\xunit.core.props')" />
   <ItemGroup>
-    <ProjectReference Include="..\src\libs\ECS\ECS.fsproj">
+    <ProjectReference Include="..\ECS\ECS.fsproj">
       <Project>{5CFBAD2F-6E20-48C5-960A-8A98D726EA03}</Project>
       <Name>ECS</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    <ProjectReference Include="..\..\..\LitePickler\LitePickler.fsproj">
+      <Project>{FA18AE53-83F9-45BB-8683-D13477121C03}</Project>
+      <Name>LitePickler</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>
