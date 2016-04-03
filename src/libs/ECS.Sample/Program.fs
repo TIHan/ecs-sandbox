@@ -160,6 +160,17 @@ module TestSerialization =
         let mutable o = (arr.[i] :> obj)
         deserialize.Invoke (&o, liteReadStream)
 
+open Gtk;
+
+//type Window =
+//    {
+//        mutable x: int
+//        mutable y: int
+//    }
+
+//let init (window: Window) =
+    
+
 [<EntryPoint>]
 let main argv =
     let arr = Array.init 1000 (fun i -> { Value = i; Message = "butt" })
@@ -176,6 +187,24 @@ let main argv =
 
     for i = 0 to 1000 - 1 do
         test ()
+
+    Gtk.Application.Init();
+
+    //Create the Window
+    use myWin = new Window("My first GTK# Application! ")
+    myWin.Resize(200,200)
+ 
+    //Create a label and put some text in it.
+    use myLabel = new Label()
+    myLabel.Text <- "Hello World!!!!"
+ 
+    //Add the label to the form
+    myWin.Add(myLabel)
+ 
+    //Show Everything
+    myWin.ShowAll()
+ 
+    Application.Run();
 
     printfn "%A" arr.[0]
     0
