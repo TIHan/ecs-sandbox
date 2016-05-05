@@ -350,24 +350,24 @@ type EntityManager =
         if this.CurrentIterations > 0 then
             this.PendingEntitySpawnQueue.Enqueue (fun () -> this.Spawn f)
         else
-        if this.RemovedEntityQueue.Count = 0 && this.NextEntityIndex >= this.MaxEntityAmount then
-            printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (this.MaxEntityAmount - 1)
-        else
-            let entity =
-                if this.RemovedEntityQueue.Count > 0 then
-                    let entity = this.RemovedEntityQueue.Dequeue ()
-                    Entity (entity.Index, entity.Version + 1u)
-                else
-                    let index = this.NextEntityIndex
-                    this.NextEntityIndex <- index + 1
-                    Entity (index, 1u)
+            if this.RemovedEntityQueue.Count = 0 && this.NextEntityIndex >= this.MaxEntityAmount then
+                printfn "ECS WARNING: Unable to spawn entity. Max entity amount hit: %i." (this.MaxEntityAmount - 1)
+            else
+                let entity =
+                    if this.RemovedEntityQueue.Count > 0 then
+                        let entity = this.RemovedEntityQueue.Dequeue ()
+                        Entity (entity.Index, entity.Version + 1u)
+                    else
+                        let index = this.NextEntityIndex
+                        this.NextEntityIndex <- index + 1
+                        Entity (index, 1u)
 
-            this.ActiveVersions.[entity.Index] <- entity.Version
-            this.ActiveIndices.[entity.Index] <- true
+                this.ActiveVersions.[entity.Index] <- entity.Version
+                this.ActiveIndices.[entity.Index] <- true
 
-            this.EntitySpawnedEvent.Trigger ({ entity = entity })
+                this.EntitySpawnedEvent.Trigger ({ entity = entity })
 
-            f entity
+                f entity
 
     member this.Destroy (entity: Entity) =
         if this.ThreadId <> System.Threading.Thread.CurrentThread.ManagedThreadId then
