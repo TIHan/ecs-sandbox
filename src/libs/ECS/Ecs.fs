@@ -22,13 +22,30 @@ type EventManager  =
             Lookup = ConcurrentDictionary<Type, obj> ()
         }
 
-    member this.Trigger (event: 'T when 'T :> IEntitySystemEvent and 'T : not struct) =
+    member this.Publish (event: 'T when 'T :> IEntitySystemEvent and 'T : not struct) =
         let mutable value = Unchecked.defaultof<obj>
         if this.Lookup.TryGetValue (typeof<'T>, &value) then
             (value :?> Event<'T>).Trigger event
 
-    member this.GetEvent<'T when 'T :> IEntitySystemEvent> () =
+    member this.Subscribe<'T when 'T :> IEntitySystemEvent> (f: 'T -> unit) =
+        
+
+     member this.GetEvent<'T when 'T :> IEntitySystemEvent> () =
        this.Lookup.GetOrAdd (typeof<'T>, valueFactory = (fun _ -> Event<'T> () :> obj)) :?> Event<'T>
+
+[<ReferenceEquality>]
+type EventPublisher =
+    {
+        EventManager: EventManager
+    }
+
+    static member Create (eventManager: EventManager) =
+        {
+            EventManager = eventManager
+        }
+
+    member this.Publish<'T when 'T :> IEntitySystemEvent and 'T : not struct> (event: 'T) =
+        this.EventManager.Publish (event)
 
 /// This is internal use only.
 module DataStructures =
@@ -132,7 +149,7 @@ type IEntityLookupData =
 
     abstract Entities : Entity UnsafeResizeArray with get
 
-    abstract Remove : Entity -> unit
+    abstract Remove : Entity -> bool
 
 [<ReferenceEquality>]
 type EntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> =
@@ -149,6 +166,7 @@ type EntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> =
     member data.Add (entity: Entity) (comp: 'T) =
         if data.IndexLookup.[entity.Index] >= 0 then
             printfn "ECS WARNING: Component, %s, already added to %A." typeof<'T>.Name entity
+            false
         else
             data.Active.[entity.Index] <- true
             data.IndexLookup.[entity.Index] <- data.Entities.Count
@@ -156,7 +174,7 @@ type EntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> =
             data.Components.Add comp
             data.Entities.Add entity
 
-            data.ComponentAddedEvent.Trigger ({ entity = entity })
+            true
 
     interface IEntityLookupData with
 
@@ -176,9 +194,10 @@ type EntityLookupData<'T when 'T :> IEntityComponent and 'T : not struct> =
                 if not (entity.Index.Equals swappingEntity.Index) then
                     data.IndexLookup.[swappingEntity.Index] <- index
 
-                data.ComponentRemovedEvent.Trigger ({ entity = entity })
+                true
             else
                 printfn "ECS WARNING: Component, %s, does not exist on %A." typeof<'T>.Name entity
+                false
 
 [<ReferenceEquality>]
 type EntityManager =
@@ -326,7 +345,8 @@ type EntityManager =
         else
             if this.IsValidEntity entity then
                 let data = this.GetEntityLookupData<'T> ()
-                data.Add entity comp
+                if data.Add entity comp then
+                    data.ComponentAddedEvent.Trigger ({ entity = entity })
             else
                 printfn "ECS WARNING: %A is invalid. Cannot add component, %s." entity typeof<'T>.Name
 
@@ -338,8 +358,9 @@ type EntityManager =
             this.PendingComponentRemoveQueue.Enqueue (fun () -> this.RemoveComponent<'T> (entity))
         else
             if this.IsValidEntity entity then
-                let data = this.GetEntityLookupData<'T> () :> IEntityLookupData
-                data.Remove (entity)
+                let data = this.GetEntityLookupData<'T> ()
+                if (data :> IEntityLookupData).Remove (entity) then
+                    data.ComponentRemovedEvent.Trigger ({ entity = entity })
             else
                 printfn "ECS WARNING: %A is invalid. Cannot remove component, %s." entity typeof<'T>.Name
 
@@ -410,17 +431,19 @@ type EntityManager =
 
 type ISystem<'T> =
 
-    abstract Init : EntityManager * EventManager -> ('T -> unit)
+    abstract Init : EventManager -> unit
+
+    abstract Update : EntityManager -> EventManager -> 'T -> unit
 
 type World<'T> (maxEntityAmount, systems: ISystem<'T> seq) =
     let eventManager = EventManager.Create ()
     let entityManager = EntityManager.Create (eventManager, maxEntityAmount)
-    let updates =
+
+    do
         systems
-        |> Seq.map (fun sys -> sys.Init (entityManager, eventManager))
-        |> Array.ofSeq
+        |> Seq.iter (fun sys -> sys.Init (eventManager))
 
     member this.Update data =
-        updates
-        |> Array.iter (fun update -> update data)
+        systems
+        |> Seq.iter (fun sys -> sys.Update entityManager eventManager data)
     
